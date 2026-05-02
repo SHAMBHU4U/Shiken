@@ -531,7 +531,8 @@ export default function SubjectPage() {
 
     setScreen("loading");
     const controller = new AbortController();
-    const dbUrl = `https://shiken-d8789-default-rtdb.firebaseio.com/${encodeURIComponent(meta.path)}.json`;
+    const dbPath = meta.path.toLowerCase(); // always lowercase; "social science" keeps its space
+    const dbUrl  = `https://shiken-d8789-default-rtdb.firebaseio.com/${encodeURIComponent(dbPath)}.json`;
 
     fetch(dbUrl, { signal: controller.signal })
       .then((r) => r.json())
