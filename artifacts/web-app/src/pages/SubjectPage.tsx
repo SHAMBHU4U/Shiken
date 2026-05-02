@@ -129,9 +129,11 @@ function addRecord(subject: string, rec: TestRecord): TestRecord[] {
       chapter: rec.chapter,
       timestamp: rec.date,
     }).catch(() => { /* offline — ignore */ });
+    const username = localStorage.getItem("shiken_username") || "";
     set(ref(db, `userActivity/${safeId}/meta`), {
       lastActive: rec.date,
       deviceId,
+      ...(username ? { username } : {}),
     }).catch(() => { /* offline — ignore */ });
   } catch { /* never block quiz flow */ }
 

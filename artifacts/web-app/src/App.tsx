@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +7,197 @@ import { auth } from "@/firebase";
 import SubjectPage from "@/pages/SubjectPage";
 import AdminPage from "@/pages/AdminPage";
 import ProgressPage from "@/pages/ProgressPage";
+
+// ─── Username helpers ──────────────────────────────────────────────────────────
+const USERNAME_KEY = "shiken_username";
+const DEVICE_ID_KEY = "shiken_device_id";
+const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
+
+function getStoredUsername(): string { return localStorage.getItem(USERNAME_KEY) ?? ""; }
+function getDeviceId(): string { return localStorage.getItem(DEVICE_ID_KEY) ?? ""; }
+
+function saveUsername(name: string) {
+  localStorage.setItem(USERNAME_KEY, name);
+  const deviceId = getDeviceId();
+  if (!deviceId) return;
+  const safeId = deviceId.replace(/[.#$/[\]]/g, "_");
+  fetch(`${DB_URL}/userActivity/${safeId}/meta.json`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username: name, deviceId }),
+  }).catch(() => {});
+}
+
+// ─── Leaderboard types & fetch ────────────────────────────────────────────────
+
+interface LeaderEntry {
+  deviceId: string;
+  username: string;
+  avgPct: number;
+  totalSessions: number;
+  subjectCount: number;
+}
+
+async function fetchLeaderboard(): Promise<LeaderEntry[]> {
+  try {
+    const res = await fetch(`${DB_URL}/userActivity.json`);
+    if (!res.ok) return [];
+    const data = await res.json() as Record<string, {
+      meta?: { deviceId: string; lastActive: number; username?: string };
+      sessions?: Record<string, { pct: number; subject: string }>;
+    }> | null;
+    if (!data) return [];
+    return Object.values(data)
+      .map((u) => {
+        const sessions = u.sessions ? Object.values(u.sessions) : [];
+        if (sessions.length < 1) return null;
+        const avgPct = Math.round(sessions.reduce((s, r) => s + r.pct, 0) / sessions.length);
+        const subjectCount = new Set(sessions.map((s) => s.subject)).size;
+        return {
+          deviceId: u.meta?.deviceId ?? "",
+          username: u.meta?.username?.trim() || "Anonymous",
+          avgPct,
+          totalSessions: sessions.length,
+          subjectCount,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b!.avgPct - a!.avgPct || b!.totalSessions - a!.totalSessions)
+      .slice(0, 10) as LeaderEntry[];
+  } catch { return []; }
+}
+
+const RANK_MEDALS = ["🥇", "🥈", "🥉"];
+const GRADE_COLOR = (p: number) => p >= 80 ? "#10b981" : p >= 60 ? "#f59e0b" : "#ef4444";
+
+// ─── Leaderboard component ────────────────────────────────────────────────────
+
+function Leaderboard() {
+  const [entries, setEntries] = useState<LeaderEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const myDeviceId = getDeviceId();
+
+  useEffect(() => {
+    fetchLeaderboard().then((data) => { setEntries(data); setLoading(false); });
+    const t = setInterval(() => fetchLeaderboard().then(setEntries), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (loading) return (
+    <div className="flex items-center justify-center gap-2 py-5 text-white/20 text-xs">
+      <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="inline-block w-3 h-3 rounded-full border border-white/20 border-t-white/60" />
+      Loading leaderboard…
+    </div>
+  );
+
+  if (entries.length === 0) return (
+    <div className="text-center py-5 text-white/20 text-xs">
+      No scores yet — complete a test to appear here!
+    </div>
+  );
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+      className="mb-8 rounded-2xl overflow-hidden"
+      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}
+    >
+      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🏆</span>
+          <span className="text-white font-black text-sm tracking-tight">Leaderboard</span>
+        </div>
+        <span className="text-white/20 text-xs">Top {entries.length}</span>
+      </div>
+
+      <div className="flex flex-col">
+        {entries.map((e, i) => {
+          const isMe = e.deviceId === myDeviceId;
+          return (
+            <motion.div
+              key={e.deviceId || i}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.35 + i * 0.04 }}
+              className="flex items-center gap-3 px-4 py-2.5 transition-colors"
+              style={{
+                background: isMe ? "rgba(139,92,246,0.1)" : i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)",
+                borderLeft: isMe ? "2px solid #8b5cf6" : "2px solid transparent",
+              }}
+            >
+              <span className="w-6 text-center text-sm shrink-0">
+                {i < 3 ? RANK_MEDALS[i] : <span className="text-white/25 font-bold text-xs">{i + 1}</span>}
+              </span>
+
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-white truncate">
+                  {e.username} {isMe && <span className="text-purple-400 text-xs font-medium">(you)</span>}
+                </p>
+                <p className="text-white/30 text-xs">{e.totalSessions} test{e.totalSessions !== 1 ? "s" : ""} · {e.subjectCount} subject{e.subjectCount !== 1 ? "s" : ""}</p>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-black" style={{ color: GRADE_COLOR(e.avgPct) }}>{e.avgPct}%</p>
+                <p className="text-white/20 text-xs">avg</p>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Username setup prompt ────────────────────────────────────────────────────
+
+function UsernameSetup({ onDone }: { onDone: (name: string) => void }) {
+  const [val, setVal] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const name = val.trim().slice(0, 20) || "Anonymous";
+    saveUsername(name);
+    onDone(name);
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -8, scale: 0.97 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      className="mb-8 rounded-2xl p-5"
+      style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.25)" }}
+    >
+      <p className="text-white font-black text-sm mb-0.5">👋 What's your name?</p>
+      <p className="text-white/40 text-xs mb-4">Appear on the leaderboard by setting a display name.</p>
+      <form onSubmit={submit} className="flex gap-2">
+        <input
+          ref={inputRef}
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          placeholder="Your name…"
+          maxLength={20}
+          className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
+          style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+        />
+        <motion.button type="submit" whileTap={{ scale: 0.96 }}
+          className="px-4 py-2.5 rounded-xl text-sm font-bold text-white shrink-0"
+          style={{ background: "linear-gradient(135deg,#8b5cf6,#6366f1)", boxShadow: "0 2px 12px rgba(139,92,246,0.35)" }}>
+          Join →
+        </motion.button>
+      </form>
+      <button onClick={() => { saveUsername("Anonymous"); onDone("Anonymous"); }}
+        className="mt-2 text-white/20 hover:text-white/40 text-xs transition-colors">
+        Skip
+      </button>
+    </motion.div>
+  );
+}
 
 function AdminGuard() {
   const [user, setUser] = useState<User | null | "loading">("loading");
@@ -320,6 +511,8 @@ function SubjectCard({
 
 function Dashboard() {
   const [, navigate] = useLocation();
+  const [username, setUsername] = useState(getStoredUsername);
+  const hasName = username !== "";
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
@@ -381,6 +574,28 @@ function Dashboard() {
             Choose your subject and start learning
           </p>
         </motion.div>
+
+        <AnimatePresence mode="wait">
+          {!hasName ? (
+            <UsernameSetup key="setup" onDone={(n) => setUsername(n)} />
+          ) : (
+            <motion.div key="leaderboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <span />
+                <button
+                  onClick={() => {
+                    const n = prompt("Change your display name:", username);
+                    if (n !== null && n.trim()) { const clean = n.trim().slice(0, 20); saveUsername(clean); setUsername(clean); }
+                  }}
+                  className="text-white/20 hover:text-white/50 text-xs transition-colors"
+                >
+                  ✏ {username}
+                </button>
+              </div>
+              <Leaderboard />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="flex flex-col gap-4">
           {subjects.map((subject, index) => (
