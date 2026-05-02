@@ -668,13 +668,14 @@ interface PaymentRecord {
   uid: string;
   plan: string;
   amount: number;
-  activatedAt: number;
+  requestedAt: number;
   premiumUntil: number;
-  paymentVerified: boolean;
+  status: "awaiting_verify" | "verified" | "revoked";
 }
 
 const PLAN_AMOUNTS: Record<string, number> = { monthly: 49, biannual: 199 };
 const PLAN_LABELS:  Record<string, string>  = { monthly: "Basic Monthly (30d)", biannual: "Topper's Choice (6mo)" };
+const ADMIN_WA_NUMBER = "918340472013";
 
 async function fetchPayments(): Promise<PaymentRecord[]> {
   const res = await fetch(`${DB_URL}/users.json`);
@@ -682,29 +683,60 @@ async function fetchPayments(): Promise<PaymentRecord[]> {
   const data = await res.json() as Record<string, {
     subscriptionType?: string;
     plan?: string;
+    pendingPlan?: string;
+    pendingAmount?: number;
     activatedAt?: number;
+    requestedAt?: number;
     premiumUntil?: number;
+    pendingUntil?: number;
     paymentVerified?: boolean;
   }> | null;
   if (!data) return [];
+
   return Object.entries(data)
-    .filter(([, u]) => u.subscriptionType === "premium" && u.activatedAt)
-    .map(([uid, u]) => ({
-      uid,
-      plan: u.plan ?? "monthly",
-      amount: PLAN_AMOUNTS[u.plan ?? "monthly"] ?? 49,
-      activatedAt: u.activatedAt!,
-      premiumUntil: u.premiumUntil ?? 0,
-      paymentVerified: u.paymentVerified === true,
-    }))
-    .sort((a, b) => b.activatedAt - a.activatedAt);
+    .filter(([, u]) =>
+      (u.subscriptionType === "pending" && u.requestedAt) ||
+      (u.subscriptionType === "premium" && (u.activatedAt || u.requestedAt))
+    )
+    .map(([uid, u]) => {
+      const plan = u.plan ?? u.pendingPlan ?? "monthly";
+      return {
+        uid,
+        plan,
+        amount: u.pendingAmount ?? PLAN_AMOUNTS[plan] ?? 49,
+        requestedAt: u.requestedAt ?? u.activatedAt ?? 0,
+        premiumUntil: u.premiumUntil ?? u.pendingUntil ?? 0,
+        status: u.subscriptionType === "pending"
+          ? "awaiting_verify" as const
+          : u.paymentVerified
+            ? "verified" as const
+            : "awaiting_verify" as const,
+      };
+    })
+    .sort((a, b) => b.requestedAt - a.requestedAt);
+}
+
+async function fetchPendingCount(): Promise<number> {
+  const res = await fetch(`${DB_URL}/users.json`);
+  if (!res.ok) return 0;
+  const data = await res.json() as Record<string, { subscriptionType?: string; paymentVerified?: boolean }> | null;
+  if (!data) return 0;
+  return Object.values(data).filter(u =>
+    u.subscriptionType === "pending" ||
+    (u.subscriptionType === "premium" && !u.paymentVerified)
+  ).length;
 }
 
 function PaymentCard({ rec, onAction }: { rec: PaymentRecord; onAction: () => void }) {
   const [working, setWorking] = useState(false);
-  const [status, setStatus] = useState<"verified" | "unverified">(rec.paymentVerified ? "verified" : "unverified");
-  const expired = rec.premiumUntil < Date.now();
+  const [localStatus, setLocalStatus] = useState(rec.status);
   const shortUid = rec.uid.length > 20 ? rec.uid.slice(0, 20) + "…" : rec.uid;
+  const dateLabel = rec.requestedAt
+    ? new Date(rec.requestedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "—";
+  const validTill = rec.premiumUntil
+    ? new Date(rec.premiumUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : "—";
 
   async function verify() {
     setWorking(true);
@@ -712,9 +744,15 @@ function PaymentCard({ rec, onAction }: { rec: PaymentRecord; onAction: () => vo
       await fetch(`${DB_URL}/users/${rec.uid}.json`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentVerified: true }),
+        body: JSON.stringify({
+          subscriptionType: "premium",
+          premiumUntil: rec.premiumUntil,
+          plan: rec.plan,
+          activatedAt: Date.now(),
+          paymentVerified: true,
+        }),
       });
-      setStatus("verified");
+      setLocalStatus("verified");
     } catch { /* ignore */ }
     finally { setWorking(false); }
   }
@@ -732,21 +770,24 @@ function PaymentCard({ rec, onAction }: { rec: PaymentRecord; onAction: () => vo
     finally { setWorking(false); }
   }
 
+  const waMsg = encodeURIComponent(`Namaste! 🎉 Aapki SHIKEN Premium payment verify ho gayi. Ab aap app open karke premium features use kar sakte hain! 👑`);
+  const waLink = `https://wa.me/${ADMIN_WA_NUMBER}?text=${waMsg}`;
+
+  const statusStyle =
+    localStatus === "verified"
+      ? { bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.22)", badge: { bg: "rgba(16,185,129,0.18)", color: "#10b981" }, label: "✓ Verified" }
+      : { bg: "rgba(251,191,36,0.06)", border: "rgba(251,191,36,0.22)", badge: { bg: "rgba(251,191,36,0.15)", color: "#fbbf24" }, label: "⏳ Awaiting Verify" };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border overflow-hidden"
-      style={{
-        background: status === "verified"
-          ? "rgba(16,185,129,0.05)"
-          : "rgba(251,191,36,0.05)",
-        border: `1px solid ${status === "verified" ? "rgba(16,185,129,0.2)" : "rgba(251,191,36,0.2)"}`,
-      }}
+      className="rounded-xl overflow-hidden"
+      style={{ background: statusStyle.bg, border: `1px solid ${statusStyle.border}` }}
     >
       {/* Top row */}
       <div className="flex items-center gap-3 px-4 py-3">
-        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-black text-sm"
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-black text-sm"
           style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
           ₹{rec.amount}
         </div>
@@ -754,46 +795,38 @@ function PaymentCard({ rec, onAction }: { rec: PaymentRecord; onAction: () => vo
           <p className="text-white/80 text-xs font-mono truncate">{shortUid}</p>
           <p className="text-white/35 text-xs mt-0.5">{PLAN_LABELS[rec.plan] ?? rec.plan}</p>
         </div>
-        <div className="shrink-0 text-right">
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
-            style={status === "verified"
-              ? { background: "rgba(16,185,129,0.2)", color: "#10b981" }
-              : { background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
-            {status === "verified" ? "✓ Verified" : "⏳ Pending"}
-          </span>
-          {expired && (
-            <p className="text-red-400/50 text-xs mt-0.5">Expired</p>
-          )}
-        </div>
+        <span className="text-xs font-bold px-2 py-1 rounded-full shrink-0"
+          style={statusStyle.badge}>
+          {statusStyle.label}
+        </span>
       </div>
 
-      {/* Meta row */}
-      <div className="flex items-center gap-4 px-4 pb-3 text-xs text-white/25">
-        <span>Activated: {new Date(rec.activatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+      {/* Dates row */}
+      <div className="flex items-center gap-3 px-4 pb-2 text-xs text-white/25">
+        <span>Requested: {dateLabel}</span>
         <span>·</span>
-        <span>Valid till: {new Date(rec.premiumUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+        <span>Valid till: {validTill}</span>
       </div>
 
-      {/* Action row */}
+      {/* Action buttons */}
       <div className="flex gap-2 px-4 pb-3">
-        {status === "unverified" && (
-          <motion.button
-            onClick={verify}
-            disabled={working}
-            whileTap={{ scale: 0.96 }}
-            className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
-            style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}
-          >
-            {working ? "…" : "✓ Verify Payment"}
+        {localStatus === "awaiting_verify" && (
+          <motion.button onClick={verify} disabled={working} whileTap={{ scale: 0.96 }}
+            className="flex-1 py-2 rounded-lg text-xs font-black transition-all"
+            style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}>
+            {working ? "…" : "✓ Verify & Activate"}
           </motion.button>
         )}
-        <motion.button
-          onClick={revoke}
-          disabled={working}
-          whileTap={{ scale: 0.96 }}
+        {localStatus === "verified" && (
+          <a href={waLink} target="_blank" rel="noreferrer"
+            className="flex-1 py-2 rounded-lg text-xs font-black text-center transition-all"
+            style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}>
+            💬 WhatsApp User
+          </a>
+        )}
+        <motion.button onClick={revoke} disabled={working} whileTap={{ scale: 0.96 }}
           className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
-          style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
-        >
+          style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.22)" }}>
           {working ? "…" : "✕ Revoke"}
         </motion.button>
       </div>
@@ -805,7 +838,7 @@ function PaymentsPanel() {
   const [records, setRecords] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "verified">("all");
+  const [filter, setFilter] = useState<"all" | "awaiting" | "verified">("awaiting");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -817,22 +850,22 @@ function PaymentsPanel() {
 
   useEffect(() => { load(); }, [load]);
 
-  const filtered = records.filter(r =>
-    filter === "all" ? true :
-    filter === "pending" ? !r.paymentVerified :
-    r.paymentVerified
-  );
+  const awaiting = records.filter(r => r.status === "awaiting_verify").length;
+  const verified = records.filter(r => r.status === "verified").length;
+  const revenue  = records.filter(r => r.status === "verified").reduce((s, r) => s + r.amount, 0);
 
-  const pending  = records.filter(r => !r.paymentVerified).length;
-  const verified = records.filter(r =>  r.paymentVerified).length;
-  const revenue  = records.reduce((s, r) => s + r.amount, 0);
+  const filtered = records.filter(r =>
+    filter === "all"      ? true :
+    filter === "awaiting" ? r.status === "awaiting_verify" :
+    r.status === "verified"
+  );
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-16 gap-3">
       <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         className="w-7 h-7 rounded-full border-2 border-transparent"
         style={{ borderTopColor: "#f59e0b", borderRightColor: "#fbbf24" }} />
-      <p className="text-white/30 text-xs">Loading payment records…</p>
+      <p className="text-white/30 text-xs">Loading payment requests…</p>
     </div>
   );
 
@@ -848,9 +881,9 @@ function PaymentsPanel() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
-          { label: "Total Revenue",    value: `₹${revenue}`,  color: "#10b981" },
-          { label: "Pending Review",   value: pending,         color: "#f59e0b" },
-          { label: "Verified",         value: verified,        color: "#8b5cf6" },
+          { label: "Verified Revenue", value: `₹${revenue}`, color: "#10b981" },
+          { label: "Needs Review",     value: awaiting,       color: awaiting > 0 ? "#f59e0b" : "rgba(255,255,255,0.2)" },
+          { label: "Verified",         value: verified,       color: "#8b5cf6" },
         ].map(s => (
           <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
             <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
@@ -859,17 +892,33 @@ function PaymentsPanel() {
         ))}
       </div>
 
+      {awaiting > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="rounded-xl px-4 py-3 mb-4 flex items-center gap-3"
+          style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)" }}>
+          <span className="text-xl">🔔</span>
+          <div>
+            <p className="text-amber-400 font-black text-xs">{awaiting} payment{awaiting > 1 ? "s" : ""} need your verification</p>
+            <p className="text-white/30 text-xs mt-0.5">Check UPI history → Verify or Revoke below</p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Filter pills */}
       <div className="flex gap-2 mb-4">
-        {(["all", "pending", "verified"] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)}
-            className="px-3 py-1 rounded-full text-xs font-bold transition-all capitalize"
+        {([
+          { id: "awaiting", label: `⏳ Needs Review (${awaiting})` },
+          { id: "verified", label: `✓ Verified (${verified})` },
+          { id: "all",      label: `All (${records.length})` },
+        ] as const).map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)}
+            className="px-3 py-1 rounded-full text-xs font-bold transition-all"
             style={{
-              background: filter === f ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)",
-              color:      filter === f ? "#fbbf24"             : "rgba(255,255,255,0.3)",
-              border: `1px solid ${filter === f ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.1)"}`,
+              background: filter === f.id ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)",
+              color:      filter === f.id ? "#fbbf24"             : "rgba(255,255,255,0.3)",
+              border: `1px solid ${filter === f.id ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.1)"}`,
             }}>
-            {f === "pending" ? `⏳ Pending (${pending})` : f === "verified" ? `✓ Verified (${verified})` : `All (${records.length})`}
+            {f.label}
           </button>
         ))}
         <button onClick={load} className="ml-auto text-white/25 hover:text-white/50 text-xs transition-colors">↻</button>
@@ -879,15 +928,13 @@ function PaymentsPanel() {
         <div className="text-center py-16">
           <p className="text-4xl mb-3">💳</p>
           <p className="text-white/40 text-sm font-medium">
-            {filter === "pending" ? "No pending payments" : filter === "verified" ? "No verified payments yet" : "No payments yet"}
+            {filter === "awaiting" ? "कोई pending payment नहीं 🎉" : filter === "verified" ? "No verified payments yet" : "No payments yet"}
           </p>
-          <p className="text-white/20 text-xs mt-1">Payments appear when users self-report via the app</p>
+          <p className="text-white/20 text-xs mt-1">Payment requests appear here when users submit via the app</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {filtered.map(r => (
-            <PaymentCard key={r.uid} rec={r} onAction={load} />
-          ))}
+          {filtered.map(r => <PaymentCard key={r.uid} rec={r} onAction={load} />)}
         </div>
       )}
     </div>
@@ -905,12 +952,17 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [refreshing, setRefreshing] = useState(false);
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments">("overview");
+  const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {
     setRefreshing(true);
     setSubjectData(Object.fromEntries(ALL_SUBJECTS.map((s) => [s.id, { count: 0, status: "loading" }])));
-    const results = await Promise.all(ALL_SUBJECTS.map(async (s) => ({ id: s.id, info: await fetchCount(s.id) })));
+    const [results, pending] = await Promise.all([
+      Promise.all(ALL_SUBJECTS.map(async (s) => ({ id: s.id, info: await fetchCount(s.id) }))),
+      fetchPendingCount(),
+    ]);
     setSubjectData(Object.fromEntries(results.map((r) => [r.id, r.info])));
+    setPendingBadge(pending);
     setLastRefreshed(new Date());
     setRefreshing(false);
   }, []);
@@ -995,19 +1047,25 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
           className="flex gap-1.5 mb-5 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
           {([ 
-            { id: "overview",  label: "📊 DB" },
-            { id: "ai",        label: "🤖 AI" },
-            { id: "users",     label: "👥 Users" },
-            { id: "payments",  label: "💳 Payments" },
-          ] as const).map(({ id, label }) => (
+            { id: "overview",  label: "📊 DB",       badge: 0 },
+            { id: "ai",        label: "🤖 AI",       badge: 0 },
+            { id: "users",     label: "👥 Users",    badge: 0 },
+            { id: "payments",  label: "💳 Pay",      badge: pendingBadge },
+          ] as const).map(({ id, label, badge }) => (
             <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
+              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all relative"
               style={{
                 background: activeTab === id ? "rgba(255,255,255,0.1)" : "transparent",
                 color:      activeTab === id ? "#fff" : "rgba(255,255,255,0.35)",
                 border:     activeTab === id ? "1px solid rgba(255,255,255,0.15)" : "1px solid transparent",
               }}>
               {label}
+              {badge > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-black font-black flex items-center justify-center"
+                  style={{ background: "#f59e0b", fontSize: "9px" }}>
+                  {badge}
+                </span>
+              )}
             </button>
           ))}
         </motion.div>
