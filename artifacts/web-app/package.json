@@ -75,6 +75,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "firebase": "^12.12.1"
+    "firebase": "^12.12.1",
+    "katex": "^0.16.45"
   }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { db as _db } from "../firebase.js"; void _db; // keep firebase initialized
 import { useParams, useLocation } from "wouter";
+import MathText from "@/components/MathText";
 
 const subjectMeta: Record<string, { label: string; icon: string; accent: string; path: string }> = {
   maths:   { label: "Maths",         icon: "📐", accent: "#06b6d4", path: "maths"          },
@@ -327,9 +328,9 @@ function ResultScreen({
                     style={{ background: isRight ? `${accent}30` : "rgba(255,255,255,0.1)", color: isRight ? accent : "rgba(255,255,255,0.5)" }}>
                     {isRight ? "✓ Correct" : "✗ Review"}
                   </span>
-                  <p className="text-white/80 text-sm font-medium leading-snug">{i + 1}. {q.english}</p>
+                  <p className="text-white/80 text-sm font-medium leading-snug">{i + 1}. <MathText text={q.english} /></p>
                 </div>
-                {q.hindi && <p className="text-white/40 text-xs mb-3 pl-1">{q.hindi}</p>}
+                {q.hindi && <p className="text-white/40 text-xs mb-3 pl-1"><MathText text={q.hindi} /></p>}
                 <div className="flex flex-col gap-1.5 pl-1">
                   {q.options.map((opt, oi) => {
                     const isCorrectOpt = oi === correct;
@@ -339,7 +340,7 @@ function ResultScreen({
                       <div key={oi} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
                         style={{ background: isCorrectOpt ? `${accent}25` : showWrong ? "rgba(255,255,255,0.08)" : "transparent", color: isCorrectOpt ? accent : showWrong ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.3)" }}>
                         <span className="font-bold text-xs w-4 shrink-0">{String.fromCharCode(65 + oi)}.</span>
-                        <span>{opt}</span>
+                        <MathText text={opt} />
                         {isCorrectOpt && <span className="ml-auto text-xs font-semibold">✓ Answer</span>}
                         {showWrong    && <span className="ml-auto text-xs">Your pick</span>}
                       </div>
@@ -568,10 +569,10 @@ export default function SubjectPage() {
                   style={{ background: `linear-gradient(135deg, ${meta.accent}18, rgba(255,255,255,0.03))`, borderColor: `${meta.accent}30`, boxShadow: `0 4px 32px ${meta.accent}15` }}
                 >
                   <p className="text-white font-semibold text-base leading-relaxed mb-2">
-                    {currentIndex + 1}. {q.english}
+                    {currentIndex + 1}. <MathText text={q.english} />
                   </p>
                   {q.hindi && (
-                    <p className="text-white/50 text-sm leading-relaxed">{q.hindi}</p>
+                    <p className="text-white/50 text-sm leading-relaxed"><MathText text={q.hindi} /></p>
                   )}
                 </div>
 
@@ -612,7 +613,7 @@ export default function SubjectPage() {
                           {String.fromCharCode(65 + oi)}
                         </span>
                         <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
-                          {opt}
+                          <MathText text={opt} />
                         </span>
                       </motion.button>
                     );
