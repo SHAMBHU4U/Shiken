@@ -6,6 +6,124 @@ import SubjectPage from "@/pages/SubjectPage";
 import AdminPage from "@/pages/AdminPage";
 import ProgressPage from "@/pages/ProgressPage";
 
+const ADMIN_SECRET = import.meta.env.VITE_ADMIN_PASSWORD as string | undefined;
+const SESSION_KEY = "shiken_admin_auth";
+
+function isAdminAuthed(): boolean {
+  return sessionStorage.getItem(SESSION_KEY) === "1";
+}
+
+function AdminGuard() {
+  const [authed, setAuthed] = useState(isAdminAuthed);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState(false);
+  const [shake, setShake] = useState(false);
+  const [, navigate] = useLocation();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ADMIN_SECRET) {
+      setError(true);
+      return;
+    }
+    if (input === ADMIN_SECRET) {
+      sessionStorage.setItem(SESSION_KEY, "1");
+      setAuthed(true);
+      setError(false);
+    } else {
+      setError(true);
+      setShake(true);
+      setInput("");
+      setTimeout(() => setShake(false), 600);
+    }
+  }
+
+  if (authed) return <AdminPage />;
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#07080f" }}>
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
+          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
+        <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-10"
+          style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />
+        <div className="absolute inset-0 opacity-[0.02]"
+          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+        className="relative z-10 w-full max-w-sm mx-4"
+      >
+        <div className="text-center mb-8">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+            className="w-12 h-12 rounded-full mx-auto mb-4"
+            style={{ background: "conic-gradient(from 0deg, #8b5cf6, #06b6d4, #10b981, #f97316, #8b5cf6)" }}
+          />
+          <h1 className="text-white font-black text-2xl tracking-tight mb-1">Admin Access</h1>
+          <p className="text-white/30 text-sm">Enter the admin password to continue</p>
+        </div>
+
+        <motion.form
+          onSubmit={handleSubmit}
+          animate={shake ? { x: [-10, 10, -8, 8, -4, 4, 0] } : { x: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex flex-col gap-3"
+        >
+          <div className="relative">
+            <input
+              type="password"
+              value={input}
+              onChange={(e) => { setInput(e.target.value); setError(false); }}
+              placeholder="Password"
+              autoFocus
+              className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none transition-all"
+              style={{
+                background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.12)"}`,
+                boxShadow: error ? "0 0 0 3px rgba(239,68,68,0.08)" : "none",
+              }}
+            />
+            {error && (
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute -bottom-5 left-1 text-xs text-red-400"
+              >
+                Incorrect password
+              </motion.p>
+            )}
+          </div>
+
+          <motion.button
+            type="submit"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="mt-2 w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all"
+            style={{
+              background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
+              boxShadow: "0 4px 20px rgba(139,92,246,0.35)",
+            }}
+          >
+            Unlock Panel →
+          </motion.button>
+        </motion.form>
+
+        <button
+          onClick={() => navigate("/")}
+          className="mt-6 w-full text-center text-white/20 hover:text-white/40 transition-colors text-xs"
+        >
+          ← Back to app
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
 const queryClient = new QueryClient();
 
 const subjects = [
@@ -247,10 +365,11 @@ function Dashboard() {
           </button>
           <button
             onClick={() => navigate("/admin")}
-            className="text-white/10 hover:text-white/30 transition-colors text-xs"
-            title="Admin Panel"
+            className="text-white/5 hover:text-white/10 transition-colors text-xs select-none"
+            title=""
+            aria-hidden="true"
           >
-            🛠
+            ·
           </button>
         </motion.div>
       </div>
@@ -264,7 +383,7 @@ function App() {
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <Switch>
           <Route path="/" component={Dashboard} />
-          <Route path="/admin" component={AdminPage} />
+          <Route path="/admin" component={AdminGuard} />
           <Route path="/progress" component={ProgressPage} />
           <Route path="/:subject" component={SubjectPage} />
         </Switch>
