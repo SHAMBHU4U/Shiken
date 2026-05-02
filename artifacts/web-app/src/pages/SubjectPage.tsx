@@ -950,11 +950,24 @@ function ResultScreen({
                   </p>
                   <motion.button
                     onClick={() => bmkToggle(q)}
-                    whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.82 }}
-                    className="text-base leading-none shrink-0 ml-1"
+                    whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0 ml-1"
+                    style={{
+                      background: isBookmarked(bmks, q) ? "rgba(251,191,36,0.18)" : "rgba(255,255,255,0.07)",
+                      border: isBookmarked(bmks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                    }}
                     title={isBookmarked(bmks, q) ? "Remove bookmark" : "Bookmark"}
                   >
-                    {isBookmarked(bmks, q) ? "⭐" : "☆"}
+                    <motion.svg
+                      width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      animate={{ scale: isBookmarked(bmks, q) ? [1, 1.3, 1] : 1 }}
+                      transition={{ duration: 0.25 }}
+                    >
+                      {isBookmarked(bmks, q)
+                        ? <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="#fbbf24" />
+                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      }
+                    </motion.svg>
                   </motion.button>
                 </div>
                 {q.hindi && <p className="text-white/35 text-xs mb-2 pl-1"><MathText text={q.hindi} /></p>}
@@ -1755,16 +1768,24 @@ export default function SubjectPage() {
                   {/* Bookmark button */}
                   <motion.button
                     onClick={() => setBookmarks(toggleBookmark(subject, bookmarks, q))}
-                    whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }}
-                    className="absolute top-3 right-3 text-lg leading-none"
+                    whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
+                    className="absolute top-2.5 right-2.5 w-8 h-8 flex items-center justify-center rounded-xl"
+                    style={{
+                      background: isBookmarked(bookmarks, q) ? "rgba(251,191,36,0.18)" : "rgba(255,255,255,0.08)",
+                      border: isBookmarked(bookmarks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(255,255,255,0.12)",
+                    }}
                     title={isBookmarked(bookmarks, q) ? "Remove bookmark" : "Bookmark this question"}
                   >
-                    <motion.span
-                      animate={{ scale: isBookmarked(bookmarks, q) ? [1, 1.35, 1] : 1 }}
-                      transition={{ duration: 0.3 }}
+                    <motion.svg
+                      width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      animate={{ scale: isBookmarked(bookmarks, q) ? [1, 1.3, 1] : 1 }}
+                      transition={{ duration: 0.25 }}
                     >
-                      {isBookmarked(bookmarks, q) ? "⭐" : "☆"}
-                    </motion.span>
+                      {isBookmarked(bookmarks, q)
+                        ? <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="#fbbf24" />
+                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      }
+                    </motion.svg>
                   </motion.button>
                   <p className="text-white font-semibold text-base leading-relaxed mb-2 pr-8">
                     {currentIndex + 1}. <MathText text={q.english} />
