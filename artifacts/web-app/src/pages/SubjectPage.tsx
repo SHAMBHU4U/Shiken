@@ -67,6 +67,40 @@ function pick<T>(arr: T[], n: number): T[] {
   return shuffle(arr).slice(0, n);
 }
 
+// Resolves the correct answer index across all Firebase schemas
+function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number {
+  const raw = q.correct_answer ?? q.answer;
+
+  // Numeric index (e.g. English, Social Science: answer=0,1,2,3)
+  if (typeof raw === "number") return Math.max(0, Math.min(raw, opts.length - 1));
+
+  const s = String(raw ?? "").trim();
+
+  // Numeric string "0","1","2","3"
+  const asNum = Number(s);
+  if (s !== "" && !isNaN(asNum) && Number.isInteger(asNum)) {
+    return Math.max(0, Math.min(asNum, opts.length - 1));
+  }
+
+  // Single letter key e.g. "A","B","C","D" (Maths/Science object options)
+  if (/^[A-Da-d]$/.test(s)) {
+    if (!Array.isArray(q.options) && q.options && typeof q.options === "object") {
+      const keys = Object.keys(q.options as object).sort();
+      const idx = keys.findIndex((k) => k.toUpperCase() === s.toUpperCase());
+      return idx >= 0 ? idx : 0;
+    }
+    return s.toUpperCase().charCodeAt(0) - 65;
+  }
+
+  // "(D) 1908 ई॰ में" format (Hindi — extract the letter)
+  const letterMatch = s.match(/^\(([A-D])\)/i);
+  if (letterMatch) return letterMatch[1].toUpperCase().charCodeAt(0) - 65;
+
+  // Full text match fallback
+  const textIdx = opts.findIndex((o) => o === s || o.includes(s) || s.includes(o));
+  return textIdx >= 0 ? textIdx : 0;
+}
+
 function parseQuestions(data: unknown): Question[] {
   const raw =
     typeof data === "object" && data !== null && !Array.isArray(data)
@@ -74,29 +108,32 @@ function parseQuestions(data: unknown): Question[] {
       : Array.isArray(data) ? data : [];
 
   return (raw as Record<string, unknown>[]).map((q) => {
-    const opts: string[] = [];
-    let answerIndex = 0;
-    const correctAnswer = q.correct_answer ?? q.answer ?? "";
-
+    // ── Options ──────────────────────────────────────────────────────────────
+    let opts: string[] = [];
     if (Array.isArray(q.options)) {
-      q.options.forEach((o: unknown) => opts.push(String(o)));
-      answerIndex = typeof correctAnswer === "number" ? correctAnswer : 0;
+      opts = (q.options as unknown[]).map(String);
     } else if (q.options && typeof q.options === "object") {
       const optObj = q.options as Record<string, string>;
-      const keys = Object.keys(optObj).sort();
-      keys.forEach((k) => opts.push(optObj[k]));
-      const answerKey = String(correctAnswer).toUpperCase();
-      const idx = keys.findIndex((k) => k.toUpperCase() === answerKey);
-      answerIndex = idx >= 0 ? idx : 0;
+      opts = Object.keys(optObj).sort().map((k) => optObj[k]);
     }
 
-    return {
-      english:    String(q.question_english ?? q.english ?? ""),
-      hindi:      String(q.question_hindi   ?? q.hindi   ?? ""),
-      options:    opts,
-      answerIndex,
-      chapter:    String(q.chapter ?? "General"),
-    };
+    // ── Answer index ──────────────────────────────────────────────────────────
+    const answerIndex = resolveAnswerIndex(q, opts);
+
+    // Strip leading "(A)/(B)/(C)/(D)" prefixes from options (Hindi schema)
+    // so the quiz UI's own A/B/C/D labels aren't duplicated
+    opts = opts.map((o) => o.replace(/^\([A-Da-d]\)\s*/, "").trim());
+
+    // ── Question text ─────────────────────────────────────────────────────────
+    // english: question_english > question > english
+    // hindi:   question_hindi   > question_hi > hindi
+    const english = String(q.question_english ?? q.question  ?? q.english ?? "");
+    const hindi   = String(q.question_hindi   ?? q.question_hi ?? q.hindi ?? "");
+
+    // ── Chapter ───────────────────────────────────────────────────────────────
+    const chapter = String(q.chapter ?? q.chapter_name ?? "General");
+
+    return { english, hindi, options: opts, answerIndex, chapter };
   }).filter((q) => (q.english || q.hindi) && q.options.length >= 2);
 }
 
@@ -735,6 +772,19 @@ export default function SubjectPage() {
   }
 
   // ── Quiz screen ───────────────────────────────────────────────────────────────
+  // Safety guard — should never happen, but prevents crash if state is stale
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#07080f" }}>
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="w-10 h-10 rounded-full border-2 border-transparent"
+          style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }} />
+        <p className="text-white/40 text-sm">Preparing questions…</p>
+        <button onClick={() => setScreen("mode-select")} className="text-white/30 text-xs underline mt-2">← Go back</button>
+      </div>
+    );
+  }
+
   const q        = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
   const magicColors = ["#f59e0b", "#06b6d4"];
