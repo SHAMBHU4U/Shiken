@@ -30,6 +30,7 @@ interface SavedProgress {
   currentIndex: number;
   answers: Record<number, number>;
   timestamp: number;
+  timerLeft?: number;
 }
 
 function progressKey(subject: string) { return `shiken_progress_${subject}`; }
@@ -224,7 +225,7 @@ function ModeSelect({
       title: "Full Length Test",
       subtitle: `50 random questions from all ${totalCount}`,
       icon: "🎯",
-      desc: "Covers the entire syllabus. Best for final revision.",
+      desc: "Covers the entire syllabus. Best for final revision. ⏱ 60 min",
       onClick: onFull,
     },
     {
@@ -232,7 +233,7 @@ function ModeSelect({
       title: "Chapter-wise Test",
       subtitle: "20 random questions per chapter",
       icon: "📂",
-      desc: "Focus on one chapter at a time. Perfect for targeted practice.",
+      desc: "Focus on one chapter at a time. Perfect for targeted practice. ⏱ 20 min",
       onClick: onChapterWise,
     },
   ];
@@ -552,8 +553,29 @@ export default function SubjectPage() {
   const [rippleKey, setRippleKey]       = useState(0);
   const [direction, setDirection]       = useState(1);
 
+  // Timer state: -1 = not started, 0 = expired, >0 = seconds remaining
+  const FULL_TIMER    = 60 * 60; // 60 min
+  const CHAPTER_TIMER = 20 * 60; // 20 min
+  const [timerLeft, setTimerLeft]   = useState(-1);
+  const [timerHidden, setTimerHidden] = useState(false);
+
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  // ── Timer countdown (setTimeout pattern: re-fires each second) ────────────────
+  useEffect(() => {
+    if (screen !== "quiz" || timerLeft <= 0) return;
+    const id = setTimeout(() => setTimerLeft((t) => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [timerLeft, screen]);
+
+  // ── Auto-submit when timer expires ────────────────────────────────────────────
+  useEffect(() => {
+    if (screen !== "quiz" || timerLeft !== 0) return;
+    clearProgress(subject);
+    setSavedProgress(null);
+    setScreen("result");
+  }, [timerLeft, screen]);
 
   // ── Fetch questions ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -618,6 +640,7 @@ export default function SubjectPage() {
       currentIndex: opts.idx ?? currentIndex,
       answers:      opts.ans ?? answers,
       timestamp:    Date.now(),
+      timerLeft:    timerLeft > 0 ? timerLeft : undefined,
     };
     saveProgress(subject, snap);
   }
@@ -635,7 +658,9 @@ export default function SubjectPage() {
     setSelectedOption(null);
     setRippleKey(0);
     setDirection(1);
-    saveProgress(subject, { mode: "full", chapter: "All Chapters", questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now() });
+    setTimerLeft(FULL_TIMER);
+    setTimerHidden(false);
+    saveProgress(subject, { mode: "full", chapter: "All Chapters", questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: FULL_TIMER });
     setScreen("quiz");
   }
 
@@ -652,7 +677,9 @@ export default function SubjectPage() {
     setSelectedOption(null);
     setRippleKey(0);
     setDirection(1);
-    saveProgress(subject, { mode: "chapter", chapter, questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now() });
+    setTimerLeft(CHAPTER_TIMER);
+    setTimerHidden(false);
+    saveProgress(subject, { mode: "chapter", chapter, questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: CHAPTER_TIMER });
     setScreen("quiz");
   }
 
@@ -666,6 +693,8 @@ export default function SubjectPage() {
     setSelectedOption(savedProgress.answers[savedProgress.currentIndex] ?? null);
     setRippleKey(0);
     setDirection(1);
+    setTimerLeft(savedProgress.timerLeft ?? (savedProgress.mode === "full" ? FULL_TIMER : CHAPTER_TIMER));
+    setTimerHidden(false);
     setScreen("quiz");
   }
 
@@ -675,6 +704,8 @@ export default function SubjectPage() {
     setSelectedOption(null);
     setRippleKey(0);
     setDirection(1);
+    setTimerLeft(-1);
+    setTimerHidden(false);
   }
 
   function retryTest() {
@@ -790,6 +821,16 @@ export default function SubjectPage() {
   const magicColors = ["#f59e0b", "#06b6d4"];
   const magicColor  = magicColors[rippleKey % 2];
 
+  // ── Timer display helpers ─────────────────────────────────────────────────────
+  const timerMM  = String(Math.floor(Math.max(0, timerLeft) / 60)).padStart(2, "0");
+  const timerSS  = String(Math.max(0, timerLeft) % 60).padStart(2, "0");
+  const timerDanger  = timerLeft >= 0 && timerLeft <= 60;
+  const timerWarning = timerLeft >= 0 && timerLeft <= 300 && !timerDanger;
+  const timerColor   = timerDanger ? "#ef4444" : timerWarning ? "#f59e0b" : "rgba(255,255,255,0.85)";
+  const timerBg      = timerDanger ? "rgba(239,68,68,0.15)"  : timerWarning ? "rgba(245,158,11,0.14)" : "rgba(255,255,255,0.07)";
+  const timerBorder  = timerDanger ? "#ef444445"             : timerWarning ? "#f59e0b45"             : "rgba(255,255,255,0.13)";
+  const timerGlow    = timerDanger ? "0 0 22px rgba(239,68,68,0.35)" : timerWarning ? "0 0 18px rgba(245,158,11,0.25)" : "none";
+
   return (
     <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "#07080f" }}>
       <div className="absolute inset-0 pointer-events-none">
@@ -798,6 +839,57 @@ export default function SubjectPage() {
         <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full blur-3xl opacity-10"
           style={{ background: `radial-gradient(circle, ${meta.accent}, transparent)` }} />
       </div>
+
+      {/* ── Floating Timer ──────────────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {timerLeft >= 0 && (
+          <motion.div
+            key="timer-widget"
+            initial={{ opacity: 0, y: -16, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.85 }}
+            transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+            className="fixed top-4 right-4 z-50 flex items-center gap-1.5"
+          >
+            {timerHidden ? (
+              /* Minimised clock pill — click to expand */
+              <motion.button
+                onClick={() => setTimerHidden(false)}
+                whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.93 }}
+                className="flex items-center justify-center w-10 h-10 rounded-full backdrop-blur-md border text-base"
+                style={{ background: timerBg, borderColor: timerBorder, boxShadow: timerGlow, color: timerColor }}
+                title="Show timer"
+              >
+                ⏱
+              </motion.button>
+            ) : (
+              /* Full timer pill */
+              <motion.div
+                className="flex items-center gap-2 px-3.5 py-2 rounded-2xl backdrop-blur-md border"
+                animate={timerDanger ? { scale: [1, 1.03, 1] } : {}}
+                transition={timerDanger ? { repeat: Infinity, duration: 0.75 } : {}}
+                style={{ background: timerBg, borderColor: timerBorder, boxShadow: timerGlow }}
+              >
+                <span className="text-sm" style={{ color: timerColor }}>⏱</span>
+                <span
+                  className="font-mono font-bold text-sm tracking-wide"
+                  style={{ color: timerColor, minWidth: "3.6rem", textAlign: "center" }}
+                >
+                  {timerMM}:{timerSS}
+                </span>
+                <motion.button
+                  onClick={() => setTimerHidden(true)}
+                  whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}
+                  className="text-white/25 hover:text-white/55 transition-colors text-xs leading-none ml-0.5"
+                  title="Hide timer"
+                >
+                  ✕
+                </motion.button>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="relative z-10 max-w-lg mx-auto px-4 py-6 flex flex-col min-h-screen">
         {/* Header */}
