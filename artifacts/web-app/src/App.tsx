@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/ProfilePage";
 import CounsellingPage from "@/pages/CounsellingPage";
 import ContactPage from "@/pages/ContactPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
+import PricingPage from "@/pages/PricingPage";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
@@ -819,6 +820,7 @@ function AppRoutes() {
         <Route path="/counselling" component={CounsellingPage} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/leaderboard" component={LeaderboardPage} />
+        <Route path="/pricing" component={PricingPage} />
         <Route path="/:subject" component={SubjectPage} />
       </Switch>
       <BottomNav />

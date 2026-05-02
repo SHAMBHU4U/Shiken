@@ -1,8 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-
-const WHATSAPP_URL =
-  "https://wa.me/918340472013?text=" +
-  encodeURIComponent("Hi! I want to upgrade to SHIKEN Premium. Please guide me.");
+import { useLocation } from "wouter";
 
 const features = [
   { icon: "🎯", text: "Full 50-question tests (25 DB + 25 AI-generated)" },
@@ -20,6 +17,7 @@ interface Props {
 }
 
 export default function UpgradeModal({ open, onClose }: Props) {
+  const [, navigate] = useLocation();
   return (
     <AnimatePresence>
       {open && (
@@ -82,22 +80,29 @@ export default function UpgradeModal({ open, onClose }: Props) {
               ))}
             </div>
 
-            <motion.a
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-black text-sm"
-              style={{
-                background: "linear-gradient(135deg, #f59e0b, #d97706)",
-                color: "#000",
-                boxShadow: "0 6px 32px rgba(251,191,36,0.45)",
-              }}
-            >
-              <span className="text-lg">👑</span>
-              Contact Mentor to Upgrade
-            </motion.a>
+            <div className="flex flex-col gap-2">
+              <motion.button
+                onClick={() => { onClose(); navigate("/pricing"); }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-black text-sm"
+                style={{
+                  background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                  color: "#000",
+                  boxShadow: "0 6px 32px rgba(251,191,36,0.45)",
+                }}
+              >
+                <span className="text-lg">👑</span>
+                Plans देखो — ₹49/माह से शुरू
+              </motion.button>
+              <a href="https://wa.me/918340472013?text=Hi!%20I%20want%20to%20upgrade%20to%20SHIKEN%20Premium."
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold"
+                style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.2)" }}
+              >
+                💬 WhatsApp करो Mentor को
+              </a>
+            </div>
 
             <button
               onClick={onClose}

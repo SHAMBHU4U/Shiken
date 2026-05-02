@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { updateProfile } from "firebase/auth";
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { auth, storage } from "../firebase";
+import { auth } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
 import { requestAndScheduleReminder, scheduleEveningReminder } from "../utils/streakUtils";
+import { AVATARS, getAvatarEmoji } from "../utils/avatarUtils";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
@@ -103,15 +103,34 @@ function TrendChart({ sessions }: { sessions: Session[] }) {
   );
 }
 
-function Avatar({ name, photo, size = 64 }: { name: string; photo?: string | null; size?: number }) {
+function Avatar({ name, avatarId, size = 64, isPremium: isP }: { name: string; avatarId?: string | null; size?: number; isPremium?: boolean }) {
   const colors = ["#8b5cf6", "#06b6d4", "#10b981", "#f97316", "#ec4899", "#f59e0b"];
   const color  = colors[(name.charCodeAt(0) || 0) % colors.length];
-  if (photo) return <img src={photo} alt={name} className="rounded-full object-cover"
-    style={{ width: size, height: size }} />;
+  const emoji  = getAvatarEmoji(avatarId);
+  if (avatarId) {
+    return (
+      <div className="relative inline-flex">
+        <div className="rounded-full flex items-center justify-center"
+          style={{ width: size, height: size, background: isP ? "linear-gradient(135deg,#f59e0b,#d97706)" : color, fontSize: size * 0.52 }}>
+          {emoji}
+        </div>
+        {isP && (
+          <span className="absolute -top-1 -right-1 text-xs leading-none"
+            style={{ fontSize: size * 0.3 }}>👑</span>
+        )}
+      </div>
+    );
+  }
   return (
-    <div className="rounded-full flex items-center justify-center font-black text-white"
-      style={{ width: size, height: size, background: color, fontSize: size * 0.38 }}>
-      {(name || "?")[0].toUpperCase()}
+    <div className="relative inline-flex">
+      <div className="rounded-full flex items-center justify-center font-black text-white"
+        style={{ width: size, height: size, background: color, fontSize: size * 0.38 }}>
+        {(name || "?")[0].toUpperCase()}
+      </div>
+      {isP && (
+        <span className="absolute -top-1 -right-1 text-xs leading-none"
+          style={{ fontSize: size * 0.3 }}>👑</span>
+      )}
     </div>
   );
 }
@@ -354,33 +373,31 @@ export default function ProfilePage() {
   const [nameVal,      setNameVal]      = useState("");
   const [nameSaving,   setNameSaving]   = useState(false);
   const [nameSaved,    setNameSaved]    = useState(false);
-  const [photoUploading, setPhotoUploading] = useState(false);
+  const [avatarId,     setAvatarId]     = useState<string | null>(null);
+  const [avatarOpen,   setAvatarOpen]   = useState(false);
   const [phone,        setPhone]        = useState("");
   const [phoneSaving,  setPhoneSaving]  = useState(false);
   const [phoneSaved,   setPhoneSaved]   = useState(false);
   const [notifPerm,    setNotifPerm]    = useState<"default"|"granted"|"denied"|"unsupported">("default");
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = useSubscription();
 
-  async function handlePhotoUpload(file: File) {
-    if (!auth.currentUser || !file) return;
-    setPhotoUploading(true);
-    try {
-      const uid = auth.currentUser.uid;
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const sRef = storageRef(storage, `avatars/${uid}/profile.${ext}`);
-      await uploadBytes(sRef, file);
-      const url = await getDownloadURL(sRef);
-      await updateProfile(auth.currentUser, { photoURL: url });
-      const safeId = uid.replace(/[.#$/[\]]/g, "_");
-      fetch(`${DB_URL}/userActivity/${safeId}/meta.json`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photoURL: url }),
-      }).catch(() => {});
-    } catch { /* ignore — Storage may need enabling in Firebase Console */ }
-    finally { setPhotoUploading(false); }
+  async function handleAvatarSelect(id: string) {
+    setAvatarId(id);
+    setAvatarOpen(false);
+    if (!auth.currentUser) return;
+    const uid = auth.currentUser.uid;
+    fetch(`${DB_URL}/users/${uid}.json`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatarId: id }),
+    }).catch(() => {});
+    const safeId = uid.replace(/[.#$/[\]]/g, "_");
+    fetch(`${DB_URL}/userActivity/${safeId}/meta.json`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ avatarId: id }),
+    }).catch(() => {});
   }
 
   async function handleNameSave() {
@@ -440,10 +457,15 @@ export default function ProfilePage() {
       })
       .catch(() => {})
       .finally(() => setStatsLoading(false));
-    // Fetch saved phone
-    fetch(`${DB_URL}/users/${user.uid}/phone.json`)
+    // Fetch saved phone + avatarId
+    fetch(`${DB_URL}/users/${user.uid}.json`)
       .then((r) => r.json())
-      .then((d) => { if (typeof d === "string") setPhone(d); })
+      .then((d) => {
+        if (d && typeof d === "object") {
+          if (typeof d.phone === "string") setPhone(d.phone);
+          if (typeof d.avatarId === "string") setAvatarId(d.avatarId);
+        }
+      })
       .catch(() => {});
     // Check notification permission
     if (typeof Notification !== "undefined") {
@@ -493,26 +515,57 @@ export default function ProfilePage() {
           style={isPremium
             ? { background: "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(245,158,11,0.05))", border: "1px solid rgba(251,191,36,0.35)", boxShadow: "0 0 32px rgba(251,191,36,0.12)" }
             : { background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)" }}>
-          {/* Avatar with photo upload */}
+          {/* Avatar picker */}
           <div className="relative shrink-0">
-            <Avatar name={user.displayName || user.email || "U"} photo={user.photoURL} size={64} />
+            <Avatar name={user.displayName || user.email || "U"} avatarId={avatarId} size={64} isPremium={isPremium} />
             <motion.button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={photoUploading}
+              onClick={() => setAvatarOpen((o) => !o)}
               whileTap={{ scale: 0.9 }}
-              title="Change photo"
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border-2"
+              title="Change avatar"
+              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border-2 text-xs"
               style={{ background: isPremium ? "#d97706" : "#7c3aed", borderColor: "#07080f" }}
-            >
-              {photoUploading
-                ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                    className="w-2.5 h-2.5 rounded-full border border-transparent" style={{ borderTopColor: "#fff" }} />
-                : <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="white" strokeWidth="1.6" strokeLinecap="round"/></svg>
-              }
-            </motion.button>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); e.target.value = ""; }} />
+            >✏</motion.button>
           </div>
+
+          {/* Avatar selector sheet */}
+          <AnimatePresence>
+            {avatarOpen && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                transition={{ duration: 0.2 }}
+                className="absolute top-24 left-4 right-4 z-20 rounded-2xl p-4"
+                style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.12)", boxShadow: "0 16px 64px rgba(0,0,0,0.7)" }}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-white/70 text-xs font-black uppercase tracking-widest">Avatar चुनो</p>
+                  <button onClick={() => setAvatarOpen(false)} className="text-white/30 hover:text-white/70 transition-colors text-sm">✕</button>
+                </div>
+                <div className="grid grid-cols-6 gap-2">
+                  {AVATARS.map((av) => (
+                    <motion.button
+                      key={av.id}
+                      onClick={() => handleAvatarSelect(av.id)}
+                      whileTap={{ scale: 0.88 }}
+                      className="w-full aspect-square rounded-xl flex items-center justify-center text-xl transition-all"
+                      style={{
+                        background: avatarId === av.id
+                          ? isPremium ? "rgba(251,191,36,0.25)" : "rgba(139,92,246,0.3)"
+                          : "rgba(255,255,255,0.06)",
+                        border: avatarId === av.id
+                          ? isPremium ? "2px solid rgba(251,191,36,0.6)" : "2px solid rgba(139,92,246,0.6)"
+                          : "1px solid rgba(255,255,255,0.08)",
+                      }}
+                      title={av.label}
+                    >
+                      {av.emoji}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
               {editingName ? (

@@ -954,6 +954,46 @@ function ResultScreen({
           </motion.div>
         )}
 
+        {/* ── Marketing Banner (free users after mini test) ────────────────── */}
+        {!isPremium && mode === "mini" && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28 }}
+            className="rounded-2xl p-4 mb-4"
+            style={{
+              background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(245,158,11,0.06))",
+              border: "1px solid rgba(251,191,36,0.3)",
+              boxShadow: "0 0 28px rgba(251,191,36,0.08)",
+            }}
+          >
+            <div className="flex items-start gap-3">
+              <motion.span
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 2 }}
+                className="text-2xl shrink-0"
+              >💡</motion.span>
+              <div className="flex-1 min-w-0">
+                <p className="text-amber-300 font-black text-xs uppercase tracking-widest mb-1">Kya aap jante hain?</p>
+                <p className="text-white text-sm font-semibold leading-relaxed mb-3">
+                  ₹199/- mein aap board exams tak{" "}
+                  <span style={{ color: "#fbbf24" }}>unlimited AI tests</span> aur{" "}
+                  <span style={{ color: "#fbbf24" }}>direct mentorship</span> pa sakte hain!
+                  <span className="text-white/50 font-normal"> (Sirf ₹33 mahina)</span>
+                </p>
+                <motion.a
+                  href={`${import.meta.env.BASE_URL}pricing`.replace("//", "/")}
+                  whileTap={{ scale: 0.96 }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black text-black"
+                  style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 2px 12px rgba(245,158,11,0.4)" }}
+                >
+                  👑 Upgrade करो — ₹199 / 6 months
+                </motion.a>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* ── Progress chart ────────────────────────────────────────────────── */}
         {history.length >= 2 && (
           <motion.div
