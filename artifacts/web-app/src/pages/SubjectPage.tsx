@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ref, get } from "firebase/database";
-import { db } from "../firebase.js";
+import { db as _db } from "../firebase.js"; void _db; // keep firebase initialized
 import { useParams, useLocation } from "wouter";
 
 const subjectMeta: Record<string, { label: string; icon: string; accent: string; path: string }> = {
-  maths:   { label: "Maths",         icon: "📐", accent: "#06b6d4", path: "maths"   },
-  english: { label: "English",       icon: "📖", accent: "#8b5cf6", path: "english" },
-  hindi:   { label: "Hindi",         icon: "🔤", accent: "#f97316", path: "hindi"   },
-  science: { label: "Science",       icon: "🔬", accent: "#10b981", path: "science" },
-  social:  { label: "Social Science",icon: "🌍", accent: "#f59e0b", path: "social"  },
+  maths:   { label: "Maths",         icon: "📐", accent: "#06b6d4", path: "maths"          },
+  english: { label: "English",       icon: "📖", accent: "#8b5cf6", path: "english"        },
+  hindi:   { label: "Hindi",         icon: "🔤", accent: "#f97316", path: "hindi"          },
+  science: { label: "Science",       icon: "🔬", accent: "#10b981", path: "science"        },
+  social:  { label: "Social Science",icon: "🌍", accent: "#f59e0b", path: "social science" },
+  sanskrit:{ label: "Sanskrit",      icon: "📜", accent: "#ec4899", path: "sanskrit"       },
 };
 
 interface Question {
@@ -199,20 +199,31 @@ function parseQuestions(data: unknown): Question[] {
     const opts: string[] = [];
     let answerIndex = 0;
 
+    // Support both field name conventions
+    const englishText = String(q.question_english ?? q.english ?? "");
+    const hindiText   = String(q.question_hindi   ?? q.hindi   ?? "");
+
+    // correct_answer can be "A"/"B"/"C"/"D" (uppercase) or "a"/"b"/"c"/"d" or numeric index
+    const correctAnswer = q.correct_answer ?? q.answer ?? "";
+
     if (Array.isArray(q.options)) {
       q.options.forEach((o: unknown) => opts.push(String(o)));
-      answerIndex = typeof q.answer === "number" ? q.answer : 0;
+      answerIndex = typeof correctAnswer === "number"
+        ? correctAnswer
+        : 0;
     } else if (q.options && typeof q.options === "object") {
       const optObj = q.options as Record<string, string>;
+      // Sort keys: A, B, C, D order
       const keys = Object.keys(optObj).sort();
       keys.forEach((k) => opts.push(optObj[k]));
-      const answerKey = String(q.answer ?? "").toLowerCase();
-      answerIndex = Math.max(0, keys.indexOf(answerKey));
+      const answerKey = String(correctAnswer).toUpperCase();
+      const idx = keys.findIndex((k) => k.toUpperCase() === answerKey);
+      answerIndex = idx >= 0 ? idx : 0;
     }
 
     return {
-      english: String(q.english ?? ""),
-      hindi: String(q.hindi ?? ""),
+      english: englishText,
+      hindi:   hindiText,
       options: opts.length ? opts : [],
       answerIndex,
     };
@@ -370,41 +381,70 @@ export default function SubjectPage() {
   const [rippleKey, setRippleKey]   = useState(0);
   const [direction, setDirection]   = useState(1);
 
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   useEffect(() => {
     const fallback = demoQuestions[subject] ?? demoQuestions.maths;
+    setStatus("loading");
+    setCurrentIndex(0);
+    setAnswers({});
+    setSelectedOption(null);
 
     if (!meta) {
       setQuestions(fallback);
       setIsDemo(true);
+      setFirebaseNote("No matching subject found. Showing demo questions.");
       setStatus("quiz");
       return;
     }
 
-    // Show demo questions immediately — no waiting
-    setQuestions(fallback);
-    setIsDemo(true);
-    setFirebaseNote(`No data at /${meta.path} in Firebase yet — showing demo questions.`);
-    setStatus("quiz");
+    const controller = new AbortController();
+    const dbUrl = `https://shiken-d8789-default-rtdb.firebaseio.com/${encodeURIComponent(meta.path)}.json`;
 
-    // Try to load real questions from Firebase in the background
-    let cancelled = false;
-    get(ref(db, meta.path))
-      .then((snap) => {
-        if (cancelled) return;
-        if (snap.exists()) {
-          const parsed = parseQuestions(snap.val());
-          if (parsed.length > 0) {
-            setQuestions(parsed);
-            setIsDemo(false);
-            setFirebaseNote("");
-          }
+    fetch(dbUrl, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data: unknown) => {
+        if (!mountedRef.current) return;
+        if (data && typeof data === "object" && !Array.isArray(data) && "error" in data) {
+          setQuestions(fallback);
+          setIsDemo(true);
+          setFirebaseNote(`🔒 Firebase permission denied for /${meta.path}. Set ".read": true in your Realtime Database Rules.`);
+          setStatus("quiz");
+          return;
         }
+        if (data === null || data === undefined) {
+          setQuestions(fallback);
+          setIsDemo(true);
+          setFirebaseNote(`No data found at /${meta.path} in Firebase. Add questions there to replace these demos.`);
+          setStatus("quiz");
+          return;
+        }
+        const parsed = parseQuestions(data);
+        if (parsed.length > 0) {
+          setQuestions(parsed);
+          setIsDemo(false);
+          setFirebaseNote("");
+        } else {
+          setQuestions(fallback);
+          setIsDemo(true);
+          setFirebaseNote(`Data at /${meta.path} found but couldn't be parsed. Expected fields: question_english, question_hindi, options {A,B,C,D}, correct_answer.`);
+        }
+        setStatus("quiz");
       })
-      .catch(() => {
-        // silently keep demo questions
+      .catch((err: Error) => {
+        if (err.name === "AbortError" || !mountedRef.current) return;
+        setQuestions(fallback);
+        setIsDemo(true);
+        setFirebaseNote(`Network error: ${err.message}`);
+        setStatus("quiz");
       });
 
-    return () => { cancelled = true; };
+    return () => { controller.abort(); };
   }, [subject]);
 
   const handleSelect = (oi: number) => {

@@ -47,6 +47,14 @@ const subjects = [
     border: "border-amber-400/30",
     accent: "#f59e0b",
   },
+  {
+    id: "sanskrit",
+    label: "Sanskrit",
+    icon: "📜",
+    gradient: "from-pink-500/30 to-rose-600/30",
+    border: "border-pink-400/30",
+    accent: "#ec4899",
+  },
 ];
 
 type Ripple = { id: number; x: number; y: number; color: string };
