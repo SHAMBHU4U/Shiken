@@ -593,6 +593,9 @@ export default function SubjectPage() {
   const [timerLeft, setTimerLeft]   = useState(-1);
   const [timerHidden, setTimerHidden] = useState(false);
 
+  // Question palette
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
@@ -803,6 +806,13 @@ export default function SubjectPage() {
     }
   };
 
+  const jumpToQuestion = (idx: number) => {
+    setDirection(idx > currentIndex ? 1 : -1);
+    setCurrentIndex(idx);
+    setSelectedOption(answers[idx] ?? null);
+    setPaletteOpen(false);
+  };
+
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (!meta) {
     return (
@@ -947,6 +957,110 @@ export default function SubjectPage() {
         )}
       </AnimatePresence>
 
+      {/* ── Question Palette Sheet ──────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {paletteOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="palette-backdrop"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.22 }}
+              className="fixed inset-0 z-40"
+              style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+              onClick={() => setPaletteOpen(false)}
+            />
+
+            {/* Sheet */}
+            <motion.div
+              key="palette-sheet"
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              transition={{ duration: 0.38, ease: [0.23, 1, 0.32, 1] }}
+              className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t border-x overflow-hidden"
+              style={{
+                background: "linear-gradient(180deg, #0f1118 0%, #09090f 100%)",
+                borderColor: `${meta.accent}25`,
+                boxShadow: `0 -8px 60px ${meta.accent}18`,
+                maxHeight: "72vh",
+              }}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-white/15" />
+              </div>
+
+              {/* Header row */}
+              <div className="flex items-center justify-between px-5 py-3">
+                <div>
+                  <h3 className="text-white font-bold text-base">Question Palette</h3>
+                  <p className="text-xs mt-0.5" style={{ color: `${meta.accent}aa` }}>
+                    {Object.keys(answers).length} answered · {questions.length - Object.keys(answers).length} remaining
+                  </p>
+                </div>
+                <motion.button
+                  onClick={() => setPaletteOpen(false)}
+                  whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
+                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
+                >
+                  ✕
+                </motion.button>
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 px-5 pb-3">
+                {[
+                  { label: "Current",    bg: meta.accent,           border: meta.accent },
+                  { label: "Answered",   bg: `${meta.accent}40`,    border: `${meta.accent}60` },
+                  { label: "Unanswered", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.14)" },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5">
+                    <div className="w-4 h-4 rounded-md border" style={{ background: item.bg, borderColor: item.border }} />
+                    <span className="text-xs text-white/40">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Divider */}
+              <div className="h-px mx-5" style={{ background: `${meta.accent}18` }} />
+
+              {/* Number grid */}
+              <div className="overflow-y-auto px-5 py-4" style={{ maxHeight: "calc(72vh - 140px)" }}>
+                <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(46px, 1fr))" }}>
+                  {questions.map((_, idx) => {
+                    const isCurrent  = idx === currentIndex;
+                    const isAnswered = idx in answers;
+                    const bg     = isCurrent  ? meta.accent
+                                 : isAnswered ? `${meta.accent}38`
+                                 : "rgba(255,255,255,0.06)";
+                    const border = isCurrent  ? meta.accent
+                                 : isAnswered ? `${meta.accent}55`
+                                 : "rgba(255,255,255,0.12)";
+                    const color  = isCurrent  ? "#000"
+                                 : isAnswered ? meta.accent
+                                 : "rgba(255,255,255,0.4)";
+                    const glow   = isCurrent  ? `0 0 14px ${meta.accent}70` : "none";
+
+                    return (
+                      <motion.button
+                        key={idx}
+                        onClick={() => jumpToQuestion(idx)}
+                        whileHover={{ scale: 1.12, y: -2 }}
+                        whileTap={{ scale: 0.93 }}
+                        className="aspect-square rounded-xl border flex items-center justify-center text-xs font-bold transition-colors"
+                        style={{ background: bg, borderColor: border, color, boxShadow: glow }}
+                      >
+                        {idx + 1}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <div className="relative z-10 max-w-lg mx-auto px-4 py-6 flex flex-col min-h-screen">
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -961,7 +1075,18 @@ export default function SubjectPage() {
               >
                 {mode === "full" ? "Full Test" : selectedChapter}
               </span>
-              <span className="ml-auto text-white/40 text-xs">{currentIndex + 1} / {questions.length}</span>
+              <motion.button
+                onClick={() => setPaletteOpen(true)}
+                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
+                className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
+                style={{ background: `${meta.accent}18`, borderColor: `${meta.accent}35`, color: meta.accent }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                  <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
+                  <rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/>
+                </svg>
+                {currentIndex + 1}/{questions.length}
+              </motion.button>
             </div>
             <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
               <motion.div className="h-full rounded-full" animate={{ width: `${progress}%` }} transition={{ duration: 0.4, ease: "easeOut" }}
