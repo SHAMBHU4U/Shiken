@@ -1719,39 +1719,7 @@ export default function SubjectPage() {
         )}
       </AnimatePresence>
 
-      <div className="relative z-10 max-w-lg mx-auto px-4 py-6 flex flex-col min-h-screen">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <button onClick={() => setScreen("mode-select")} className="text-white/40 hover:text-white/70 transition-colors p-1 text-xl">←</button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-lg">{meta.icon}</span>
-              <span className="text-white font-bold text-sm">{meta.label}</span>
-              <span
-                className="text-xs px-2 py-0.5 rounded-full"
-                style={{ background: `${meta.accent}20`, color: meta.accent }}
-              >
-                {mode === "full" ? "Full Test" : selectedChapter}
-              </span>
-              <motion.button
-                onClick={() => setPaletteOpen(true)}
-                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold"
-                style={{ background: `${meta.accent}18`, borderColor: `${meta.accent}35`, color: meta.accent }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                  <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
-                  <rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/>
-                </svg>
-                {currentIndex + 1}/{questions.length}
-              </motion.button>
-            </div>
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <motion.div className="h-full rounded-full" animate={{ width: `${progress}%` }} transition={{ duration: 0.4, ease: "easeOut" }}
-                style={{ background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}80)` }} />
-            </div>
-          </div>
-        </div>
+      <div className="relative z-10 max-w-lg mx-auto px-4 pt-6 pb-28 flex flex-col min-h-screen">
 
         {/* Question + Options */}
         <div className="flex-1 flex flex-col">
@@ -1850,7 +1818,7 @@ export default function SubjectPage() {
           </div>
 
           {/* Nav buttons */}
-          <div className="flex gap-2 mt-5 pb-4">
+          <div className="flex gap-2 mt-5 pb-2">
             <motion.button
               whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={handlePrev} disabled={currentIndex === 0}
@@ -1892,6 +1860,66 @@ export default function SubjectPage() {
           </div>
         </div>
       </div>
+
+      {/* Floating Progress Navigation Bar */}
+      <motion.div
+        initial={{ y: 80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+        className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-4 pointer-events-none"
+      >
+        <div
+          className="w-full max-w-lg rounded-2xl px-4 py-3 pointer-events-auto"
+          style={{
+            background: "rgba(15,15,25,0.82)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: `1px solid ${meta.accent}25`,
+            boxShadow: `0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px ${meta.accent}18`,
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setScreen("mode-select")}
+              className="text-white/40 hover:text-white/70 transition-colors p-1 text-lg shrink-0"
+            >
+              ←
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-base">{meta.icon}</span>
+                <span className="text-white font-bold text-xs truncate">{meta.label}</span>
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full shrink-0"
+                  style={{ background: `${meta.accent}20`, color: meta.accent }}
+                >
+                  {mode === "full" ? "Full Test" : selectedChapter}
+                </span>
+                <motion.button
+                  onClick={() => setPaletteOpen(true)}
+                  whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
+                  className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shrink-0"
+                  style={{ background: `${meta.accent}18`, borderColor: `${meta.accent}35`, color: meta.accent }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+                    <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
+                    <rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/>
+                  </svg>
+                  {currentIndex + 1}/{questions.length}
+                </motion.button>
+              </div>
+              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <motion.div
+                  className="h-full rounded-full"
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  style={{ background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}80)` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

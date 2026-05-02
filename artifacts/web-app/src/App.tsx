@@ -4,6 +4,7 @@ import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SubjectPage from "@/pages/SubjectPage";
 import AdminPage from "@/pages/AdminPage";
+import ProgressPage from "@/pages/ProgressPage";
 
 const queryClient = new QueryClient();
 
@@ -234,9 +235,16 @@ function Dashboard() {
           transition={{ delay: 1.0 }}
           className="flex items-center justify-between mt-10"
         >
-          <p className="text-white/20 text-xs tracking-wide">
-            Tap a subject to begin your session
-          </p>
+          <button
+            onClick={() => navigate("/progress")}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 hover:border-white/15 transition-all text-white/50 hover:text-white/80 text-xs font-medium"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 10l3-3 3 2 3-4 3 2" stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            My Progress
+          </button>
           <button
             onClick={() => navigate("/admin")}
             className="text-white/10 hover:text-white/30 transition-colors text-xs"
@@ -257,6 +265,7 @@ function App() {
         <Switch>
           <Route path="/" component={Dashboard} />
           <Route path="/admin" component={AdminPage} />
+          <Route path="/progress" component={ProgressPage} />
           <Route path="/:subject" component={SubjectPage} />
         </Switch>
       </WouterRouter>
