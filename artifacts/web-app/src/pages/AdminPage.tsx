@@ -662,6 +662,240 @@ function AIReviewPanel({ subject, onClose }: { subject: (typeof ALL_SUBJECTS)[0]
   );
 }
 
+// ─── Payments Panel ────────────────────────────────────────────────────────────
+
+interface PaymentRecord {
+  uid: string;
+  plan: string;
+  amount: number;
+  activatedAt: number;
+  premiumUntil: number;
+  paymentVerified: boolean;
+}
+
+const PLAN_AMOUNTS: Record<string, number> = { monthly: 49, biannual: 199 };
+const PLAN_LABELS:  Record<string, string>  = { monthly: "Basic Monthly (30d)", biannual: "Topper's Choice (6mo)" };
+
+async function fetchPayments(): Promise<PaymentRecord[]> {
+  const res = await fetch(`${DB_URL}/users.json`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json() as Record<string, {
+    subscriptionType?: string;
+    plan?: string;
+    activatedAt?: number;
+    premiumUntil?: number;
+    paymentVerified?: boolean;
+  }> | null;
+  if (!data) return [];
+  return Object.entries(data)
+    .filter(([, u]) => u.subscriptionType === "premium" && u.activatedAt)
+    .map(([uid, u]) => ({
+      uid,
+      plan: u.plan ?? "monthly",
+      amount: PLAN_AMOUNTS[u.plan ?? "monthly"] ?? 49,
+      activatedAt: u.activatedAt!,
+      premiumUntil: u.premiumUntil ?? 0,
+      paymentVerified: u.paymentVerified === true,
+    }))
+    .sort((a, b) => b.activatedAt - a.activatedAt);
+}
+
+function PaymentCard({ rec, onAction }: { rec: PaymentRecord; onAction: () => void }) {
+  const [working, setWorking] = useState(false);
+  const [status, setStatus] = useState<"verified" | "unverified">(rec.paymentVerified ? "verified" : "unverified");
+  const expired = rec.premiumUntil < Date.now();
+  const shortUid = rec.uid.length > 20 ? rec.uid.slice(0, 20) + "…" : rec.uid;
+
+  async function verify() {
+    setWorking(true);
+    try {
+      await fetch(`${DB_URL}/users/${rec.uid}.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentVerified: true }),
+      });
+      setStatus("verified");
+    } catch { /* ignore */ }
+    finally { setWorking(false); }
+  }
+
+  async function revoke() {
+    setWorking(true);
+    try {
+      await fetch(`${DB_URL}/users/${rec.uid}.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptionType: "free", paymentVerified: false }),
+      });
+      onAction();
+    } catch { /* ignore */ }
+    finally { setWorking(false); }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border overflow-hidden"
+      style={{
+        background: status === "verified"
+          ? "rgba(16,185,129,0.05)"
+          : "rgba(251,191,36,0.05)",
+        border: `1px solid ${status === "verified" ? "rgba(16,185,129,0.2)" : "rgba(251,191,36,0.2)"}`,
+      }}
+    >
+      {/* Top row */}
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-black text-sm"
+          style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
+          ₹{rec.amount}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-white/80 text-xs font-mono truncate">{shortUid}</p>
+          <p className="text-white/35 text-xs mt-0.5">{PLAN_LABELS[rec.plan] ?? rec.plan}</p>
+        </div>
+        <div className="shrink-0 text-right">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+            style={status === "verified"
+              ? { background: "rgba(16,185,129,0.2)", color: "#10b981" }
+              : { background: "rgba(251,191,36,0.15)", color: "#fbbf24" }}>
+            {status === "verified" ? "✓ Verified" : "⏳ Pending"}
+          </span>
+          {expired && (
+            <p className="text-red-400/50 text-xs mt-0.5">Expired</p>
+          )}
+        </div>
+      </div>
+
+      {/* Meta row */}
+      <div className="flex items-center gap-4 px-4 pb-3 text-xs text-white/25">
+        <span>Activated: {new Date(rec.activatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+        <span>·</span>
+        <span>Valid till: {new Date(rec.premiumUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+      </div>
+
+      {/* Action row */}
+      <div className="flex gap-2 px-4 pb-3">
+        {status === "unverified" && (
+          <motion.button
+            onClick={verify}
+            disabled={working}
+            whileTap={{ scale: 0.96 }}
+            className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
+            style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.3)" }}
+          >
+            {working ? "…" : "✓ Verify Payment"}
+          </motion.button>
+        )}
+        <motion.button
+          onClick={revoke}
+          disabled={working}
+          whileTap={{ scale: 0.96 }}
+          className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
+          style={{ background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
+        >
+          {working ? "…" : "✕ Revoke"}
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+function PaymentsPanel() {
+  const [records, setRecords] = useState<PaymentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState<"all" | "pending" | "verified">("all");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try { setRecords(await fetchPayments()); }
+    catch (e) { setError(String(e)); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = records.filter(r =>
+    filter === "all" ? true :
+    filter === "pending" ? !r.paymentVerified :
+    r.paymentVerified
+  );
+
+  const pending  = records.filter(r => !r.paymentVerified).length;
+  const verified = records.filter(r =>  r.paymentVerified).length;
+  const revenue  = records.reduce((s, r) => s + r.amount, 0);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3">
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="w-7 h-7 rounded-full border-2 border-transparent"
+        style={{ borderTopColor: "#f59e0b", borderRightColor: "#fbbf24" }} />
+      <p className="text-white/30 text-xs">Loading payment records…</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="text-center py-12">
+      <p className="text-red-400 text-sm mb-3">Failed: {error}</p>
+      <button onClick={load} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/50 text-xs">Retry</button>
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {[
+          { label: "Total Revenue",    value: `₹${revenue}`,  color: "#10b981" },
+          { label: "Pending Review",   value: pending,         color: "#f59e0b" },
+          { label: "Verified",         value: verified,        color: "#8b5cf6" },
+        ].map(s => (
+          <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
+            <p className="text-lg font-black" style={{ color: s.color }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter pills */}
+      <div className="flex gap-2 mb-4">
+        {(["all", "pending", "verified"] as const).map(f => (
+          <button key={f} onClick={() => setFilter(f)}
+            className="px-3 py-1 rounded-full text-xs font-bold transition-all capitalize"
+            style={{
+              background: filter === f ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)",
+              color:      filter === f ? "#fbbf24"             : "rgba(255,255,255,0.3)",
+              border: `1px solid ${filter === f ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.1)"}`,
+            }}>
+            {f === "pending" ? `⏳ Pending (${pending})` : f === "verified" ? `✓ Verified (${verified})` : `All (${records.length})`}
+          </button>
+        ))}
+        <button onClick={load} className="ml-auto text-white/25 hover:text-white/50 text-xs transition-colors">↻</button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">💳</p>
+          <p className="text-white/40 text-sm font-medium">
+            {filter === "pending" ? "No pending payments" : filter === "verified" ? "No verified payments yet" : "No payments yet"}
+          </p>
+          <p className="text-white/20 text-xs mt-1">Payments appear when users self-report via the app</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {filtered.map(r => (
+            <PaymentCard key={r.uid} rec={r} onAction={load} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Admin Page ───────────────────────────────────────────────────────────
+
 export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [, navigate] = useLocation();
   const [subjectData, setSubjectData] = useState<Record<string, SubjectInfo>>(
@@ -670,7 +904,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments">("overview");
 
   const loadAll = useCallback(async () => {
     setRefreshing(true);
@@ -761,9 +995,10 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
           className="flex gap-1.5 mb-5 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
           {([ 
-            { id: "overview", label: "📊 Database" },
-            { id: "ai",       label: "🤖 AI Review" },
-            { id: "users",    label: "👥 Users" },
+            { id: "overview",  label: "📊 DB" },
+            { id: "ai",        label: "🤖 AI" },
+            { id: "users",     label: "👥 Users" },
+            { id: "payments",  label: "💳 Payments" },
           ] as const).map(({ id, label }) => (
             <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
               className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
@@ -826,6 +1061,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "users" && (
             <motion.div key="users" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <UsersPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "payments" && (
+            <motion.div key="payments" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <PaymentsPanel />
             </motion.div>
           )}
         </AnimatePresence>
