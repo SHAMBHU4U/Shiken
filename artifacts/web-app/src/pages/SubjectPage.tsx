@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { db as _db } from "../firebase.js"; void _db;
+import { db } from "../firebase.js";
+import { ref, push, get, set } from "firebase/database";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
@@ -676,13 +677,34 @@ function ResultScreen({
   const [explainLoading, setExplainLoading] = useState<number | null>(null);
   const [explainOpen,    setExplainOpen]    = useState<Record<number, boolean>>({});
 
+  // Stable Firebase key from question text (safe for Firebase paths)
+  function explainCacheKey(questionEnglish: string): string {
+    return btoa(unescape(encodeURIComponent(questionEnglish.slice(0, 60)))).replace(/[/+=]/g, "_");
+  }
+
   async function fetchExplain(i: number, q: Question) {
     if (explainLoading !== null) return;
     setExplainOpen((o) => ({ ...o, [i]: true }));
-    if (explainTexts[i]) return; // already fetched
+    if (explainTexts[i]) return; // already fetched in session
     setExplainLoading(i);
     setExplainTexts((t) => ({ ...t, [i]: "" }));
     try {
+      // ── Check Firebase cache first ──────────────────────────────────────────
+      const cacheKey = explainCacheKey(q.english);
+      const cacheRef = ref(db, `explanations/${subject}/${cacheKey}`);
+      let cached: string | null = null;
+      try {
+        const snap = await get(cacheRef);
+        if (snap.exists()) cached = String(snap.val());
+      } catch { /* ignore cache miss */ }
+
+      if (cached) {
+        setExplainTexts((t) => ({ ...t, [i]: cached as string }));
+        setExplainLoading(null);
+        return;
+      }
+
+      // ── Not cached — call API and stream ────────────────────────────────────
       const resp = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -698,6 +720,7 @@ function ResultScreen({
       const decoder = new TextDecoder();
       if (!reader) throw new Error("No stream");
       let buf = "";
+      let fullText = "";
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -708,9 +731,17 @@ function ResultScreen({
           if (!line.startsWith("data: ")) continue;
           try {
             const payload = JSON.parse(line.slice(6));
-            if (payload.content) setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + payload.content }));
+            if (payload.content) {
+              fullText += payload.content;
+              setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + payload.content }));
+            }
           } catch { /* skip */ }
         }
+      }
+
+      // ── Save to Firebase cache (non-blocking) ────────────────────────────────
+      if (fullText.length > 10) {
+        set(cacheRef, fullText).catch(() => {});
       }
     } catch {
       setExplainTexts((t) => ({ ...t, [i]: "Explanation नहीं मिली 🙏" }));
@@ -1064,7 +1095,7 @@ function ResultScreen({
 
 // ─── Main SubjectPage ─────────────────────────────────────────────────────────
 
-type Screen = "loading" | "mode-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "quiz" | "result" | "saved-questions";
+type Screen = "loading" | "mode-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "smart-generating" | "quiz" | "result" | "saved-questions";
 
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
@@ -1217,14 +1248,84 @@ export default function SubjectPage() {
     saveProgress(subject, snap);
   }
 
+  // ── Firebase: save AI-generated questions (dedup by english text) ─────────────
+  async function saveAIQuestionsToFirebase(generated: Question[]) {
+    if (!meta || generated.length === 0) return;
+    const dbPath = meta.path.toLowerCase();
+    try {
+      const subjectRef = ref(db, dbPath);
+      const snap = await get(subjectRef);
+      const existing = parseQuestions(snap.val());
+      const existingSet = new Set(existing.map((q) => q.english.toLowerCase().trim().slice(0, 80)));
+      const newOnes = generated.filter(
+        (q) => q.english && !existingSet.has(q.english.toLowerCase().trim().slice(0, 80))
+      );
+      for (const q of newOnes) {
+        await push(subjectRef, {
+          english: q.english,
+          hindi: q.hindi || "",
+          options: q.options,
+          correctAnswer: q.answerIndex,
+          chapter: "AI Generated",
+        });
+      }
+    } catch { /* non-critical — DB save failed, quiz continues */ }
+  }
+
   // ── Start quiz helpers ────────────────────────────────────────────────────────
-  function startFullTest() {
+  async function startFullTest() {
     clearProgress(subject);
     setSavedProgress(null);
     setMode("full");
     setSelectedChapter("All Chapters");
-    const picked = pick(allQuestions, 50);
-    setQuestions(picked);
+    setScreen("smart-generating");
+
+    // Pick 25 from existing DB questions
+    const existing25 = pick(allQuestions, 25);
+
+    // Pick representative chapters for Gemini prompt
+    const chapterCounts = new Map<string, number>();
+    allQuestions.forEach((q) => chapterCounts.set(q.chapter, (chapterCounts.get(q.chapter) ?? 0) + 1));
+    const topChapters = [...chapterCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([c]) => c)
+      .join(", ");
+
+    let aiQuestions: Question[] = [];
+    try {
+      const resp = await fetch("/api/generate-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: meta?.label ?? subject,
+          chapter: topChapters || "General",
+          count: 25,
+        }),
+      });
+      const data = await resp.json() as { questions?: unknown[]; error?: string };
+      if (Array.isArray(data.questions) && data.questions.length > 0) {
+        aiQuestions = (data.questions as Record<string, unknown>[])
+          .map((q) => ({
+            english: String(q.english ?? ""),
+            hindi: String(q.hindi ?? ""),
+            options: Array.isArray(q.options) ? (q.options as unknown[]).map(String) : [],
+            answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
+            chapter: "AI Generated",
+          }))
+          .filter((q) => q.english && q.options.length >= 2);
+        // Save to Firebase in background (non-blocking)
+        saveAIQuestionsToFirebase(aiQuestions).catch(() => {});
+      }
+    } catch { /* AI generation failed — fall back to DB-only */ }
+
+    // Fill up to 50 total (pad with more DB questions if AI failed)
+    const needed = Math.max(0, 50 - existing25.length - aiQuestions.length);
+    const usedEnglish = new Set(existing25.map((q) => q.english));
+    const extra = needed > 0 ? pick(allQuestions.filter((q) => !usedEnglish.has(q.english)), needed) : [];
+    const combined = shuffle([...existing25, ...aiQuestions, ...extra]).slice(0, 50);
+
+    setQuestions(combined);
     setCurrentIndex(0);
     setAnswers({});
     setSelectedOption(null);
@@ -1232,7 +1333,7 @@ export default function SubjectPage() {
     setDirection(1);
     setTimerLeft(FULL_TIMER);
     setTimerHidden(false);
-    saveProgress(subject, { mode: "full", chapter: "All Chapters", questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: FULL_TIMER });
+    saveProgress(subject, { mode: "full", chapter: "All Chapters", questions: combined, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: FULL_TIMER });
     setScreen("quiz");
   }
 
@@ -1281,7 +1382,7 @@ export default function SubjectPage() {
   }
 
   function retryTest() {
-    if (mode === "full") { startFullTest(); }
+    if (mode === "full") { void startFullTest(); }
     else if (mode === "chapter") { startChapterTest(selectedChapter); }
     else { startAIPractice(selectedChapter); }
   }
@@ -1511,6 +1612,50 @@ export default function SubjectPage() {
           <p className="text-white font-bold text-lg mb-1">🤖 Gemini सोच रहा है...</p>
           <p className="text-white/40 text-sm">तुम्हारे लिए नए सवाल बना रहा हूँ</p>
           <p className="text-indigo-400/60 text-xs mt-2">Chapter: {selectedChapter}</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (screen === "smart-generating") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}22 0%, transparent 60%)` }} />
+        <motion.div className="relative z-10 text-center px-4">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 rounded-full border-2 border-transparent mx-auto mb-6"
+            style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }}
+          />
+          <p className="text-white font-bold text-xl mb-2">⚡ Smart Test बन रहा है...</p>
+          <p className="text-white/40 text-sm mb-5">25 database + 25 AI questions mix हो रहे हैं</p>
+          <div className="flex flex-col gap-2.5 text-left max-w-xs mx-auto">
+            {[
+              { emoji: "🗄️", text: "25 questions Firebase से ले रहा हूँ" },
+              { emoji: "🤖", text: "Gemini 25 नए questions बना रहा है" },
+              { emoji: "💾", text: "New questions database में save होंगे" },
+            ].map(({ emoji, text }, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.4, duration: 0.5 }}
+                className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+                style={{ background: `${meta.accent}12`, border: `1px solid ${meta.accent}25` }}
+              >
+                <span className="text-lg">{emoji}</span>
+                <span className="text-white/65 text-xs">{text}</span>
+                <motion.div
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ repeat: Infinity, duration: 1.2, delay: idx * 0.4 }}
+                  className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ background: meta.accent }}
+                />
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
       </div>
     );
@@ -1862,65 +2007,80 @@ export default function SubjectPage() {
         </div>
       </div>
 
-      {/* Floating Progress Navigation Bar */}
-      <motion.div
-        initial={{ y: 80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-        className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-4 pointer-events-none"
-      >
-        <div
-          className="w-full max-w-lg rounded-2xl px-4 py-3 pointer-events-auto"
+      {/* Floating Progress Navigation Bar — rendered via portal so it escapes
+          overflow:hidden / transform parents and stays fixed on the viewport */}
+      {createPortal(
+        <motion.div
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
           style={{
-            background: "rgba(15,15,25,0.82)",
-            backdropFilter: "blur(20px)",
-            WebkitBackdropFilter: "blur(20px)",
-            border: `1px solid ${meta.accent}25`,
-            boxShadow: `0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px ${meta.accent}18`,
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            display: "flex",
+            justifyContent: "center",
+            padding: "0 16px 16px",
+            pointerEvents: "none",
           }}
         >
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setScreen("mode-select")}
-              className="text-white/40 hover:text-white/70 transition-colors p-1 text-lg shrink-0"
-            >
-              ←
-            </button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-base">{meta.icon}</span>
-                <span className="text-white font-bold text-xs truncate">{meta.label}</span>
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full shrink-0"
-                  style={{ background: `${meta.accent}20`, color: meta.accent }}
-                >
-                  {mode === "full" ? "Full Test" : selectedChapter}
-                </span>
-                <motion.button
-                  onClick={() => setPaletteOpen(true)}
-                  whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                  className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shrink-0"
-                  style={{ background: `${meta.accent}18`, borderColor: `${meta.accent}35`, color: meta.accent }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
-                    <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
-                    <rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/>
-                  </svg>
-                  {currentIndex + 1}/{questions.length}
-                </motion.button>
-              </div>
-              <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <motion.div
-                  className="h-full rounded-full"
-                  animate={{ width: `${progress}%` }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                  style={{ background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}80)` }}
-                />
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 512,
+              borderRadius: 18,
+              padding: "12px 16px",
+              pointerEvents: "auto",
+              background: "rgba(12,12,20,0.88)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
+              border: `1px solid ${meta.accent}28`,
+              boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px ${meta.accent}1a`,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                onClick={() => setScreen("mode-select")}
+                style={{ color: "rgba(255,255,255,0.4)", fontSize: 18, padding: 4, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
+              >
+                ←
+              </button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <span style={{ fontSize: 15 }}>{meta.icon}</span>
+                  <span style={{ color: "#fff", fontWeight: 700, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
+                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: `${meta.accent}20`, color: meta.accent, flexShrink: 0 }}>
+                    {mode === "full" ? "Full Test" : selectedChapter}
+                  </span>
+                  <motion.button
+                    onClick={() => setPaletteOpen(true)}
+                    whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
+                    style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: `${meta.accent}18`, color: meta.accent, fontSize: 12, fontWeight: 700, flexShrink: 0, cursor: "pointer" }}
+                  >
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+                      <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
+                      <rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/>
+                    </svg>
+                    {currentIndex + 1}/{questions.length}
+                  </motion.button>
+                </div>
+                <div style={{ height: 6, borderRadius: 999, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                  <motion.div
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
+                    style={{ height: "100%", borderRadius: 999, background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}80)` }}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>,
+        document.body
+      )}
     </div>
   );
 }
