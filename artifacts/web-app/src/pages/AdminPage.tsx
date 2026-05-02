@@ -406,12 +406,24 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
               </div>
               <p className="text-white/30 text-xs">Firebase Realtime Database — Subject Overview</p>
             </div>
-            <motion.button onClick={loadAll} disabled={refreshing} whileTap={{ scale: 0.95 }}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white/80 hover:bg-white/10 transition-all text-xs font-medium disabled:opacity-40">
-              <motion.span animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
-                transition={refreshing ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}>↻</motion.span>
-              Refresh
-            </motion.button>
+            <div className="flex items-center gap-2 shrink-0">
+              <motion.button onClick={loadAll} disabled={refreshing} whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white/80 hover:bg-white/10 transition-all text-xs font-medium disabled:opacity-40">
+                <motion.span animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
+                  transition={refreshing ? { duration: 1, repeat: Infinity, ease: "linear" } : {}}>↻</motion.span>
+                Refresh
+              </motion.button>
+              {onSignOut && (
+                <motion.button onClick={onSignOut} whileTap={{ scale: 0.95 }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400/70 hover:text-red-400 hover:bg-red-500/15 transition-all text-xs font-medium"
+                  title="Sign out">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M4.5 2H2.5A.5.5 0 002 2.5v7a.5.5 0 00.5.5h2M8 4l2 2-2 2M10 6H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  Sign Out
+                </motion.button>
+              )}
+            </div>
           </div>
         </motion.div>
 
