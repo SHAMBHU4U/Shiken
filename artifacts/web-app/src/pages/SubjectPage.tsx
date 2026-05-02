@@ -157,7 +157,7 @@ function pick<T>(arr: T[], n: number): T[] {
 
 // Resolves the correct answer index across all Firebase schemas
 function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number {
-  const raw = q.correct_answer ?? q.answer;
+  const raw = q.correct_answer ?? q.correctAnswer ?? q.answer;
 
   // Numeric index (e.g. English, Social Science: answer=0,1,2,3)
   if (typeof raw === "number") return Math.max(0, Math.min(raw, opts.length - 1));
@@ -215,8 +215,19 @@ function parseQuestions(data: unknown): Question[] {
     // ── Question text ─────────────────────────────────────────────────────────
     // english: question_english > question > english
     // hindi:   question_hindi   > question_hi > hindi
-    const english = String(q.question_english ?? q.question  ?? q.english ?? "");
-    const hindi   = String(q.question_hindi   ?? q.question_hi ?? q.hindi ?? "");
+    // New format: q.question is bilingual "Hindi / English" split by " / "
+    let english = String(q.question_english ?? q.english ?? "");
+    let hindi   = String(q.question_hindi   ?? q.question_hi ?? q.hindi ?? "");
+    if (!english && !hindi && q.question) {
+      const combined = String(q.question);
+      const slashIdx = combined.indexOf(" / ");
+      if (slashIdx !== -1) {
+        hindi   = combined.slice(0, slashIdx).trim();
+        english = combined.slice(slashIdx + 3).trim();
+      } else {
+        english = combined;
+      }
+    }
 
     // ── Chapter ───────────────────────────────────────────────────────────────
     const chapter = String(q.chapter ?? q.chapter_name ?? "General");
