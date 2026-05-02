@@ -10,6 +10,7 @@ import ProgressPage from "@/pages/ProgressPage";
 import ProfilePage from "@/pages/ProfilePage";
 import CounsellingPage from "@/pages/CounsellingPage";
 import ContactPage from "@/pages/ContactPage";
+import LeaderboardPage from "@/pages/LeaderboardPage";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 // ─── Username helpers ──────────────────────────────────────────────────────────
@@ -529,10 +530,11 @@ function BottomNav() {
   if (isQuiz || isAdmin) return null;
 
   const tabs = [
-    { path: "/",            icon: "🏠", label: "Home"       },
-    { path: "/profile",     icon: "👤", label: "Profile"    },
-    { path: "/counselling", icon: "🎓", label: "Counselling"},
-    { path: "/contact",     icon: "📩", label: "Contact"    },
+    { path: "/",             icon: "🏠", label: "Home"       },
+    { path: "/leaderboard",  icon: "🏆", label: "Ranks"      },
+    { path: "/profile",      icon: "👤", label: "Profile"    },
+    { path: "/counselling",  icon: "🎓", label: "Counselling"},
+    { path: "/contact",      icon: "📩", label: "Contact"    },
   ];
 
   return (
@@ -712,6 +714,7 @@ function AppRoutes() {
         <Route path="/profile" component={ProfilePage} />
         <Route path="/counselling" component={CounsellingPage} />
         <Route path="/contact" component={ContactPage} />
+        <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/:subject" component={SubjectPage} />
       </Switch>
       <BottomNav />
