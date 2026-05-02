@@ -6,6 +6,8 @@ import { ref, push, get, set } from "firebase/database";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
+import { useSubscription } from "../hooks/useSubscription";
+import UpgradeModal from "../components/UpgradeModal";
 
 const subjectMeta: Record<string, { label: string; icon: string; accent: string; path: string }> = {
   maths:   { label: "Maths",          icon: "📐", accent: "#06b6d4", path: "maths"          },
@@ -27,7 +29,7 @@ interface Question {
 // ─── Progress persistence ──────────────────────────────────────────────────────
 
 interface SavedProgress {
-  mode: "full" | "chapter" | "ai";
+  mode: "full" | "chapter" | "ai" | "mini";
   chapter: string;
   questions: Question[];
   currentIndex: number;
@@ -87,7 +89,7 @@ interface TestRecord {
   score: number;
   total: number;
   pct: number;
-  mode: "full" | "chapter" | "ai";
+  mode: "full" | "chapter" | "ai" | "mini";
   chapter: string;
 }
 
@@ -404,6 +406,7 @@ function ProgressChart({ records, accent }: { records: TestRecord[]; accent: str
 
 function ModeSelect({
   meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount, history,
+  isPremium, onMiniTest, onUpgrade,
 }: {
   meta: { label: string; icon: string; accent: string };
   totalCount: number;
@@ -415,34 +418,56 @@ function ModeSelect({
   onResume: () => void;
   savedCount: number;
   history?: TestRecord[];
+  isPremium: boolean;
+  onMiniTest: () => void;
+  onUpgrade: () => void;
 }) {
   const modes = [
     {
+      id: "mini",
+      title: "Mini Test",
+      subtitle: `10 quick questions · Free for everyone`,
+      icon: "⚡",
+      desc: "Quick revision in ~10 minutes. No signup needed. Available to all students!",
+      onClick: onMiniTest,
+      glowColor: meta.accent,
+      locked: false,
+    },
+    {
       id: "full",
       title: "Full Length Test",
-      subtitle: `50 random questions from all ${totalCount}`,
+      subtitle: isPremium ? `25 DB + 25 AI questions (50 total)` : "50 questions — Premium only",
       icon: "🎯",
-      desc: "Covers the entire syllabus. Best for final revision. ⏱ 60 min",
-      onClick: onFull,
-      glowColor: meta.accent,
+      desc: isPremium
+        ? "Covers entire syllabus with AI-generated questions. ⏱ 60 min"
+        : "Upgrade to Premium to unlock full AI-powered 50-question tests.",
+      onClick: isPremium ? onFull : onUpgrade,
+      glowColor: isPremium ? meta.accent : "#fbbf24",
+      locked: !isPremium,
     },
     {
       id: "chapter",
       title: "Chapter-wise Test",
-      subtitle: "20 random questions per chapter",
+      subtitle: isPremium ? "20 random questions per chapter" : "Chapter tests — Premium only",
       icon: "📂",
-      desc: "Focus on one chapter at a time. Perfect for targeted practice. ⏱ 20 min",
-      onClick: onChapterWise,
-      glowColor: meta.accent,
+      desc: isPremium
+        ? "Focus on one chapter at a time. Perfect for targeted practice. ⏱ 20 min"
+        : "Upgrade to Premium for chapter-wise deep practice.",
+      onClick: isPremium ? onChapterWise : onUpgrade,
+      glowColor: isPremium ? meta.accent : "#fbbf24",
+      locked: !isPremium,
     },
     {
       id: "ai",
       title: "AI Practice",
-      subtitle: "5 fresh AI-generated questions",
+      subtitle: isPremium ? "5 fresh AI-generated questions" : "AI practice — Premium only",
       icon: "🤖",
-      desc: "Gemini बनाएगा नए सवाल तुम्हारे लिए। हर बार अलग, हर बार नया! ⚡ Free",
-      onClick: onAI,
-      glowColor: "#6366f1",
+      desc: isPremium
+        ? "Gemini बनाएगा नए सवाल तुम्हारे लिए। हर बार अलग, हर बार नया!"
+        : "Upgrade to Premium for Gemini-powered AI practice sessions.",
+      onClick: isPremium ? onAI : onUpgrade,
+      glowColor: isPremium ? "#6366f1" : "#fbbf24",
+      locked: !isPremium,
     },
   ];
 
@@ -579,10 +604,16 @@ function ModeSelect({
               boxShadow: `0 4px 32px ${m.glowColor}12`,
             }}
           >
-            {m.id === "ai" && (
+            {m.id === "ai" && !m.locked && (
               <div className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-bold"
                 style={{ background: "#6366f130", color: "#a5b4fc" }}>
                 NEW ✨
+              </div>
+            )}
+            {m.locked && (
+              <div className="absolute top-2 right-2 flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-bold"
+                style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}>
+                👑 Premium
               </div>
             )}
             <div
@@ -680,12 +711,14 @@ function ChapterSelect({
 
 function ResultScreen({
   questions, answers, accent, label, icon, isDemo, mode, chapter, subject, onHome, onRetry,
+  isPremium, onUpgrade,
 }: {
   questions: Question[];
   answers: Record<number, number>;
   accent: string; label: string; icon: string; isDemo: boolean;
-  mode: "full" | "chapter" | "ai"; chapter: string; subject: string;
+  mode: "full" | "chapter" | "ai" | "mini"; chapter: string; subject: string;
   onHome: () => void; onRetry: () => void;
+  isPremium: boolean; onUpgrade: () => void;
 }) {
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answerIndex ? 1 : 0), 0);
   const pct   = Math.round((score / questions.length) * 100);
@@ -716,6 +749,7 @@ function ResultScreen({
   }
 
   async function fetchExplain(i: number, q: Question) {
+    if (!isPremium) { onUpgrade(); return; }
     if (explainLoading !== null) return;
     setExplainOpen((o) => ({ ...o, [i]: true }));
     if (explainTexts[i]) return; // already fetched in session
@@ -789,6 +823,7 @@ function ResultScreen({
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
   async function fetchAnalysis() {
+    if (!isPremium) { onUpgrade(); return; }
     if (analysisLoading) return;
     setAnalysisOpen(true);
     setAnalysisText("");
@@ -1145,7 +1180,7 @@ export default function SubjectPage() {
   const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null);
 
   // Test config chosen by user
-  const [mode, setMode]           = useState<"full" | "chapter" | "ai">("full");
+  const [mode, setMode]           = useState<"full" | "chapter" | "ai" | "mini">("full");
   const [selectedChapter, setSelectedChapter] = useState("");
 
   // Active quiz state
@@ -1171,6 +1206,10 @@ export default function SubjectPage() {
   // History (refreshed when returning from result screen)
   const [subjectHistory, setSubjectHistory] = useState<TestRecord[]>(() => loadHistory(subject));
   const refreshHistory = () => setSubjectHistory(loadHistory(subject));
+
+  // Subscription & upgrade modal
+  const { isPremium } = useSubscription();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
 
   const mountedRef = useRef(true);
@@ -1370,6 +1409,24 @@ export default function SubjectPage() {
     setScreen("quiz");
   }
 
+  function startMiniTest() {
+    clearProgress(subject);
+    setSavedProgress(null);
+    setMode("mini");
+    setSelectedChapter("All Chapters");
+    const picked = pick(allQuestions, 10);
+    setQuestions(picked);
+    setCurrentIndex(0);
+    setAnswers({});
+    setSelectedOption(null);
+    setRippleKey(0);
+    setDirection(1);
+    setTimerLeft(10 * 60);
+    setTimerHidden(false);
+    saveProgress(subject, { mode: "mini", chapter: "All Chapters", questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: 10 * 60 });
+    setScreen("quiz");
+  }
+
   function startChapterTest(chapter: string) {
     clearProgress(subject);
     setSavedProgress(null);
@@ -1519,18 +1576,24 @@ export default function SubjectPage() {
 
   if (screen === "mode-select") {
     return (
-      <ModeSelect
-        meta={meta}
-        totalCount={allQuestions.length}
-        savedProgress={savedProgress}
-        onFull={startFullTest}
-        onChapterWise={() => setScreen("chapter-select")}
-        onAI={() => setScreen("ai-chapter-select")}
-        onSaved={() => setScreen("saved-questions")}
-        onResume={handleResume}
-        savedCount={bookmarks.length}
-        history={subjectHistory}
-      />
+      <>
+        <ModeSelect
+          meta={meta}
+          totalCount={allQuestions.length}
+          savedProgress={savedProgress}
+          onFull={startFullTest}
+          onChapterWise={() => setScreen("chapter-select")}
+          onAI={() => setScreen("ai-chapter-select")}
+          onSaved={() => setScreen("saved-questions")}
+          onResume={handleResume}
+          savedCount={bookmarks.length}
+          history={subjectHistory}
+          isPremium={isPremium}
+          onMiniTest={startMiniTest}
+          onUpgrade={() => setUpgradeOpen(true)}
+        />
+        <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+      </>
     );
   }
 
@@ -1696,12 +1759,16 @@ export default function SubjectPage() {
 
   if (screen === "result") {
     return (
-      <ResultScreen
-        questions={questions} answers={answers}
-        accent={meta.accent} label={meta.label} icon={meta.icon}
-        isDemo={isDemo} mode={mode} chapter={selectedChapter}
-        onHome={() => { refreshHistory(); setScreen("mode-select"); }} onRetry={retryTest} subject={subject}
-      />
+      <>
+        <ResultScreen
+          questions={questions} answers={answers}
+          accent={meta.accent} label={meta.label} icon={meta.icon}
+          isDemo={isDemo} mode={mode} chapter={selectedChapter}
+          onHome={() => { refreshHistory(); setScreen("mode-select"); }} onRetry={retryTest} subject={subject}
+          isPremium={isPremium} onUpgrade={() => setUpgradeOpen(true)}
+        />
+        <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+      </>
     );
   }
 

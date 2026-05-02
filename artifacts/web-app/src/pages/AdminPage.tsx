@@ -17,6 +17,7 @@ interface UserSession {
 }
 
 interface UserRecord {
+  uid: string;
   deviceId: string;
   lastActive: number;
   sessions: UserSession[];
@@ -39,11 +40,12 @@ async function fetchUsers(): Promise<UserRecord[]> {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json() as Record<string, { meta?: { deviceId: string; lastActive: number }; sessions?: Record<string, UserSession> }> | null;
   if (!data) return [];
-  return Object.values(data).map((u) => {
+  return Object.entries(data).map(([uid, u]) => {
     const sessions = u.sessions ? Object.values(u.sessions) : [];
     const avgPct = sessions.length ? Math.round(sessions.reduce((s, r) => s + r.pct, 0) / sessions.length) : 0;
     const subjectSet = [...new Set(sessions.map((s) => s.subject))];
     return {
+      uid,
       deviceId: u.meta?.deviceId ?? "unknown",
       lastActive: u.meta?.lastActive ?? 0,
       sessions: sessions.sort((a, b) => b.timestamp - a.timestamp),
@@ -71,9 +73,39 @@ function gradeColor(pct: number) {
   return "#ef4444";
 }
 
+async function setUserSubscription(uid: string, type: "free" | "premium") {
+  await fetch(`${DB_URL}/users/${uid}.json`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subscriptionType: type }),
+  });
+}
+
 function UserCard({ user, index }: { user: UserRecord; index: number }) {
   const [expanded, setExpanded] = useState(false);
+  const [subscription, setSubscription] = useState<"free" | "premium" | "loading">("loading");
+  const [toggling, setToggling] = useState(false);
   const shortId = user.deviceId.length > 18 ? user.deviceId.slice(0, 18) + "…" : user.deviceId;
+
+  useEffect(() => {
+    if (!user.uid || user.uid === "unknown") { setSubscription("free"); return; }
+    fetch(`${DB_URL}/users/${user.uid}/subscriptionType.json`)
+      .then((r) => r.json())
+      .then((d) => setSubscription(d === "premium" ? "premium" : "free"))
+      .catch(() => setSubscription("free"));
+  }, [user.uid]);
+
+  async function handleToggle(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (toggling || subscription === "loading") return;
+    const next = subscription === "premium" ? "free" : "premium";
+    setToggling(true);
+    try {
+      await setUserSubscription(user.uid, next);
+      setSubscription(next);
+    } catch { /* ignore */ }
+    finally { setToggling(false); }
+  }
 
   return (
     <motion.div
@@ -84,31 +116,51 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
       style={{ background: "rgba(255,255,255,0.04)" }}
     >
       {/* User header row */}
-      <button
+      <div
         onClick={() => setExpanded((e) => !e)}
-        className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/4 transition-colors"
+        role="button"
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-white/4 transition-colors cursor-pointer"
       >
         <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-black"
           style={{ background: `${gradeColor(user.avgPct)}22`, color: gradeColor(user.avgPct) }}>
           {user.avgPct}%
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-white text-xs font-semibold truncate font-mono">{shortId}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-white text-xs font-semibold truncate font-mono">{shortId}</p>
+            {subscription === "premium" && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full font-bold shrink-0"
+                style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", fontSize: "9px" }}>
+                👑 PRO
+              </span>
+            )}
+          </div>
           <p className="text-white/30 text-xs mt-0.5">
             {user.totalSessions} test{user.totalSessions !== 1 ? "s" : ""} · Last active {timeAgo(user.lastActive)}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {user.subjectSet.slice(0, 4).map((s) => (
-            <span key={s} className="text-sm" title={s}>{SUBJECT_ICONS[s] ?? "📚"}</span>
-          ))}
-          {user.subjectSet.length > 4 && (
-            <span className="text-white/30 text-xs">+{user.subjectSet.length - 4}</span>
-          )}
-          <span className="text-white/25 ml-1 text-xs transition-transform"
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handleToggle}
+            disabled={toggling || subscription === "loading"}
+            className="text-xs px-2 py-1 rounded-lg font-bold transition-all shrink-0"
+            style={
+              subscription === "premium"
+                ? { background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.35)" }
+                : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.35)", border: "1px solid rgba(255,255,255,0.1)" }
+            }
+          >
+            {toggling ? "…" : subscription === "loading" ? "·" : subscription === "premium" ? "Premium" : "Free"}
+          </button>
+          <div className="flex items-center gap-1">
+            {user.subjectSet.slice(0, 3).map((s) => (
+              <span key={s} className="text-sm" title={s}>{SUBJECT_ICONS[s] ?? "📚"}</span>
+            ))}
+          </div>
+          <span className="text-white/25 text-xs transition-transform"
             style={{ display: "inline-block", transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}>›</span>
         </div>
-      </button>
+      </div>
 
       {/* Expanded session list */}
       <AnimatePresence>

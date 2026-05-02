@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { updateProfile } from "firebase/auth";
-import { auth } from "../firebase";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, storage } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
+import { useSubscription } from "../hooks/useSubscription";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
@@ -286,7 +288,30 @@ export default function ProfilePage() {
   const [nameVal,      setNameVal]      = useState("");
   const [nameSaving,   setNameSaving]   = useState(false);
   const [nameSaved,    setNameSaved]    = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isPremium } = useSubscription();
+
+  async function handlePhotoUpload(file: File) {
+    if (!auth.currentUser || !file) return;
+    setPhotoUploading(true);
+    try {
+      const uid = auth.currentUser.uid;
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const sRef = storageRef(storage, `avatars/${uid}/profile.${ext}`);
+      await uploadBytes(sRef, file);
+      const url = await getDownloadURL(sRef);
+      await updateProfile(auth.currentUser, { photoURL: url });
+      const safeId = uid.replace(/[.#$/[\]]/g, "_");
+      fetch(`${DB_URL}/userActivity/${safeId}/meta.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoURL: url }),
+      }).catch(() => {});
+    } catch { /* ignore — Storage may need enabling in Firebase Console */ }
+    finally { setPhotoUploading(false); }
+  }
 
   async function handleNameSave() {
     const trimmed = nameVal.trim().slice(0, 30);
@@ -366,8 +391,29 @@ export default function ProfilePage() {
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
           className="flex items-center gap-4 p-5 rounded-2xl mb-6"
-          style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)" }}>
-          <Avatar name={user.displayName || user.email || "U"} photo={user.photoURL} size={64} />
+          style={isPremium
+            ? { background: "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(245,158,11,0.05))", border: "1px solid rgba(251,191,36,0.35)", boxShadow: "0 0 32px rgba(251,191,36,0.12)" }
+            : { background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)" }}>
+          {/* Avatar with photo upload */}
+          <div className="relative shrink-0">
+            <Avatar name={user.displayName || user.email || "U"} photo={user.photoURL} size={64} />
+            <motion.button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={photoUploading}
+              whileTap={{ scale: 0.9 }}
+              title="Change photo"
+              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border-2"
+              style={{ background: isPremium ? "#d97706" : "#7c3aed", borderColor: "#07080f" }}
+            >
+              {photoUploading
+                ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                    className="w-2.5 h-2.5 rounded-full border border-transparent" style={{ borderTopColor: "#fff" }} />
+                : <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="white" strokeWidth="1.6" strokeLinecap="round"/></svg>
+              }
+            </motion.button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); e.target.value = ""; }} />
+          </div>
           <div className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
               {editingName ? (
@@ -414,6 +460,14 @@ export default function ProfilePage() {
                 </motion.div>
               )}
             </AnimatePresence>
+            {isPremium && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-1"
+                style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 2px 12px rgba(251,191,36,0.4)" }}>
+                <span className="text-xs">👑</span>
+                <span className="text-black font-black text-xs">Premium Member</span>
+              </motion.div>
+            )}
             <p className="text-white/40 text-xs truncate">{user.email}</p>
             <p className="text-white/25 text-xs mt-0.5">
               Joined {new Date(user.metadata.creationTime || "").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}

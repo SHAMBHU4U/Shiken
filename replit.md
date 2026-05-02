@@ -11,14 +11,44 @@ pnpm workspace monorepo. The main product is **SHIKEN**, a student quiz app for 
 - **Styling**: Tailwind CSS v4, glassmorphism dark UI (`#07080f` bg)
 - **Animations**: Framer Motion
 - **Math rendering**: KaTeX (inline `$...$` and display `$$...$$`)
-- **Database**: Firebase Realtime Database (public read, no auth required)
+- **Database**: Firebase Realtime Database
+- **Auth**: Firebase Auth (Google + Email/Password)
+- **Storage**: Firebase Storage (for profile photo uploads)
 - **Persistence**: localStorage per-subject progress
 
 ## Firebase
 
 - DB URL: `https://shiken-d8789-default-rtdb.firebaseio.com`
-- Public read; paths: `maths`, `english`, `hindi`, `science`, `social%20science`, `sanskrit`
-- Subject question counts: maths(100), english(94), hindi(100), science(80), social science(80), sanskrit(0 — no data)
+- Storage Bucket: `shiken-d8789.firebasestorage.app`
+- Exports from `src/firebase.ts`: `db`, `auth`, `storage`
+- Subject paths: `maths`, `english`, `hindi`, `science`, `social%20science`, `sanskrit`
+- Subscription type stored at: `/users/{uid}/subscriptionType` = "free" | "premium"
+- Explanations cached at: `/explanations/{subject}/{cacheKey}`
+- AI questions pushed to: `/{subject}` with `chapter: "AI Generated"`
+
+## Auth & Profile
+
+- `src/contexts/AuthContext.tsx` — `AuthProvider`, `useAuth` (user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, signOut)
+- Google Sign-In: `signInWithRedirect` in iframe, popup otherwise
+- `src/hooks/useSubscription.ts` — reads `/users/{uid}/subscriptionType` from Firebase DB; returns `{ subscription, isPremium, subLoading }`
+
+## Freemium System
+
+### Free Users
+- Can only access **Mini Test** (10 random questions from DB, 10 min)
+
+### Premium Users
+- **Full Length Test**: 25 DB questions + 25 Gemini AI-generated = 50 questions (60 min)
+- **Chapter-wise Test**: 20 questions per chapter (20 min)
+- **AI Practice**: 5 fresh Gemini-generated questions
+- **AI Explanations**: per-question Gemini explanation (Firebase-cached)
+- **AI Test Analysis**: full test analysis in Hindi
+- **Priority counselling** via WhatsApp
+- **Golden badge** + gold profile theme
+- **Photo upload** to Firebase Storage
+
+### Setting Premium
+Admin can toggle per-user in Admin Panel → Users tab (tap "Free/Premium" button on any user card).
 
 ## Firebase Question Schemas (per subject)
 
@@ -29,41 +59,52 @@ Each subject uses a **different field structure** — the parser handles all of 
 | Maths | `question_english`, `question_hindi` | Object `{A,B,C,D}` | `correct_answer` = letter |
 | Science | `question_english`, `question_hindi`, `chapter_name` | Object `{A,B,C,D}` | `correct_answer` = letter |
 | English | `question`, `question_hi`, `options_hi` | Array | `answer` = numeric index |
-| Hindi | `question` (Hindi text) | Array with `(A)/(B)...` prefixes | `answer` = full text e.g. `"(D) 1908 ई॰ में"` |
+| Hindi | `question` (Hindi text) | Array with `(A)/(B)...` prefixes | `answer` = full text |
 | Social Science | `question` (bilingual with `/`) | Array | `answer` = numeric index |
 
 ## Key Files
 
-- `artifacts/web-app/src/App.tsx` — dashboard with 6 subject cards + routing
-- `artifacts/web-app/src/pages/SubjectPage.tsx` — full quiz page: fetch, parseQuestions, mode-select, chapter-select, quiz render, result screen, localStorage progress, palette, Gemini explain
-- `artifacts/web-app/src/components/MathText.tsx` — KaTeX renderer (safe, `throwOnError: false`)
-- `artifacts/web-app/src/firebase.js` — Firebase config (keeps SDK alive)
-- `artifacts/web-app/src/main.tsx` — app entry (no StrictMode)
-- `artifacts/api-server/src/routes/explain/index.ts` — POST /api/explain SSE streaming Gemini route
-- `lib/integrations-gemini-ai/` — Replit AI Integrations Gemini SDK wrapper
+- `artifacts/web-app/src/App.tsx` — dashboard + routing + BottomNav + AdminGuard
+- `artifacts/web-app/src/pages/SubjectPage.tsx` — full quiz: modes, freemium gates, AI generation, explanations
+- `artifacts/web-app/src/pages/ProfilePage.tsx` — auth form + profile card (golden badge, photo upload, name edit)
+- `artifacts/web-app/src/pages/AdminPage.tsx` — admin panel (DB overview, AI question review, user activity + premium toggle)
+- `artifacts/web-app/src/pages/CounsellingPage.tsx` — WhatsApp counselling + premium priority section
+- `artifacts/web-app/src/pages/ContactPage.tsx` — contact form (shiken.query@gmail.com)
+- `artifacts/web-app/src/hooks/useSubscription.ts` — subscription hook
+- `artifacts/web-app/src/components/UpgradeModal.tsx` — premium paywall bottom sheet
+- `artifacts/web-app/src/firebase.ts` — exports `db`, `auth`, `storage`
+- `artifacts/api-server/src/routes/` — explain (SSE), analyze-test (SSE), generate-questions
 
 ## Features
 
-- **Modes**: Full Length Test (50 random Qs, 60 min), Chapter-wise (20 random Qs per chapter, 20 min)
-- **Shuffle**: Fisher-Yates on every session start
-- **Progress**: localStorage saves after every answer; "Resume" banner on mode-select
-- **Result screen**: score, per-question review with correct answer highlight
+- **Freemium gates**: Mini Test (free), Full/Chapter/AI (Premium with 👑 badge + UpgradeModal)
+- **Smart Full Test**: 25 DB + 25 Gemini AI = 50 Qs; new AI Qs auto-pushed to Firebase
+- **Explanations**: Firebase-cached; generates via Gemini only on cache miss
+- **AI Analysis**: full test breakdown in Hindi (Premium only)
+- **Progress**: localStorage save after every answer; Resume banner
 - **Bilingual**: English + Hindi questions shown together
-- **Math**: KaTeX for `$...$` inline and `$$...$$` display math
-- **Floating timer**: glassmorphism pill, dismissible, sound alerts at 5 min / 1 min / last 10 sec / time-up
-- **Question palette**: bottom sheet grid showing answered/current/unanswered; tap to jump to any question
-- **AI Explain (Gemini)**: "दोस्त से समझो" button after answering; streams a friendly Hindi explanation via Gemini 2.5 Flash; includes why correct answer is right, why others are wrong, real-life example, exam tip
+- **Math**: KaTeX for `$...$` inline and `$$...$$` display
+- **Timer**: glassmorphism pill, sound alerts, dismissible
+- **Question palette**: bottom sheet grid, tap to jump
+- **Bookmarks**: star any question, review in Saved Questions
+- **BottomNav**: Home / Profile / Counselling / Contact (hidden on quiz/admin routes)
+- **Admin panel**: protected by `sessionStorage.shiken_admin_session`; DB stats, AI question moderation, user activity + premium toggle
+- **Contact**: shiken.query@gmail.com
+- **WhatsApp counselling**: 918340472013
 
 ## Gemini Integration
 
-- Uses Replit AI Integrations proxy (no API key needed, billed to Replit credits)
-- Env vars: `AI_INTEGRATIONS_GEMINI_BASE_URL`, `AI_INTEGRATIONS_GEMINI_API_KEY` (auto-set)
-- Route: `POST /api/explain` → SSE stream → frontend reads with `ReadableStream`
+- Uses `GEMINI_API_KEY` environment variable
+- API server routes: `/api/explain`, `/api/analyze-test`, `/api/generate-questions`
 - Model: `gemini-2.5-flash`
-- `@google/genai` is bundled by esbuild (removed from external list in `build.mjs`)
+- All AI content is bilingual (Hindi + English)
+
+## Firebase Storage (Photo Upload)
+- Requires Firebase Storage enabled in Firebase Console
+- Rules should allow: `allow read, write: if request.auth != null;`
+- Avatars stored at: `avatars/{uid}/profile.{ext}`
 
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck
 - `pnpm --filter @workspace/api-server run build` — build API server
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API client/zod from OpenAPI spec

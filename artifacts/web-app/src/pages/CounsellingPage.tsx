@@ -76,7 +76,7 @@ export default function CounsellingPage() {
         {/* Video Consultation */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-          className="rounded-2xl p-5 mb-6"
+          className="rounded-2xl p-5 mb-4"
           style={{ background: "rgba(139,92,246,0.07)", border: "1px solid rgba(139,92,246,0.15)" }}>
           <div className="flex items-start gap-3">
             <span className="text-2xl mt-0.5">📹</span>
@@ -84,6 +84,34 @@ export default function CounsellingPage() {
               <p className="text-white font-bold text-sm mb-1">WhatsApp Video Consultations</p>
               <p className="text-white/50 text-xs leading-relaxed">
                 You can ask career questions face-to-face via WhatsApp video call. The mentor's camera stays off for privacy — only your questions matter.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Premium Priority Access */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.32, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+          className="rounded-2xl p-5 mb-6"
+          style={{
+            background: "linear-gradient(135deg, rgba(251,191,36,0.08), rgba(245,158,11,0.04))",
+            border: "1px solid rgba(251,191,36,0.25)",
+          }}>
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg shrink-0"
+              style={{ background: "rgba(251,191,36,0.15)" }}>
+              👑
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-white font-bold text-sm">Premium Priority Consultation</p>
+                <span className="text-xs px-2 py-0.5 rounded-full font-bold"
+                  style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24" }}>
+                  Premium
+                </span>
+              </div>
+              <p className="text-white/50 text-xs leading-relaxed">
+                Premium students get <span className="text-yellow-400/80 font-semibold">priority response</span> within 2 hours, scheduled video calls, and a personalised study roadmap — not available in free plan.
               </p>
             </div>
           </div>
