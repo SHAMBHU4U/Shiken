@@ -37,6 +37,71 @@ function gradeLabel(p: number) {
   return "Needs Work";
 }
 
+function computeStreak(sessions: Session[]): number {
+  if (!sessions.length) return 0;
+  const daySet = new Set(sessions.map(s => {
+    const d = new Date(s.timestamp);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }));
+  let streak = 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const cur = new Date(today);
+  // If haven't tested today, still allow counting from yesterday
+  const todayKey = `${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`;
+  if (!daySet.has(todayKey)) cur.setDate(cur.getDate() - 1);
+  while (true) {
+    const key = `${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`;
+    if (daySet.has(key)) { streak++; cur.setDate(cur.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
+
+function TrendChart({ sessions }: { sessions: Session[] }) {
+  const pts = [...sessions].reverse().slice(-20);
+  if (pts.length < 2) return null;
+  const W = 300, H = 72, PX = 10, PY = 8;
+  const iW = W - PX * 2, iH = H - PY * 2;
+  const xs = pts.map((_, i) => PX + (i / (pts.length - 1)) * iW);
+  const ys = pts.map((r) => PY + (1 - r.pct / 100) * iH);
+  const linePath = pts.reduce((acc, _p, i) => {
+    if (i === 0) return `M ${xs[0]},${ys[0]}`;
+    const cpX = (xs[i - 1] + xs[i]) / 2;
+    return `${acc} C ${cpX},${ys[i - 1]} ${cpX},${ys[i]} ${xs[i]},${ys[i]}`;
+  }, "");
+  const fillPath = `${linePath} L ${xs[xs.length - 1]},${H} L ${xs[0]},${H} Z`;
+  const dotColor = (p: number) => p >= 80 ? "#10b981" : p >= 60 ? "#f59e0b" : "#ef4444";
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 72 }}>
+      <defs>
+        <linearGradient id="profile-trend-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      {[60, 80].map((pct) => {
+        const y = PY + (1 - pct / 100) * iH;
+        return <line key={pct} x1={PX} y1={y} x2={W - PX} y2={y}
+          stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3" />;
+      })}
+      <path d={fillPath} fill="url(#profile-trend-grad)" />
+      <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" />
+      {pts.map((r, i) => {
+        const last = i === pts.length - 1;
+        const dc = dotColor(r.pct);
+        return (
+          <g key={i}>
+            {last && <circle cx={xs[i]} cy={ys[i]} r={7} fill={dc} opacity={0.22} />}
+            <circle cx={xs[i]} cy={ys[i]} r={last ? 3.5 : 2.5}
+              fill={last ? dc : "#8b5cf6"} stroke={last ? "#07080f" : "none"} strokeWidth={1} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 function Avatar({ name, photo, size = 64 }: { name: string; photo?: string | null; size?: number }) {
   const colors = ["#8b5cf6", "#06b6d4", "#10b981", "#f97316", "#ec4899", "#f59e0b"];
   const color  = colors[(name.charCodeAt(0) || 0) % colors.length];
@@ -484,22 +549,66 @@ export default function ProfilePage() {
         </motion.div>
 
         {/* Stats */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.12, duration: 0.4 }}
-          className="grid grid-cols-3 gap-3 mb-6">
-          {[
-            { label: "Tests Taken",   value: statsLoading ? "…" : totalSessions,   color: "#8b5cf6" },
-            { label: "Avg Score",     value: statsLoading ? "…" : `${avgPct}%`,    color: gradeColor(avgPct) },
-            { label: "Best Subject",  value: statsLoading ? "…" : bestSubject ? SUBJECT_ICONS[bestSubject] ?? "📚" : "—", color: bestSubject ? SUBJECT_COLORS[bestSubject] : "#ffffff40" },
-          ].map((s, i) => (
-            <motion.div key={s.label} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.15 + i * 0.05 }}
-              className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-              <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
-              <p className="text-xl font-black" style={{ color: s.color }}>{s.value}</p>
+        {(() => {
+          const streak = computeStreak(sessions);
+          const stats = [
+            { label: "Tests Taken",  value: statsLoading ? "…" : String(totalSessions), color: "#8b5cf6" },
+            { label: "Avg Score",    value: statsLoading ? "…" : `${avgPct}%`,           color: gradeColor(avgPct) },
+            { label: "Best Subject", value: statsLoading ? "…" : bestSubject ? SUBJECT_ICONS[bestSubject] ?? "📚" : "—", color: bestSubject ? SUBJECT_COLORS[bestSubject] : "#ffffff40" },
+            { label: "Day Streak",   value: statsLoading ? "…" : streak > 0 ? `🔥 ${streak}` : "—", color: streak >= 7 ? "#f59e0b" : streak >= 3 ? "#fb923c" : "#8b5cf6" },
+          ];
+          return (
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12, duration: 0.4 }}
+              className="grid grid-cols-2 gap-3 mb-4">
+              {stats.map((s, i) => (
+                <motion.div key={s.label} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.15 + i * 0.05 }}
+                  className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
+                  <p className="text-xl font-black" style={{ color: s.color }}>{s.value}</p>
+                </motion.div>
+              ))}
             </motion.div>
-          ))}
-        </motion.div>
+          );
+        })()}
+
+        {/* Score trend chart */}
+        {sessions.length >= 2 && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, duration: 0.4 }}
+            className="mb-6 rounded-2xl border p-4"
+            style={{ background: "rgba(139,92,246,0.06)", borderColor: "rgba(139,92,246,0.2)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white/50 text-xs font-semibold">📈 Score Trend ({sessions.length} tests)</p>
+              <div className="flex gap-3">
+                {(() => {
+                  const best = Math.max(...sessions.map(s => s.pct));
+                  const trend = sessions.length >= 2 ? sessions[0].pct - sessions[1].pct : 0;
+                  return (
+                    <>
+                      <div className="text-right">
+                        <p className="text-white text-xs font-bold">{best}%</p>
+                        <p className="text-white/25 text-[10px]">Best</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs font-bold ${trend > 0 ? "text-emerald-400" : trend < 0 ? "text-red-400" : "text-white/40"}`}>
+                          {trend > 0 ? `+${trend}` : trend === 0 ? "–" : trend}%
+                        </p>
+                        <p className="text-white/25 text-[10px]">vs prev</p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+            <TrendChart sessions={sessions} />
+            <div className="flex justify-between mt-1 px-1">
+              <span className="text-white/15 text-[10px]">Older tests</span>
+              <span className="text-white/15 text-[10px]">Latest →</span>
+            </div>
+          </motion.div>
+        )}
 
         {/* Subject breakdown */}
         {Object.keys(subjectMap).length > 0 && (

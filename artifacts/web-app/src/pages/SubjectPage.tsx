@@ -821,6 +821,7 @@ function ResultScreen({
   const [analysisOpen,    setAnalysisOpen]    = useState(false);
   const [analysisText,    setAnalysisText]    = useState("");
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const autoAnalysisRef = useRef(false);
 
   async function fetchAnalysis() {
     if (!isPremium) { onUpgrade(); return; }
@@ -867,6 +868,16 @@ function ResultScreen({
     }
   }
 
+  // Auto-trigger AI analysis for premium users after test
+  useEffect(() => {
+    if (!isPremium || isDemo || autoAnalysisRef.current) return;
+    autoAnalysisRef.current = true;
+    setAnalysisOpen(true);
+    const t = setTimeout(() => { fetchAnalysis(); }, 1000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
@@ -902,6 +913,46 @@ function ResultScreen({
               style={{ background: `linear-gradient(90deg, ${accent}, #fff)` }} />
           </div>
         </motion.div>
+
+        {/* ── Progress Snapshot ────────────────────────────────────────────── */}
+        {history.length >= 1 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+            className="rounded-2xl border p-4 mb-4"
+            style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+          >
+            <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">📊 Progress Snapshot</p>
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              {[
+                { label: "This Test", value: `${pct}%`, color: pct >= 80 ? "#10b981" : pct >= 60 ? "#f59e0b" : "#ef4444" },
+                {
+                  label: "Avg Score",
+                  value: `${Math.round(history.reduce((a, r) => a + r.pct, 0) / history.length)}%`,
+                  color: (() => { const avg = Math.round(history.reduce((a, r) => a + r.pct, 0) / history.length); return avg >= 80 ? "#10b981" : avg >= 60 ? "#f59e0b" : "#ef4444"; })(),
+                },
+                { label: "Best", value: `${Math.max(...history.map(r => r.pct))}%`, color: "#10b981" },
+              ].map((s) => (
+                <div key={s.label} className="text-center rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.04)" }}>
+                  <p className="font-black text-base" style={{ color: s.color }}>{s.value}</p>
+                  <p className="text-white/25 text-xs mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            {history.length >= 2 && (() => {
+              const trend = history[history.length - 1].pct - history[history.length - 2].pct;
+              return (
+                <div className="flex items-center justify-center gap-1.5 pt-3"
+                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <span className="text-sm">{trend > 0 ? "📈" : trend < 0 ? "📉" : "➡️"}</span>
+                  <span className="text-xs font-bold" style={{ color: trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "rgba(255,255,255,0.35)" }}>
+                    {trend > 0 ? `+${trend}%` : trend === 0 ? "Same as last test" : `${trend}%`}
+                    <span className="font-normal text-white/30"> vs last test</span>
+                  </span>
+                </div>
+              );
+            })()}
+          </motion.div>
+        )}
 
         {/* ── Progress chart ────────────────────────────────────────────────── */}
         {history.length >= 2 && (
