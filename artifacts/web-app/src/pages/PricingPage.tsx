@@ -94,11 +94,12 @@ function PaymentSheet({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subscriptionType: "pending",
-          pendingPlan: plan.id,
-          pendingAmount: plan.amount,
-          pendingUntil: Date.now() + plan.days * 86400000,
+          subscriptionType: "premium",
+          premiumUntil: Date.now() + plan.days * 86400000,
+          plan: plan.id,
+          activatedAt: Date.now(),
           requestedAt: Date.now(),
+          paymentVerified: false,
         }),
       });
       onSuccess(uid);
@@ -251,7 +252,7 @@ function PaymentSheet({
 // ─── Main Pricing Page ─────────────────────────────────────────────────────────
 export default function PricingPage() {
   const [, navigate] = useLocation();
-  const { isPremium, isPending } = useSubscription();
+  const { isPremium } = useSubscription();
   const [payPlan, setPayPlan] = useState<Plan | null>(null);
   const [success, setSuccess] = useState<{ plan: Plan; uid: string } | null>(null);
 
@@ -266,72 +267,43 @@ export default function PricingPage() {
           className="text-center max-w-xs mx-auto"
         >
           <motion.div
-            animate={{ scale: [1, 1.15, 1], rotate: [0, -5, 5, 0] }}
+            animate={{ rotate: [0, -10, 10, -5, 5, 0], scale: [1, 1.2, 1.2, 1] }}
             transition={{ duration: 1.2, delay: 0.2 }}
             className="text-7xl mb-4 block"
-          >⏳</motion.div>
-          <h2 className="text-white font-black text-2xl mb-2">Payment Request भेजा!</h2>
-          <p className="text-white/50 text-sm mb-4 leading-relaxed">
-            आपका {success.plan.price} payment request admin को मिल गया।<br/>
-            <strong className="text-white/70">Premium 1–4 घंटे में activate होगा।</strong>
+          >👑</motion.div>
+          <h2 className="text-white font-black text-3xl mb-2">Premium Active!</h2>
+          <p className="text-white/50 text-sm mb-6 leading-relaxed">
+            {success.plan.period} का Premium अब activate हो गया।<br/>
+            <span className="text-white/30 text-xs">All premium features unlocked 🎉</span>
           </p>
 
-          {/* WhatsApp notify step */}
-          <div className="rounded-2xl p-4 mb-6 text-left"
-            style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
-            <p className="text-emerald-400 font-black text-xs mb-2">⚡ जल्दी activate कराने के लिए:</p>
-            <p className="text-white/50 text-xs mb-3 leading-relaxed">
-              नीचे button दबाकर Admin को WhatsApp करो — इससे वो तुरंत verify करेंगे।
+          {/* Optional: notify admin */}
+          <div className="rounded-2xl p-4 mb-5 text-left"
+            style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
+            <p className="text-emerald-400 font-black text-xs mb-1.5">📩 Admin को Payment बताओ</p>
+            <p className="text-white/40 text-xs mb-3 leading-relaxed">
+              Admin को UPI screenshot / reference भेजो ताकि वो payment confirm कर सकें।
             </p>
             <motion.a
               href={waLink}
               target="_blank"
               rel="noreferrer"
               whileTap={{ scale: 0.97 }}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-black text-sm"
-              style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff", boxShadow: "0 4px 20px rgba(34,197,94,0.35)" }}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm"
+              style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}
             >
-              💬 WhatsApp करो Admin को
+              💬 WhatsApp Admin
             </motion.a>
           </div>
 
           <motion.button
             onClick={() => navigate("/")}
             whileTap={{ scale: 0.96 }}
-            className="w-full py-3.5 rounded-2xl font-black text-sm text-black"
-            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 6px 32px rgba(251,191,36,0.3)" }}
+            className="w-full py-4 rounded-2xl font-black text-base text-black"
+            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 6px 32px rgba(251,191,36,0.4)" }}
           >
-            ठीक है, घर जाओ →
+            Start Learning 🚀
           </motion.button>
-          <p className="text-white/20 text-xs mt-3">
-            Verify होने तक Free plan continue रहेगा।
-          </p>
-        </motion.div>
-      </div>
-    );
-  }
-
-  if (isPending) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-28" style={{ background: "#07080f" }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-xs mx-auto">
-          <div className="text-5xl mb-4">⏳</div>
-          <h2 className="text-white font-black text-xl mb-2">Payment Verification Pending</h2>
-          <p className="text-white/40 text-sm mb-6 leading-relaxed">
-            Admin आपकी payment verify कर रहे हैं।<br/>जल्द ही Premium activate होगा।
-          </p>
-          <motion.a
-            href={`https://wa.me/${ADMIN_WA}?text=${encodeURIComponent("Namaste! Mera premium abhi tak activate nahi hua. Please check karein 🙏")}`}
-            target="_blank" rel="noreferrer"
-            whileTap={{ scale: 0.97 }}
-            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-bold text-sm mb-3"
-            style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}
-          >
-            💬 Admin को WhatsApp करो
-          </motion.a>
-          <button onClick={() => navigate("/")} className="text-white/25 text-xs hover:text-white/50 transition-colors">
-            ← वापस जाओ
-          </button>
         </motion.div>
       </div>
     );

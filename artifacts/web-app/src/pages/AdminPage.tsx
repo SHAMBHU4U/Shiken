@@ -683,34 +683,24 @@ async function fetchPayments(): Promise<PaymentRecord[]> {
   const data = await res.json() as Record<string, {
     subscriptionType?: string;
     plan?: string;
-    pendingPlan?: string;
-    pendingAmount?: number;
     activatedAt?: number;
     requestedAt?: number;
     premiumUntil?: number;
-    pendingUntil?: number;
     paymentVerified?: boolean;
   }> | null;
   if (!data) return [];
 
   return Object.entries(data)
-    .filter(([, u]) =>
-      (u.subscriptionType === "pending" && u.requestedAt) ||
-      (u.subscriptionType === "premium" && (u.activatedAt || u.requestedAt))
-    )
+    .filter(([, u]) => u.subscriptionType === "premium" && (u.activatedAt || u.requestedAt))
     .map(([uid, u]) => {
-      const plan = u.plan ?? u.pendingPlan ?? "monthly";
+      const plan = u.plan ?? "monthly";
       return {
         uid,
         plan,
-        amount: u.pendingAmount ?? PLAN_AMOUNTS[plan] ?? 49,
+        amount: PLAN_AMOUNTS[plan] ?? 49,
         requestedAt: u.requestedAt ?? u.activatedAt ?? 0,
-        premiumUntil: u.premiumUntil ?? u.pendingUntil ?? 0,
-        status: u.subscriptionType === "pending"
-          ? "awaiting_verify" as const
-          : u.paymentVerified
-            ? "verified" as const
-            : "awaiting_verify" as const,
+        premiumUntil: u.premiumUntil ?? 0,
+        status: u.paymentVerified === true ? "verified" as const : "awaiting_verify" as const,
       };
     })
     .sort((a, b) => b.requestedAt - a.requestedAt);
@@ -722,8 +712,7 @@ async function fetchPendingCount(): Promise<number> {
   const data = await res.json() as Record<string, { subscriptionType?: string; paymentVerified?: boolean }> | null;
   if (!data) return 0;
   return Object.values(data).filter(u =>
-    u.subscriptionType === "pending" ||
-    (u.subscriptionType === "premium" && !u.paymentVerified)
+    u.subscriptionType === "premium" && !u.paymentVerified
   ).length;
 }
 
