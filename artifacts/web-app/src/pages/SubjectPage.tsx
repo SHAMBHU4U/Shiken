@@ -53,6 +53,40 @@ function clearProgress(subject: string) {
   try { localStorage.removeItem(progressKey(subject)); } catch { /* noop */ }
 }
 
+// ─── Audio alerts (Web Audio API — no external deps) ──────────────────────────
+
+function playBeep(
+  frequency: number,
+  duration: number,
+  count = 1,
+  gapMs = 140,
+  volume = 0.28,
+) {
+  try {
+    const AudioCtx = window.AudioContext ?? (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const schedule = (when: number) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "sine";
+      osc.frequency.value = frequency;
+      gain.gain.setValueAtTime(0, when);
+      gain.gain.linearRampToValueAtTime(volume, when + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+      osc.start(when);
+      osc.stop(when + duration + 0.02);
+    };
+    for (let i = 0; i < count; i++) {
+      schedule(ctx.currentTime + i * (duration + gapMs / 1000));
+    }
+    // Auto-close context after all beeps finish
+    setTimeout(() => ctx.close(), (count * (duration + gapMs / 1000) + 0.5) * 1000);
+  } catch { /* AudioContext blocked or unsupported — silent fallback */ }
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function shuffle<T>(arr: T[]): T[] {
@@ -575,6 +609,28 @@ export default function SubjectPage() {
     clearProgress(subject);
     setSavedProgress(null);
     setScreen("result");
+  }, [timerLeft, screen]);
+
+  // ── Sound alerts ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (screen !== "quiz" || timerLeft < 0) return;
+    if (timerLeft === 300) {
+      // 5-minute warning: two calm double-tone beeps (low → high)
+      playBeep(520, 0.18, 1);
+      setTimeout(() => playBeep(700, 0.22, 1), 260);
+    } else if (timerLeft === 60) {
+      // 1-minute alert: three urgent ascending beeps
+      playBeep(700, 0.14, 1);
+      setTimeout(() => playBeep(850, 0.14, 1), 210);
+      setTimeout(() => playBeep(1020, 0.20, 1), 420);
+    } else if (timerLeft <= 10 && timerLeft > 0) {
+      // Final 10-second tick: short sharp click each second
+      playBeep(880, 0.07, 1, 0, 0.18);
+    } else if (timerLeft === 0) {
+      // Time's up: low descending chord
+      playBeep(600, 0.25, 1);
+      setTimeout(() => playBeep(440, 0.35, 1), 280);
+    }
   }, [timerLeft, screen]);
 
   // ── Fetch questions ──────────────────────────────────────────────────────────
