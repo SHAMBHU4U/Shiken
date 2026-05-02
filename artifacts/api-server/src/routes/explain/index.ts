@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { ai } from "@workspace/integrations-gemini-ai";
+import { streamGemini } from "../../lib/gemini";
 
 const router = Router();
 
@@ -45,32 +45,7 @@ ${optionsList}
 
 जवाब Hindi में दो (थोड़े English words चलेंगे जो normally use होते हैं जैसे formula, concept etc.)`;
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-
-  try {
-    const stream = await ai.models.generateContentStream({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { maxOutputTokens: 8192 },
-    });
-
-    for await (const chunk of stream) {
-      const text = chunk.text;
-      if (text) {
-        res.write(`data: ${JSON.stringify({ content: text })}\n\n`);
-      }
-    }
-
-    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-  } catch (err) {
-    req.log.error(err, "Gemini explain error");
-    res.write(`data: ${JSON.stringify({ error: "समझाने में दिक्कत आई, फिर से कोशिश करो 🙏" })}\n\n`);
-  }
-
-  res.end();
+  await streamGemini(res, prompt, "समझाने में दिक्कत आई, फिर से कोशिश करो 🙏", req.log);
 });
 
 export default router;

@@ -24,7 +24,7 @@ interface Question {
 // ─── Progress persistence ──────────────────────────────────────────────────────
 
 interface SavedProgress {
-  mode: "full" | "chapter";
+  mode: "full" | "chapter" | "ai";
   chapter: string;
   questions: Question[];
   currentIndex: number;
@@ -244,13 +244,14 @@ function MagicRipple({ color }: { color: string }) {
 // ─── Mode Select Screen ────────────────────────────────────────────────────────
 
 function ModeSelect({
-  meta, totalCount, savedProgress, onFull, onChapterWise, onResume,
+  meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onResume,
 }: {
   meta: { label: string; icon: string; accent: string };
   totalCount: number;
   savedProgress: SavedProgress | null;
   onFull: () => void;
   onChapterWise: () => void;
+  onAI: () => void;
   onResume: () => void;
 }) {
   const modes = [
@@ -261,6 +262,7 @@ function ModeSelect({
       icon: "🎯",
       desc: "Covers the entire syllabus. Best for final revision. ⏱ 60 min",
       onClick: onFull,
+      glowColor: meta.accent,
     },
     {
       id: "chapter",
@@ -269,6 +271,16 @@ function ModeSelect({
       icon: "📂",
       desc: "Focus on one chapter at a time. Perfect for targeted practice. ⏱ 20 min",
       onClick: onChapterWise,
+      glowColor: meta.accent,
+    },
+    {
+      id: "ai",
+      title: "AI Practice",
+      subtitle: "5 fresh AI-generated questions",
+      icon: "🤖",
+      desc: "Gemini बनाएगा नए सवाल तुम्हारे लिए। हर बार अलग, हर बार नया! ⚡ Free",
+      onClick: onAI,
+      glowColor: "#6366f1",
     },
   ];
 
@@ -330,40 +342,46 @@ function ModeSelect({
         )}
 
         {/* Mode cards */}
-        {modes.map((mode, i) => (
+        {modes.map((m, i) => (
           <motion.button
-            key={mode.id}
+            key={m.id}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.12, ease: [0.23, 1, 0.32, 1], duration: 0.5 }}
             whileHover={{ scale: 1.03, y: -3 }}
             whileTap={{ scale: 0.97 }}
-            onClick={mode.onClick}
+            onClick={m.onClick}
             className="relative overflow-hidden text-left rounded-2xl border p-5 group"
             style={{
-              background: `linear-gradient(135deg, ${meta.accent}18, rgba(255,255,255,0.03))`,
-              borderColor: `${meta.accent}30`,
-              boxShadow: `0 4px 32px ${meta.accent}12`,
+              background: `linear-gradient(135deg, ${m.glowColor}18, rgba(255,255,255,0.03))`,
+              borderColor: `${m.glowColor}30`,
+              boxShadow: `0 4px 32px ${m.glowColor}12`,
             }}
           >
+            {m.id === "ai" && (
+              <div className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-bold"
+                style={{ background: "#6366f130", color: "#a5b4fc" }}>
+                NEW ✨
+              </div>
+            )}
             <div
               className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
-              style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}18, transparent 70%)` }}
+              style={{ background: `radial-gradient(ellipse at 50% 0%, ${m.glowColor}18, transparent 70%)` }}
             />
             <div className="flex items-start gap-4 relative z-10">
               <div
                 className="text-2xl w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `${meta.accent}20` }}
+                style={{ background: `${m.glowColor}20` }}
               >
-                {mode.icon}
+                {m.icon}
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-0.5">
-                  <h3 className="text-white font-bold text-base">{mode.title}</h3>
+                  <h3 className="text-white font-bold text-base">{m.title}</h3>
                   <span className="text-white/30 group-hover:text-white/60 transition-colors text-lg">→</span>
                 </div>
-                <p className="text-xs font-semibold mb-1" style={{ color: meta.accent }}>{mode.subtitle}</p>
-                <p className="text-white/40 text-xs leading-snug">{mode.desc}</p>
+                <p className="text-xs font-semibold mb-1" style={{ color: m.glowColor }}>{m.subtitle}</p>
+                <p className="text-white/40 text-xs leading-snug">{m.desc}</p>
               </div>
             </div>
           </motion.button>
@@ -440,17 +458,66 @@ function ChapterSelect({
 // ─── Result Screen ─────────────────────────────────────────────────────────────
 
 function ResultScreen({
-  questions, answers, accent, label, icon, isDemo, mode, chapter, onHome, onRetry,
+  questions, answers, accent, label, icon, isDemo, mode, chapter, subject, onHome, onRetry,
 }: {
   questions: Question[];
   answers: Record<number, number>;
   accent: string; label: string; icon: string; isDemo: boolean;
-  mode: "full" | "chapter"; chapter: string;
+  mode: "full" | "chapter" | "ai"; chapter: string; subject: string;
   onHome: () => void; onRetry: () => void;
 }) {
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answerIndex ? 1 : 0), 0);
   const pct   = Math.round((score / questions.length) * 100);
   const msg   = pct === 100 ? "Perfect! Outstanding! 🏆" : pct >= 80 ? "Excellent! ⭐" : pct >= 60 ? "Good effort! 💪" : "Keep going! 🌱";
+
+  // AI analysis state
+  const [analysisOpen,    setAnalysisOpen]    = useState(false);
+  const [analysisText,    setAnalysisText]    = useState("");
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+
+  async function fetchAnalysis() {
+    if (analysisLoading) return;
+    setAnalysisOpen(true);
+    setAnalysisText("");
+    setAnalysisLoading(true);
+    const wrong = questions
+      .map((q, i) => ({
+        questionEnglish: q.english,
+        correctAnswer: q.options[q.answerIndex] ?? "",
+        userAnswer: answers[i] !== undefined ? (q.options[answers[i]] ?? "") : undefined,
+      }))
+      .filter((_, i) => answers[i] !== questions[i].answerIndex);
+    try {
+      const resp = await fetch("/api/analyze-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject, score, total: questions.length, mode, chapter, wrong }),
+      });
+      const reader = resp.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("No stream");
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const payload = JSON.parse(line.slice(6));
+            if (payload.content) setAnalysisText((t) => t + payload.content);
+            if (payload.error)   setAnalysisText((t) => t + payload.error);
+          } catch { /* skip */ }
+        }
+      }
+    } catch {
+      setAnalysisText("Analysis में दिक्कत आई। फिर से try करो 🙏");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }
 
   return (
     <motion.div
@@ -488,7 +555,7 @@ function ResultScreen({
           </div>
         </motion.div>
 
-        <div className="flex gap-3 mb-6">
+        <div className="flex gap-3 mb-4">
           <motion.button
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
@@ -508,6 +575,67 @@ function ResultScreen({
             ← Dashboard
           </motion.button>
         </div>
+
+        {/* ── AI Test Analysis ─────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+          className="mb-6"
+        >
+          <motion.button
+            onClick={() => analysisOpen ? setAnalysisOpen(false) : fetchAnalysis()}
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl border text-sm font-bold"
+            style={{
+              background: analysisOpen ? "linear-gradient(135deg,#6366f128,#8b5cf628)" : "rgba(99,102,241,0.12)",
+              borderColor: analysisOpen ? "#6366f155" : "rgba(99,102,241,0.3)",
+              color: "#a5b4fc",
+              boxShadow: analysisOpen ? "0 0 30px rgba(99,102,241,0.2)" : "none",
+            }}
+          >
+            <span className="text-lg">{analysisLoading ? "⏳" : "🧠"}</span>
+            {analysisLoading ? "AI विश्लेषण कर रहा है..." : analysisOpen ? "विश्लेषण बंद करो ↑" : "AI से Test विश्लेषण लो (Hindi में)"}
+          </motion.button>
+
+          <AnimatePresence>
+            {analysisOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 rounded-2xl border p-5"
+                  style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.06))", borderColor: "rgba(99,102,241,0.22)", boxShadow: "0 4px 40px rgba(99,102,241,0.12)" }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xl">🧠</span>
+                    <span className="text-sm font-bold text-indigo-300">AI Teacher — Personal Analysis</span>
+                    <span className="text-xs text-white/25 ml-auto">Gemini · Hindi</span>
+                  </div>
+                  {analysisText ? (
+                    <div className="text-sm leading-relaxed text-white/85 whitespace-pre-wrap">
+                      {analysisText}
+                      {analysisLoading && (
+                        <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}
+                          className="inline-block w-1.5 h-4 bg-indigo-400 rounded-sm ml-0.5 align-middle" />
+                      )}
+                    </div>
+                  ) : analysisLoading ? (
+                    <div className="flex items-center gap-3 py-3">
+                      <div className="flex gap-1">
+                        {[0,1,2].map((i) => (
+                          <motion.div key={i} animate={{ y: [0,-6,0] }} transition={{ repeat: Infinity, duration: 0.7, delay: i*0.15 }}
+                            className="w-2 h-2 rounded-full bg-indigo-400" />
+                        ))}
+                      </div>
+                      <span className="text-xs text-white/40">तुम्हारे results analyse कर रहा हूँ...</span>
+                    </div>
+                  ) : null}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
 
         <div className="flex flex-col gap-4 mb-8">
           {questions.map((q, i) => {
@@ -559,7 +687,7 @@ function ResultScreen({
 
 // ─── Main SubjectPage ─────────────────────────────────────────────────────────
 
-type Screen = "loading" | "mode-select" | "chapter-select" | "quiz" | "result";
+type Screen = "loading" | "mode-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "quiz" | "result";
 
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
@@ -576,7 +704,7 @@ export default function SubjectPage() {
   const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null);
 
   // Test config chosen by user
-  const [mode, setMode]           = useState<"full" | "chapter">("full");
+  const [mode, setMode]           = useState<"full" | "chapter" | "ai">("full");
   const [selectedChapter, setSelectedChapter] = useState("");
 
   // Active quiz state
@@ -783,7 +911,43 @@ export default function SubjectPage() {
 
   function retryTest() {
     if (mode === "full") { startFullTest(); }
-    else { startChapterTest(selectedChapter); }
+    else if (mode === "chapter") { startChapterTest(selectedChapter); }
+    else { startAIPractice(selectedChapter); }
+  }
+
+  async function startAIPractice(chapter: string) {
+    clearProgress(subject);
+    setSavedProgress(null);
+    setMode("ai");
+    setSelectedChapter(chapter);
+    setScreen("ai-generating");
+    try {
+      const resp = await fetch("/api/generate-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: meta?.label ?? subject, chapter, count: 5 }),
+      });
+      const data = await resp.json() as { questions?: Question[]; error?: string };
+      if (!data.questions?.length) throw new Error("No questions returned");
+      const generated: Question[] = data.questions.map((q: Question) => ({
+        english: q.english ?? "",
+        hindi: q.hindi ?? "",
+        options: Array.isArray(q.options) ? q.options : [],
+        answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
+        chapter,
+      }));
+      setQuestions(generated);
+      setCurrentIndex(0);
+      setAnswers({});
+      setSelectedOption(null);
+      setRippleKey(0);
+      setDirection(1);
+      setTimerLeft(-1);
+      setTimerHidden(false);
+      setScreen("quiz");
+    } catch {
+      setScreen("mode-select");
+    }
   }
 
   // ── Quiz handlers ─────────────────────────────────────────────────────────────
@@ -906,6 +1070,7 @@ export default function SubjectPage() {
         savedProgress={savedProgress}
         onFull={startFullTest}
         onChapterWise={() => setScreen("chapter-select")}
+        onAI={() => setScreen("ai-chapter-select")}
         onResume={handleResume}
       />
     );
@@ -922,13 +1087,44 @@ export default function SubjectPage() {
     );
   }
 
+  if (screen === "ai-chapter-select") {
+    return (
+      <ChapterSelect
+        meta={{ ...meta, label: "AI Practice — " + meta.label }}
+        chapters={chapters}
+        onBack={() => setScreen("mode-select")}
+        onSelect={startAIPractice}
+      />
+    );
+  }
+
+  if (screen === "ai-generating") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(99,102,241,0.18) 0%, transparent 60%)" }} />
+        <motion.div className="relative z-10 text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+            className="w-14 h-14 rounded-full border-2 border-transparent mx-auto mb-5"
+            style={{ borderTopColor: "#6366f1", borderRightColor: "#6366f150" }}
+          />
+          <p className="text-white font-bold text-lg mb-1">🤖 Gemini सोच रहा है...</p>
+          <p className="text-white/40 text-sm">तुम्हारे लिए नए सवाल बना रहा हूँ</p>
+          <p className="text-indigo-400/60 text-xs mt-2">Chapter: {selectedChapter}</p>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (screen === "result") {
     return (
       <ResultScreen
         questions={questions} answers={answers}
         accent={meta.accent} label={meta.label} icon={meta.icon}
         isDemo={isDemo} mode={mode} chapter={selectedChapter}
-        onHome={() => navigate("/")} onRetry={retryTest}
+        onHome={() => navigate("/")} onRetry={retryTest} subject={subject}
       />
     );
   }
