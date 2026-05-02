@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { db as _db } from "../firebase.js"; void _db;
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
+import ExplainText from "@/components/ExplainText";
 
 const subjectMeta: Record<string, { label: string; icon: string; accent: string; path: string }> = {
   maths:   { label: "Maths",          icon: "📐", accent: "#06b6d4", path: "maths"          },
@@ -51,6 +52,30 @@ function saveProgress(subject: string, data: SavedProgress) {
 
 function clearProgress(subject: string) {
   try { localStorage.removeItem(progressKey(subject)); } catch { /* noop */ }
+}
+
+// ─── Bookmark persistence ──────────────────────────────────────────────────────
+
+function bookmarkKey(subject: string) { return `shiken_bookmarks_${subject}`; }
+
+function loadBookmarks(subject: string): Question[] {
+  try {
+    const raw = localStorage.getItem(bookmarkKey(subject));
+    if (!raw) return [];
+    return JSON.parse(raw) as Question[];
+  } catch { return []; }
+}
+
+function isBookmarked(bookmarks: Question[], q: Question): boolean {
+  return bookmarks.some((b) => b.english === q.english);
+}
+
+function toggleBookmark(subject: string, bookmarks: Question[], q: Question): Question[] {
+  const next = isBookmarked(bookmarks, q)
+    ? bookmarks.filter((b) => b.english !== q.english)
+    : [q, ...bookmarks];
+  try { localStorage.setItem(bookmarkKey(subject), JSON.stringify(next)); } catch { /* quota */ }
+  return next;
 }
 
 // ─── Audio alerts (Web Audio API — no external deps) ──────────────────────────
@@ -244,7 +269,7 @@ function MagicRipple({ color }: { color: string }) {
 // ─── Mode Select Screen ────────────────────────────────────────────────────────
 
 function ModeSelect({
-  meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onResume,
+  meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount,
 }: {
   meta: { label: string; icon: string; accent: string };
   totalCount: number;
@@ -252,7 +277,9 @@ function ModeSelect({
   onFull: () => void;
   onChapterWise: () => void;
   onAI: () => void;
+  onSaved: () => void;
   onResume: () => void;
+  savedCount: number;
 }) {
   const modes = [
     {
@@ -283,6 +310,8 @@ function ModeSelect({
       glowColor: "#6366f1",
     },
   ];
+
+  const hasSaved = savedCount > 0;
 
   function formatRelativeTime(ts: number) {
     const diffMin = Math.round((Date.now() - ts) / 60000);
@@ -339,6 +368,27 @@ function ModeSelect({
               Resume →
             </motion.button>
           </motion.div>
+        )}
+
+        {/* Saved Questions button */}
+        {hasSaved && (
+          <motion.button
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
+            whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.97 }}
+            onClick={onSaved}
+            className="relative overflow-hidden text-left rounded-2xl border p-4 flex items-center gap-4 group"
+            style={{ background: "linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.03))", borderColor: "rgba(251,191,36,0.3)", boxShadow: "0 4px 28px rgba(251,191,36,0.1)" }}
+          >
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
+              style={{ background: "radial-gradient(ellipse at 50% 0%,rgba(251,191,36,0.14),transparent 70%)" }} />
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
+              style={{ background: "rgba(251,191,36,0.15)" }}>⭐</div>
+            <div className="flex-1 relative z-10">
+              <p className="text-white font-bold text-sm">Saved Questions</p>
+              <p className="text-xs" style={{ color: "rgba(251,191,36,0.8)" }}>{savedCount} question{savedCount !== 1 ? "s" : ""} bookmarked • Revise anytime</p>
+            </div>
+            <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10 text-lg">→</span>
+          </motion.button>
         )}
 
         {/* Mode cards */}
@@ -469,6 +519,10 @@ function ResultScreen({
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answerIndex ? 1 : 0), 0);
   const pct   = Math.round((score / questions.length) * 100);
   const msg   = pct === 100 ? "Perfect! Outstanding! 🏆" : pct >= 80 ? "Excellent! ⭐" : pct >= 60 ? "Good effort! 💪" : "Keep going! 🌱";
+
+  // Bookmarks (local state — syncs with localStorage)
+  const [bmks, setBmks] = useState<Question[]>(() => loadBookmarks(subject));
+  const bmkToggle = (q: Question) => setBmks((prev) => toggleBookmark(subject, prev, q));
 
   // Per-question explanation state
   const [explainTexts,   setExplainTexts]   = useState<Record<number, string>>({});
@@ -711,9 +765,17 @@ function ResultScreen({
                     }}>
                     {isRight ? "✓" : isSkipped ? "–" : "✗"}
                   </span>
-                  <p className="text-white/80 text-sm font-medium leading-snug">
+                  <p className="text-white/80 text-sm font-medium leading-snug flex-1">
                     {i + 1}. <MathText text={q.english} />
                   </p>
+                  <motion.button
+                    onClick={() => bmkToggle(q)}
+                    whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.82 }}
+                    className="text-base leading-none shrink-0 ml-1"
+                    title={isBookmarked(bmks, q) ? "Remove bookmark" : "Bookmark"}
+                  >
+                    {isBookmarked(bmks, q) ? "⭐" : "☆"}
+                  </motion.button>
                 </div>
                 {q.hindi && <p className="text-white/35 text-xs mb-2 pl-1"><MathText text={q.hindi} /></p>}
                 <div className="flex flex-col gap-1 pl-1 mb-3">
@@ -767,17 +829,12 @@ function ResultScreen({
                       transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
                       className="overflow-hidden"
                     >
-                      <div className="mt-2 px-3 py-2.5 rounded-lg border"
+                      <div className="mt-2 px-3 py-3 rounded-lg border"
                         style={{ background: "rgba(99,102,241,0.07)", borderColor: "rgba(99,102,241,0.2)" }}>
-                        {exText ? (
-                          <p className="text-xs leading-relaxed text-white/75 whitespace-pre-wrap">
-                            {exText}
-                            {isExLoading && (
-                              <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}
-                                className="inline-block w-1 h-3 bg-indigo-400 rounded-sm ml-0.5 align-middle" />
-                            )}
-                          </p>
-                        ) : isExLoading ? (
+                        {(exText || isExLoading) ? (
+                          <ExplainText text={exText} loading={isExLoading} />
+                        ) : null}
+                        {!exText && isExLoading && (
                           <div className="flex items-center gap-2 py-1">
                             {[0, 1, 2].map((j) => (
                               <motion.div key={j} animate={{ y: [0, -4, 0] }}
@@ -786,7 +843,7 @@ function ResultScreen({
                             ))}
                             <span className="text-xs text-white/35 ml-1">समझा रहा हूँ...</span>
                           </div>
-                        ) : null}
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -802,7 +859,7 @@ function ResultScreen({
 
 // ─── Main SubjectPage ─────────────────────────────────────────────────────────
 
-type Screen = "loading" | "mode-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "quiz" | "result";
+type Screen = "loading" | "mode-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "quiz" | "result" | "saved-questions";
 
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
@@ -838,6 +895,9 @@ export default function SubjectPage() {
 
   // Question palette
   const [paletteOpen, setPaletteOpen] = useState(false);
+
+  // Bookmarks
+  const [bookmarks, setBookmarks] = useState<Question[]>(() => loadBookmarks(subject));
 
 
   const mountedRef = useRef(true);
@@ -1123,7 +1183,9 @@ export default function SubjectPage() {
         onFull={startFullTest}
         onChapterWise={() => setScreen("chapter-select")}
         onAI={() => setScreen("ai-chapter-select")}
+        onSaved={() => setScreen("saved-questions")}
         onResume={handleResume}
+        savedCount={bookmarks.length}
       />
     );
   }
@@ -1147,6 +1209,80 @@ export default function SubjectPage() {
         onBack={() => setScreen("mode-select")}
         onSelect={startAIPractice}
       />
+    );
+  }
+
+  if (screen === "saved-questions") {
+    return (
+      <div className="min-h-screen px-4 py-6" style={{ background: "#07080f" }}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.12) 0%, transparent 55%)" }} />
+        <div className="max-w-lg mx-auto relative z-10">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <motion.button whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }}
+              onClick={() => setScreen("mode-select")}
+              className="w-9 h-9 rounded-xl flex items-center justify-center border text-sm"
+              style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
+              ←
+            </motion.button>
+            <div>
+              <h2 className="text-white font-black text-xl">⭐ Saved Questions</h2>
+              <p className="text-white/35 text-xs">{bookmarks.length} question{bookmarks.length !== 1 ? "s" : ""} · {meta.label}</p>
+            </div>
+            {bookmarks.length > 0 && (
+              <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
+                onClick={() => {
+                  const qs = [...bookmarks].sort(() => Math.random() - 0.5).slice(0, Math.min(bookmarks.length, 20));
+                  setQuestions(qs); setCurrentIndex(0); setAnswers({}); setSelectedOption(null);
+                  setRippleKey(0); setDirection(1); setMode("chapter"); setSelectedChapter("Saved Questions");
+                  setTimerLeft(-1); setTimerHidden(false); setScreen("quiz");
+                }}
+                className="ml-auto px-4 py-2 rounded-xl text-xs font-bold"
+                style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.4)" }}>
+                Start Quiz ▶
+              </motion.button>
+            )}
+          </div>
+
+          {bookmarks.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-5xl mb-4">☆</p>
+              <p className="text-white/50 text-sm">Quiz करते वक्त किसी question पर ⭐ tap करो</p>
+              <p className="text-white/25 text-xs mt-1">वो question यहाँ save हो जाएगा</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {bookmarks.map((q, i) => (
+                <motion.div key={q.english}
+                  initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                  className="rounded-xl border p-4"
+                  style={{ background: "rgba(251,191,36,0.06)", borderColor: "rgba(251,191,36,0.2)" }}>
+                  <div className="flex items-start gap-2 mb-2">
+                    <span className="text-yellow-400/60 text-xs shrink-0 mt-0.5 font-bold">Q{i + 1}</span>
+                    <p className="text-white/85 text-sm font-medium leading-snug flex-1">
+                      <MathText text={q.english} />
+                    </p>
+                    <motion.button
+                      whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
+                      onClick={() => setBookmarks(toggleBookmark(subject, bookmarks, q))}
+                      className="text-base leading-none shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+                      ⭐
+                    </motion.button>
+                  </div>
+                  {q.hindi && <p className="text-white/30 text-xs mb-2 pl-4"><MathText text={q.hindi} /></p>}
+                  <div className="pl-4">
+                    <p className="text-xs" style={{ color: "rgba(251,191,36,0.7)" }}>
+                      ✓ <MathText text={q.options[q.answerIndex] ?? ""} />
+                    </p>
+                    {q.chapter && <p className="text-white/25 text-xs mt-0.5">{q.chapter}</p>}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -1429,9 +1565,23 @@ export default function SubjectPage() {
                 )}
 
                 {/* Question card */}
-                <div className="rounded-2xl p-5 mb-4 border"
+                <div className="rounded-2xl p-5 mb-4 border relative"
                   style={{ background: `linear-gradient(135deg, ${meta.accent}18, rgba(255,255,255,0.03))`, borderColor: `${meta.accent}30`, boxShadow: `0 4px 32px ${meta.accent}15` }}>
-                  <p className="text-white font-semibold text-base leading-relaxed mb-2">
+                  {/* Bookmark button */}
+                  <motion.button
+                    onClick={() => setBookmarks(toggleBookmark(subject, bookmarks, q))}
+                    whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }}
+                    className="absolute top-3 right-3 text-lg leading-none"
+                    title={isBookmarked(bookmarks, q) ? "Remove bookmark" : "Bookmark this question"}
+                  >
+                    <motion.span
+                      animate={{ scale: isBookmarked(bookmarks, q) ? [1, 1.35, 1] : 1 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      {isBookmarked(bookmarks, q) ? "⭐" : "☆"}
+                    </motion.span>
+                  </motion.button>
+                  <p className="text-white font-semibold text-base leading-relaxed mb-2 pr-8">
                     {currentIndex + 1}. <MathText text={q.english} />
                   </p>
                   {q.hindi && (
