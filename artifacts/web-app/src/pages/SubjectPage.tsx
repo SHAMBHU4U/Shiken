@@ -368,7 +368,7 @@ function ModeSelect({
   onSaved: () => void;
   onResume: () => void;
   savedCount: number;
-  history: TestRecord[];
+  history?: TestRecord[];
 }) {
   const modes = [
     {
@@ -401,9 +401,10 @@ function ModeSelect({
   ];
 
   const hasSaved = savedCount > 0;
-  const hasHistory = history.length > 0;
-  const avgPct = hasHistory ? Math.round(history.reduce((a, r) => a + r.pct, 0) / history.length) : 0;
-  const bestPct = hasHistory ? Math.max(...history.map((r) => r.pct)) : 0;
+  const safeHistory = history ?? [];
+  const hasHistory = safeHistory.length > 0;
+  const avgPct = hasHistory ? Math.round(safeHistory.reduce((a, r) => a + r.pct, 0) / safeHistory.length) : 0;
+  const bestPct = hasHistory ? Math.max(...safeHistory.map((r) => r.pct)) : 0;
 
   function formatRelativeTime(ts: number) {
     const diffMin = Math.round((Date.now() - ts) / 60000);
@@ -481,12 +482,12 @@ function ModeSelect({
                   <p className="text-white/30 text-[10px]">Avg</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white text-xs font-bold">{history.length}</p>
+                  <p className="text-white text-xs font-bold">{safeHistory.length}</p>
                   <p className="text-white/30 text-[10px]">Tests</p>
                 </div>
               </div>
             </div>
-            <ProgressChart records={history} accent={meta.accent} />
+            <ProgressChart records={safeHistory} accent={meta.accent} />
             <div className="flex justify-between mt-1 px-1">
               <span className="text-white/20 text-[10px]">Oldest</span>
               <span className="text-white/20 text-[10px]">Latest →</span>
