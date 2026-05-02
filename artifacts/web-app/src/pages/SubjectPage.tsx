@@ -470,6 +470,54 @@ function ResultScreen({
   const pct   = Math.round((score / questions.length) * 100);
   const msg   = pct === 100 ? "Perfect! Outstanding! 🏆" : pct >= 80 ? "Excellent! ⭐" : pct >= 60 ? "Good effort! 💪" : "Keep going! 🌱";
 
+  // Per-question explanation state
+  const [explainTexts,   setExplainTexts]   = useState<Record<number, string>>({});
+  const [explainLoading, setExplainLoading] = useState<number | null>(null);
+  const [explainOpen,    setExplainOpen]    = useState<Record<number, boolean>>({});
+
+  async function fetchExplain(i: number, q: Question) {
+    if (explainLoading !== null) return;
+    setExplainOpen((o) => ({ ...o, [i]: true }));
+    if (explainTexts[i]) return; // already fetched
+    setExplainLoading(i);
+    setExplainTexts((t) => ({ ...t, [i]: "" }));
+    try {
+      const resp = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionEnglish: q.english,
+          questionHindi: q.hindi || "",
+          options: q.options,
+          correctAnswer: q.options[q.answerIndex] ?? "",
+          subject: label,
+        }),
+      });
+      const reader = resp.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("No stream");
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const payload = JSON.parse(line.slice(6));
+            if (payload.content) setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + payload.content }));
+          } catch { /* skip */ }
+        }
+      }
+    } catch {
+      setExplainTexts((t) => ({ ...t, [i]: "Explanation नहीं मिली 🙏" }));
+    } finally {
+      setExplainLoading(null);
+    }
+  }
+
   // AI analysis state
   const [analysisOpen,    setAnalysisOpen]    = useState(false);
   const [analysisText,    setAnalysisText]    = useState("");
@@ -639,43 +687,110 @@ function ResultScreen({
 
         <div className="flex flex-col gap-4 mb-8">
           {questions.map((q, i) => {
-            const userAnswer = answers[i] ?? -1;
-            const isRight    = userAnswer === q.answerIndex;
+            const userAnswer  = answers[i] ?? -1;
+            const isRight     = userAnswer === q.answerIndex;
+            const isSkipped   = userAnswer === -1;
+            const isExOpen    = explainOpen[i] ?? false;
+            const isExLoading = explainLoading === i;
+            const exText      = explainTexts[i] ?? "";
             return (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.04 }}
                 className="rounded-xl border p-4"
-                style={{ background: isRight ? `${accent}12` : "rgba(255,255,255,0.04)", borderColor: isRight ? `${accent}40` : "rgba(255,255,255,0.08)" }}
+                style={{
+                  background: isRight ? `${accent}12` : isSkipped ? "rgba(255,255,255,0.03)" : "rgba(255,80,80,0.06)",
+                  borderColor: isRight ? `${accent}40` : isSkipped ? "rgba(255,255,255,0.07)" : "rgba(255,80,80,0.18)",
+                }}
               >
                 <div className="flex items-start gap-2 mb-2">
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full mt-0.5 shrink-0"
-                    style={{ background: isRight ? `${accent}30` : "rgba(255,255,255,0.1)", color: isRight ? accent : "rgba(255,255,255,0.5)" }}>
-                    {isRight ? "✓" : "✗"}
+                    style={{
+                      background: isRight ? `${accent}30` : isSkipped ? "rgba(255,255,255,0.1)" : "rgba(255,80,80,0.2)",
+                      color: isRight ? accent : isSkipped ? "rgba(255,255,255,0.4)" : "#f87171",
+                    }}>
+                    {isRight ? "✓" : isSkipped ? "–" : "✗"}
                   </span>
                   <p className="text-white/80 text-sm font-medium leading-snug">
                     {i + 1}. <MathText text={q.english} />
                   </p>
                 </div>
                 {q.hindi && <p className="text-white/35 text-xs mb-2 pl-1"><MathText text={q.hindi} /></p>}
-                <div className="flex flex-col gap-1 pl-1">
+                <div className="flex flex-col gap-1 pl-1 mb-3">
                   {q.options.map((opt, oi) => {
                     const isCorrect = oi === q.answerIndex;
                     const isUser    = oi === userAnswer;
                     return (
                       <div key={oi} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
                         style={{
-                          background: isCorrect ? `${accent}25` : isUser && !isRight ? "rgba(255,255,255,0.08)" : "transparent",
-                          color:      isCorrect ? accent : isUser && !isRight ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.28)",
+                          background: isCorrect ? `${accent}25` : isUser && !isRight ? "rgba(255,80,80,0.12)" : "transparent",
+                          color:      isCorrect ? accent : isUser && !isRight ? "#f87171" : "rgba(255,255,255,0.28)",
                         }}>
                         <span className="font-bold w-4 shrink-0">{String.fromCharCode(65 + oi)}.</span>
                         <MathText text={opt} />
-                        {isCorrect          && <span className="ml-auto font-semibold">✓ Answer</span>}
+                        {isCorrect          && <span className="ml-auto font-semibold">✓ Correct</span>}
                         {isUser && !isRight && <span className="ml-auto">Your pick</span>}
                       </div>
                     );
                   })}
                 </div>
+
+                {/* ── Per-question AI Explain ── */}
+                <motion.button
+                  onClick={() => isExOpen
+                    ? setExplainOpen((o) => ({ ...o, [i]: false }))
+                    : fetchExplain(i, q)}
+                  whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
+                  disabled={explainLoading !== null && !isExLoading}
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
+                  style={{
+                    background: isExOpen ? "rgba(99,102,241,0.14)" : "rgba(99,102,241,0.06)",
+                    borderColor: isExOpen ? "rgba(99,102,241,0.35)" : "rgba(99,102,241,0.18)",
+                    color: isExLoading ? "#a5b4fc" : "#818cf8",
+                    opacity: explainLoading !== null && !isExLoading ? 0.4 : 1,
+                    cursor: explainLoading !== null && !isExLoading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  <span>{isExLoading ? "⏳" : "🤖"}</span>
+                  <span>
+                    {isExLoading ? "Explanation आ रही है..." : isExOpen ? "Explanation छुपाओ ↑" : "Explain करो (Hindi)"}
+                  </span>
+                  {!isExLoading && !isExOpen && <span className="ml-auto text-white/20 text-xs">Gemini ✦</span>}
+                </motion.button>
+
+                <AnimatePresence>
+                  {isExOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-2 px-3 py-2.5 rounded-lg border"
+                        style={{ background: "rgba(99,102,241,0.07)", borderColor: "rgba(99,102,241,0.2)" }}>
+                        {exText ? (
+                          <p className="text-xs leading-relaxed text-white/75 whitespace-pre-wrap">
+                            {exText}
+                            {isExLoading && (
+                              <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}
+                                className="inline-block w-1 h-3 bg-indigo-400 rounded-sm ml-0.5 align-middle" />
+                            )}
+                          </p>
+                        ) : isExLoading ? (
+                          <div className="flex items-center gap-2 py-1">
+                            {[0, 1, 2].map((j) => (
+                              <motion.div key={j} animate={{ y: [0, -4, 0] }}
+                                transition={{ repeat: Infinity, duration: 0.6, delay: j * 0.12 }}
+                                className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                            ))}
+                            <span className="text-xs text-white/35 ml-1">समझा रहा हूँ...</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             );
           })}
@@ -724,19 +839,6 @@ export default function SubjectPage() {
   // Question palette
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Gemini explanation
-  const [explainOpen,    setExplainOpen]    = useState(false);
-  const [explainText,    setExplainText]    = useState("");
-  const [explainLoading, setExplainLoading] = useState(false);
-  const explainAbortRef = useRef<AbortController | null>(null);
-
-  // Reset explanation when question changes
-  useEffect(() => {
-    explainAbortRef.current?.abort();
-    setExplainOpen(false);
-    setExplainText("");
-    setExplainLoading(false);
-  }, [currentIndex]);
 
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
@@ -991,56 +1093,6 @@ export default function SubjectPage() {
     setPaletteOpen(false);
   };
 
-  const fetchExplanation = async () => {
-    if (!q) return;
-    explainAbortRef.current?.abort();
-    const ctrl = new AbortController();
-    explainAbortRef.current = ctrl;
-    setExplainOpen(true);
-    setExplainText("");
-    setExplainLoading(true);
-    const correctAnswer = q.options[q.answerIndex] ?? "";
-    try {
-      const resp = await fetch("/api/explain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionEnglish: q.english,
-          questionHindi: q.hindi || "",
-          options: q.options,
-          correctAnswer,
-          subject: meta?.label ?? subject,
-        }),
-        signal: ctrl.signal,
-      });
-      const reader = resp.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No stream");
-      let buf = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const payload = JSON.parse(line.slice(6));
-            if (payload.content) setExplainText((t) => t + payload.content);
-            if (payload.done) break;
-            if (payload.error) setExplainText((t) => t + "\n" + payload.error);
-          } catch {}
-        }
-      }
-    } catch (e: unknown) {
-      if ((e as Error)?.name !== "AbortError") {
-        setExplainText("समझाने में दिक्कत आई। फिर से कोशिश करो 🙏");
-      }
-    } finally {
-      setExplainLoading(false);
-    }
-  };
 
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (!meta) {
@@ -1426,121 +1478,49 @@ export default function SubjectPage() {
                   })}
                 </div>
 
-                {/* ── Gemini Explain Button + Card ────────────────────────────── */}
-                <AnimatePresence>
-                  {selectedOption !== null && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 8 }}
-                      transition={{ duration: 0.35, delay: 0.15 }}
-                      className="mt-4"
-                    >
-                      {/* Toggle button */}
-                      <motion.button
-                        onClick={() => explainOpen ? setExplainOpen(false) : fetchExplanation()}
-                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all"
-                        style={{
-                          background: explainOpen
-                            ? `linear-gradient(135deg, #6366f128, #8b5cf628)`
-                            : "rgba(99,102,241,0.1)",
-                          borderColor: explainOpen ? "#6366f155" : "rgba(99,102,241,0.25)",
-                          color: explainOpen ? "#a5b4fc" : "#818cf8",
-                        }}
-                      >
-                        <span className="text-base">{explainLoading ? "⏳" : "🤖"}</span>
-                        {explainLoading
-                          ? "दोस्त समझा रहा है..."
-                          : explainOpen
-                            ? "समझाना बंद करो ↑"
-                            : "दोस्त से समझो (Hindi में)"}
-                      </motion.button>
-
-                      {/* Explanation card */}
-                      <AnimatePresence>
-                        {explainOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-                            className="overflow-hidden"
-                          >
-                            <div
-                              className="mt-3 rounded-2xl border p-4"
-                              style={{
-                                background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))",
-                                borderColor: "rgba(99,102,241,0.22)",
-                                boxShadow: "0 4px 32px rgba(99,102,241,0.12)",
-                              }}
-                            >
-                              {/* Card header */}
-                              <div className="flex items-center gap-2 mb-3">
-                                <span className="text-lg">🤖</span>
-                                <span className="text-xs font-bold text-indigo-300">AI दोस्त</span>
-                                <span className="text-xs text-white/25 ml-auto">Gemini · Hindi</span>
-                              </div>
-
-                              {/* Streaming text */}
-                              {explainText ? (
-                                <div className="text-sm leading-relaxed text-white/85 whitespace-pre-wrap">
-                                  {explainText}
-                                  {explainLoading && (
-                                    <motion.span
-                                      animate={{ opacity: [1, 0, 1] }}
-                                      transition={{ repeat: Infinity, duration: 0.8 }}
-                                      className="inline-block w-1.5 h-4 bg-indigo-400 rounded-sm ml-0.5 align-middle"
-                                    />
-                                  )}
-                                </div>
-                              ) : explainLoading ? (
-                                <div className="flex items-center gap-3 py-2">
-                                  <div className="flex gap-1">
-                                    {[0, 1, 2].map((i) => (
-                                      <motion.div
-                                        key={i}
-                                        animate={{ y: [0, -6, 0] }}
-                                        transition={{ repeat: Infinity, duration: 0.7, delay: i * 0.15 }}
-                                        className="w-2 h-2 rounded-full bg-indigo-400"
-                                      />
-                                    ))}
-                                  </div>
-                                  <span className="text-xs text-white/40">समझा रहा हूँ...</span>
-                                </div>
-                              ) : null}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </motion.div>
             </AnimatePresence>
           </div>
 
           {/* Nav buttons */}
-          <div className="flex gap-3 mt-5 pb-4">
-            {currentIndex > 0 && (
-              <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={handlePrev}
-                className="flex-1 py-3.5 rounded-xl text-sm font-semibold border"
-                style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
-                ← Prev
+          <div className="flex gap-2 mt-5 pb-4">
+            <motion.button
+              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={handlePrev} disabled={currentIndex === 0}
+              className="w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 text-base"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                borderColor: "rgba(255,255,255,0.09)",
+                color: currentIndex === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.55)",
+                cursor: currentIndex === 0 ? "not-allowed" : "pointer",
+              }}>
+              ←
+            </motion.button>
+
+            {selectedOption === null && currentIndex < questions.length - 1 && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={handleNext}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold border"
+                style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.09)", color: "rgba(255,255,255,0.45)" }}>
+                Skip ↷
               </motion.button>
             )}
+
             <motion.button
               whileHover={selectedOption !== null ? { scale: 1.03 } : {}}
               whileTap={selectedOption  !== null ? { scale: 0.97 } : {}}
-              onClick={handleNext} disabled={selectedOption === null}
-              className="flex-[2] py-3.5 rounded-xl text-sm font-bold transition-all duration-300"
+              onClick={selectedOption !== null ? handleNext : undefined}
+              disabled={selectedOption === null}
+              className="flex-[2] py-3 rounded-xl text-sm font-bold transition-all duration-300"
               style={{
-                background:  selectedOption !== null ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)` : "rgba(255,255,255,0.06)",
-                color:       selectedOption !== null ? "#fff" : "rgba(255,255,255,0.25)",
-                boxShadow:   selectedOption !== null ? `0 4px 20px ${meta.accent}40` : "none",
-                cursor:      selectedOption === null ? "not-allowed" : "pointer",
+                background: selectedOption !== null ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)` : "rgba(255,255,255,0.06)",
+                color:      selectedOption !== null ? "#fff" : "rgba(255,255,255,0.22)",
+                boxShadow:  selectedOption !== null ? `0 4px 20px ${meta.accent}40` : "none",
+                cursor:     selectedOption === null ? "not-allowed" : "pointer",
               }}>
-              {currentIndex < questions.length - 1 ? "Next Question →" : "See Results ✦"}
+              {currentIndex < questions.length - 1 ? "Next →" : "See Results ✦"}
             </motion.button>
           </div>
         </div>

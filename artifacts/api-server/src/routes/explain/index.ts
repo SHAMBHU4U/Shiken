@@ -25,27 +25,20 @@ router.post("/explain", async (req, res) => {
     .map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`)
     .join("\n");
 
-  const prompt = `तुम एक दोस्त हो जो Bihar Board के ${subject} subject का expert है। एक student ने यह question पूछा है।
+  const prompt = `Bihar Board ${subject} — एक question का crisp explanation दो।
 
-**Question (English):** ${questionEnglish}
-${questionHindi ? `**Question (Hindi):** ${questionHindi}` : ""}
-
-**Options:**
+Question: ${questionEnglish}
+${questionHindi ? `(Hindi: ${questionHindi})` : ""}
+Options:
 ${optionsList}
+Correct Answer: ${correctAnswer}
 
-**Correct Answer:** ${correctAnswer}
+3-4 lines में Hindi में explain करो:
+1. सही जवाब क्यों सही है (1-2 lines, key reason/formula)
+2. एक simple trick या याद रखने का तरीका
+Emojis थोड़े use करो। बहुत short और to-the-point रखो।`;
 
-अब इस question को इस student को बिल्कुल आसान Hindi में समझाओ जैसे कोई दोस्त समझाता है। इन बातों का ध्यान रखो:
-- पहले सही जवाब बताओ और क्यों सही है यह explain करो
-- बाकी options क्यों गलत हैं यह भी बताओ
-- कोई real life example दो अगर हो सके
-- Bihar Board exam के लिए कोई tip दो
-- Language बिल्कुल simple और friendly रखो - जैसे WhatsApp पर बात करते हो
-- Emojis use करो थोड़े बहुत
-
-जवाब Hindi में दो (थोड़े English words चलेंगे जो normally use होते हैं जैसे formula, concept etc.)`;
-
-  await streamGemini(res, prompt, "समझाने में दिक्कत आई, फिर से कोशिश करो 🙏", req.log);
+  await streamGemini(res, prompt, "Explanation में दिक्कत आई 🙏", req.log);
 });
 
 export default router;
