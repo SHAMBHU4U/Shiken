@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import SubjectPage from "@/pages/SubjectPage";
+import AdminPage from "@/pages/AdminPage";
 
 const queryClient = new QueryClient();
 
@@ -227,14 +228,23 @@ function Dashboard() {
           ))}
         </div>
 
-        <motion.p
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.0 }}
-          className="text-center text-white/20 text-xs mt-10 tracking-wide"
+          className="flex items-center justify-between mt-10"
         >
-          Tap a subject to begin your session
-        </motion.p>
+          <p className="text-white/20 text-xs tracking-wide">
+            Tap a subject to begin your session
+          </p>
+          <button
+            onClick={() => navigate("/admin")}
+            className="text-white/10 hover:text-white/30 transition-colors text-xs"
+            title="Admin Panel"
+          >
+            🛠
+          </button>
+        </motion.div>
       </div>
     </div>
   );
@@ -246,6 +256,7 @@ function App() {
       <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
         <Switch>
           <Route path="/" component={Dashboard} />
+          <Route path="/admin" component={AdminPage} />
           <Route path="/:subject" component={SubjectPage} />
         </Switch>
       </WouterRouter>
