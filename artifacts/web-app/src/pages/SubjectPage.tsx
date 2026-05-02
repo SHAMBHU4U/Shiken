@@ -21,6 +21,37 @@ interface Question {
   chapter: string;
 }
 
+// ─── Progress persistence ──────────────────────────────────────────────────────
+
+interface SavedProgress {
+  mode: "full" | "chapter";
+  chapter: string;
+  questions: Question[];
+  currentIndex: number;
+  answers: Record<number, number>;
+  timestamp: number;
+}
+
+function progressKey(subject: string) { return `shiken_progress_${subject}`; }
+
+function loadProgress(subject: string): SavedProgress | null {
+  try {
+    const raw = localStorage.getItem(progressKey(subject));
+    if (!raw) return null;
+    const p = JSON.parse(raw) as SavedProgress;
+    if (!p.questions?.length) return null;
+    return p;
+  } catch { return null; }
+}
+
+function saveProgress(subject: string, data: SavedProgress) {
+  try { localStorage.setItem(progressKey(subject), JSON.stringify(data)); } catch { /* quota */ }
+}
+
+function clearProgress(subject: string) {
+  try { localStorage.removeItem(progressKey(subject)); } catch { /* noop */ }
+}
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function shuffle<T>(arr: T[]): T[] {
@@ -141,12 +172,14 @@ function MagicRipple({ color }: { color: string }) {
 // ─── Mode Select Screen ────────────────────────────────────────────────────────
 
 function ModeSelect({
-  meta, totalCount, onFull, onChapterWise,
+  meta, totalCount, savedProgress, onFull, onChapterWise, onResume,
 }: {
   meta: { label: string; icon: string; accent: string };
   totalCount: number;
+  savedProgress: SavedProgress | null;
   onFull: () => void;
   onChapterWise: () => void;
+  onResume: () => void;
 }) {
   const modes = [
     {
@@ -167,6 +200,15 @@ function ModeSelect({
     },
   ];
 
+  function formatRelativeTime(ts: number) {
+    const diffMin = Math.round((Date.now() - ts) / 60000);
+    if (diffMin < 1)  return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 24)   return `${diffH}h ago`;
+    return `${Math.round(diffH / 24)}d ago`;
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10" style={{ background: "#07080f" }}>
       <div
@@ -176,7 +218,7 @@ function ModeSelect({
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-10 relative z-10"
+        className="text-center mb-8 relative z-10"
       >
         <div className="text-5xl mb-3">{meta.icon}</div>
         <h2 className="text-3xl font-black text-white mb-1">{meta.label}</h2>
@@ -184,6 +226,38 @@ function ModeSelect({
       </motion.div>
 
       <div className="w-full max-w-sm flex flex-col gap-4 relative z-10">
+        {/* Resume banner */}
+        {savedProgress && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="rounded-2xl border p-4 flex items-center gap-4"
+            style={{ background: `linear-gradient(135deg, ${meta.accent}22, ${meta.accent}08)`, borderColor: `${meta.accent}50`, boxShadow: `0 0 24px ${meta.accent}20` }}
+          >
+            <div className="text-2xl w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${meta.accent}25` }}>
+              ⏸️
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white font-bold text-sm">Resume where you left off</p>
+              <p className="text-xs mt-0.5" style={{ color: `${meta.accent}cc` }}>
+                {savedProgress.mode === "full" ? "Full Test" : savedProgress.chapter}
+                {" · "}Q{savedProgress.currentIndex + 1}/{savedProgress.questions.length}
+                {" · "}{formatRelativeTime(savedProgress.timestamp)}
+              </p>
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.95 }}
+              onClick={onResume}
+              className="px-4 py-2 rounded-xl text-xs font-bold shrink-0"
+              style={{ background: meta.accent, color: "#000" }}
+            >
+              Resume →
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* Mode cards */}
         {modes.map((mode, i) => (
           <motion.button
             key={mode.id}
@@ -426,6 +500,9 @@ export default function SubjectPage() {
   const [isDemo, setIsDemo]             = useState(false);
   const [screen, setScreen]             = useState<Screen>("loading");
 
+  // Saved progress (from localStorage)
+  const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null);
+
   // Test config chosen by user
   const [mode, setMode]           = useState<"full" | "chapter">("full");
   const [selectedChapter, setSelectedChapter] = useState("");
@@ -447,6 +524,7 @@ export default function SubjectPage() {
       const fallback = demoQuestions[subject] ?? demoQuestions.maths;
       setAllQuestions(fallback);
       setIsDemo(true);
+      setSavedProgress(loadProgress(subject));
       setScreen("mode-select");
       return;
     }
@@ -467,12 +545,14 @@ export default function SubjectPage() {
           setAllQuestions(demoQuestions[subject] ?? demoQuestions.maths);
           setIsDemo(true);
         }
+        setSavedProgress(loadProgress(subject));
         setScreen("mode-select");
       })
       .catch((err: Error) => {
         if (err.name === "AbortError" || !mountedRef.current) return;
         setAllQuestions(demoQuestions[subject] ?? demoQuestions.maths);
         setIsDemo(true);
+        setSavedProgress(loadProgress(subject));
         setScreen("mode-select");
       });
 
@@ -488,23 +568,66 @@ export default function SubjectPage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   })();
 
+  // ── Persist helper (called after any state mutation) ─────────────────────────
+  function persist(opts: {
+    qs?: Question[]; idx?: number; ans?: Record<number, number>;
+    m?: "full" | "chapter"; ch?: string;
+  }) {
+    const snap: SavedProgress = {
+      mode:         opts.m   ?? mode,
+      chapter:      opts.ch  ?? selectedChapter,
+      questions:    opts.qs  ?? questions,
+      currentIndex: opts.idx ?? currentIndex,
+      answers:      opts.ans ?? answers,
+      timestamp:    Date.now(),
+    };
+    saveProgress(subject, snap);
+  }
+
   // ── Start quiz helpers ────────────────────────────────────────────────────────
   function startFullTest() {
+    clearProgress(subject);
+    setSavedProgress(null);
     setMode("full");
     setSelectedChapter("All Chapters");
     const picked = pick(allQuestions, 50);
     setQuestions(picked);
-    resetQuizState();
+    setCurrentIndex(0);
+    setAnswers({});
+    setSelectedOption(null);
+    setRippleKey(0);
+    setDirection(1);
+    saveProgress(subject, { mode: "full", chapter: "All Chapters", questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now() });
     setScreen("quiz");
   }
 
   function startChapterTest(chapter: string) {
+    clearProgress(subject);
+    setSavedProgress(null);
     setMode("chapter");
     setSelectedChapter(chapter);
-    const pool  = allQuestions.filter((q) => q.chapter === chapter);
+    const pool   = allQuestions.filter((q) => q.chapter === chapter);
     const picked = pick(pool, 20);
     setQuestions(picked);
-    resetQuizState();
+    setCurrentIndex(0);
+    setAnswers({});
+    setSelectedOption(null);
+    setRippleKey(0);
+    setDirection(1);
+    saveProgress(subject, { mode: "chapter", chapter, questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now() });
+    setScreen("quiz");
+  }
+
+  function handleResume() {
+    if (!savedProgress) return;
+    setMode(savedProgress.mode);
+    setSelectedChapter(savedProgress.chapter);
+    setQuestions(savedProgress.questions);
+    setCurrentIndex(savedProgress.currentIndex);
+    setAnswers(savedProgress.answers);
+    setSelectedOption(savedProgress.answers[savedProgress.currentIndex] ?? null);
+    setRippleKey(0);
+    setDirection(1);
     setScreen("quiz");
   }
 
@@ -526,7 +649,9 @@ export default function SubjectPage() {
     if (selectedOption !== null) return;
     setSelectedOption(oi);
     setRippleKey((k) => k + 1);
-    setAnswers((prev) => ({ ...prev, [currentIndex]: oi }));
+    const newAnswers = { ...answers, [currentIndex]: oi };
+    setAnswers(newAnswers);
+    persist({ ans: newAnswers });
   };
 
   const handleNext = () => {
@@ -535,7 +660,10 @@ export default function SubjectPage() {
       const next = currentIndex + 1;
       setCurrentIndex(next);
       setSelectedOption(answers[next] ?? null);
+      persist({ idx: next });
     } else {
+      clearProgress(subject);
+      setSavedProgress(null);
       setScreen("result");
     }
   };
@@ -546,6 +674,7 @@ export default function SubjectPage() {
       const prev = currentIndex - 1;
       setCurrentIndex(prev);
       setSelectedOption(answers[prev] ?? null);
+      persist({ idx: prev });
     }
   };
 
@@ -574,8 +703,10 @@ export default function SubjectPage() {
       <ModeSelect
         meta={meta}
         totalCount={allQuestions.length}
+        savedProgress={savedProgress}
         onFull={startFullTest}
         onChapterWise={() => setScreen("chapter-select")}
+        onResume={handleResume}
       />
     );
   }
