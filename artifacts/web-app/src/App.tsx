@@ -12,6 +12,10 @@ import CounsellingPage from "@/pages/CounsellingPage";
 import ContactPage from "@/pages/ContactPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import {
+  getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
+  getNotificationPermission, requestAndScheduleReminder,
+} from "@/utils/streakUtils";
 
 // ─── Username helpers ──────────────────────────────────────────────────────────
 const USERNAME_KEY = "shiken_username";
@@ -75,6 +79,102 @@ async function fetchLeaderboard(): Promise<LeaderEntry[]> {
 
 const RANK_MEDALS = ["🥇", "🥈", "🥉"];
 const GRADE_COLOR = (p: number) => p >= 80 ? "#10b981" : p >= 60 ? "#f59e0b" : "#ef4444";
+
+// ─── Streak Reminder Banner ────────────────────────────────────────────────────
+
+function StreakReminderBanner({ onPractice }: { onPractice: () => void }) {
+  const [streak, setStreak] = useState(0);
+  const [visible, setVisible] = useState(false);
+  const [notifStatus, setNotifStatus] = useState<"idle"|"scheduled"|"denied"|"unsupported">("idle");
+
+  useEffect(() => {
+    const s = getLocalStreak();
+    if (s >= 1 && !hasTestedToday() && !isBannerDismissedToday()) {
+      setStreak(s);
+      setVisible(true);
+    }
+    const perm = getNotificationPermission();
+    if (perm === "granted") setNotifStatus("scheduled");
+    if (perm === "denied") setNotifStatus("denied");
+    if (perm === "unsupported") setNotifStatus("unsupported");
+  }, []);
+
+  async function handleRemind() {
+    const result = await requestAndScheduleReminder();
+    setNotifStatus(result);
+  }
+
+  function dismiss() {
+    dismissBannerForToday();
+    setVisible(false);
+  }
+
+  if (!visible) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -12, scale: 0.97 }}
+      transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
+      className="mb-5 rounded-2xl p-4"
+      style={{
+        background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(245,158,11,0.06))",
+        border: "1px solid rgba(251,191,36,0.3)",
+        boxShadow: "0 0 32px rgba(251,191,36,0.08)",
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <motion.span
+          animate={{ scale: [1, 1.25, 1] }}
+          transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
+          className="text-2xl shrink-0 leading-none mt-0.5"
+        >🔥</motion.span>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-black text-sm mb-0.5">
+            {streak}-day streak टूटने वाला है!
+          </p>
+          <p className="text-white/50 text-xs mb-3">
+            आज practice नहीं हुई अभी तक। एक छोटा Mini Test दो और streak बचाओ!
+          </p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <motion.button
+              onClick={onPractice}
+              whileTap={{ scale: 0.95 }}
+              className="px-3 py-1.5 rounded-xl text-xs font-black text-black"
+              style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 2px 12px rgba(245,158,11,0.35)" }}
+            >
+              Practice Now →
+            </motion.button>
+            {notifStatus === "idle" && (
+              <motion.button
+                onClick={handleRemind}
+                whileTap={{ scale: 0.95 }}
+                className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors"
+                style={{ border: "1px solid rgba(251,191,36,0.3)", color: "#fbbf24", background: "transparent" }}
+              >
+                🔔 रात 8 बजे याद दिलाओ
+              </motion.button>
+            )}
+            {notifStatus === "scheduled" && (
+              <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                ✓ रात 8 बजे reminder set है
+              </span>
+            )}
+            {notifStatus === "denied" && (
+              <span className="text-xs text-white/25">Notifications blocked in browser</span>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={dismiss}
+          className="shrink-0 text-white/25 hover:text-white/60 transition-colors text-base leading-none mt-0.5"
+          aria-label="Dismiss"
+        >✕</button>
+      </div>
+    </motion.div>
+  );
+}
 
 // ─── Leaderboard component ────────────────────────────────────────────────────
 
@@ -641,6 +741,10 @@ function Dashboard() {
           </p>
         </motion.div>
 
+        <StreakReminderBanner onPractice={() => {
+          document.getElementById("subject-cards")?.scrollIntoView({ behavior: "smooth" });
+        }} />
+
         <AnimatePresence mode="wait">
           {!hasName ? (
             <UsernameSetup key="setup" onDone={(n) => setUsername(n)} />
@@ -663,7 +767,7 @@ function Dashboard() {
           )}
         </AnimatePresence>
 
-        <div className="flex flex-col gap-4">
+        <div id="subject-cards" className="flex flex-col gap-4">
           {subjects.map((subject, index) => (
             <SubjectCard
               key={subject.id}

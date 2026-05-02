@@ -85,15 +85,23 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
   const [expanded, setExpanded] = useState(false);
   const [subscription, setSubscription] = useState<"free" | "premium" | "loading">("loading");
   const [toggling, setToggling] = useState(false);
+  const [phone, setPhone] = useState<string | null>(null);
   const shortId = user.deviceId.length > 18 ? user.deviceId.slice(0, 18) + "…" : user.deviceId;
+  const isRealUid = user.uid && !user.uid.startsWith("u_") && user.uid !== "unknown";
+  const noActivityToday = user.lastActive > 0 && (Date.now() - user.lastActive) > 18 * 60 * 60 * 1000;
+  const WA_NUMBER = "918340472013";
 
   useEffect(() => {
-    if (!user.uid || user.uid === "unknown") { setSubscription("free"); return; }
+    if (!isRealUid) { setSubscription("free"); return; }
     fetch(`${DB_URL}/users/${user.uid}/subscriptionType.json`)
       .then((r) => r.json())
       .then((d) => setSubscription(d === "premium" ? "premium" : "free"))
       .catch(() => setSubscription("free"));
-  }, [user.uid]);
+    fetch(`${DB_URL}/users/${user.uid}/phone.json`)
+      .then((r) => r.json())
+      .then((d) => { if (typeof d === "string" && d.length >= 10) setPhone(d); })
+      .catch(() => {});
+  }, [user.uid, isRealUid]);
 
   async function handleToggle(e: React.MouseEvent) {
     e.stopPropagation();
@@ -136,10 +144,30 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
             )}
           </div>
           <p className="text-white/30 text-xs mt-0.5">
-            {user.totalSessions} test{user.totalSessions !== 1 ? "s" : ""} · Last active {timeAgo(user.lastActive)}
+            {user.totalSessions} test{user.totalSessions !== 1 ? "s" : ""}
+            {" · "}
+            <span style={{ color: noActivityToday ? "#f59e0b" : "rgba(255,255,255,0.3)" }}>
+              {noActivityToday ? "⚠️ " : ""}{timeAgo(user.lastActive)}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {phone && noActivityToday && (
+            <a
+              href={`https://wa.me/${phone}?text=${encodeURIComponent(`Namaste! 👋 SHIKEN पर आज practice करो aur apni streak bachao! 🔥 Open app: https://shiken.replit.app`)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs px-2 py-1 rounded-lg font-bold shrink-0 flex items-center gap-1"
+              style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}
+              title="Send WhatsApp reminder"
+            >
+              💬 Remind
+            </a>
+          )}
+          {!phone && noActivityToday && (
+            <span className="text-xs text-amber-500/60" title="No phone number saved">⚠️</span>
+          )}
           <button
             onClick={handleToggle}
             disabled={toggling || subscription === "loading"}

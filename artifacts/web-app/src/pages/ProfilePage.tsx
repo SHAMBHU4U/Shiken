@@ -6,6 +6,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage
 import { auth, storage } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
+import { requestAndScheduleReminder, scheduleEveningReminder } from "../utils/streakUtils";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
@@ -354,6 +355,10 @@ export default function ProfilePage() {
   const [nameSaving,   setNameSaving]   = useState(false);
   const [nameSaved,    setNameSaved]    = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [phone,        setPhone]        = useState("");
+  const [phoneSaving,  setPhoneSaving]  = useState(false);
+  const [phoneSaved,   setPhoneSaved]   = useState(false);
+  const [notifPerm,    setNotifPerm]    = useState<"default"|"granted"|"denied"|"unsupported">("default");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = useSubscription();
@@ -404,10 +409,28 @@ export default function ProfilePage() {
     setTimeout(() => nameInputRef.current?.focus(), 50);
   }
 
+  async function handlePhoneSave() {
+    if (!auth.currentUser || !phone.trim()) return;
+    setPhoneSaving(true);
+    try {
+      const digits = phone.replace(/\D/g, "").slice(0, 15);
+      await fetch(`${DB_URL}/users/${auth.currentUser.uid}.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: digits }),
+      });
+      setPhone(digits);
+      setPhoneSaved(true);
+      setTimeout(() => setPhoneSaved(false), 2500);
+    } catch { /* ignore */ }
+    finally { setPhoneSaving(false); }
+  }
+
   useEffect(() => {
     if (!user) return;
     setStatsLoading(true);
     const safeId = user.uid.replace(/[.#$/[\]]/g, "_");
+    // Fetch sessions
     fetch(`${DB_URL}/userActivity/${safeId}/sessions.json`)
       .then((r) => r.json())
       .then((data) => {
@@ -417,6 +440,17 @@ export default function ProfilePage() {
       })
       .catch(() => {})
       .finally(() => setStatsLoading(false));
+    // Fetch saved phone
+    fetch(`${DB_URL}/users/${user.uid}/phone.json`)
+      .then((r) => r.json())
+      .then((d) => { if (typeof d === "string") setPhone(d); })
+      .catch(() => {});
+    // Check notification permission
+    if (typeof Notification !== "undefined") {
+      setNotifPerm(Notification.permission as "default"|"granted"|"denied");
+    } else {
+      setNotifPerm("unsupported");
+    }
   }, [user]);
 
   if (loading) return (
@@ -683,6 +717,100 @@ export default function ProfilePage() {
             </motion.button>
           </div>
         )}
+
+        {/* ── Notifications & WhatsApp Reminders ───────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-2xl p-5"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+          <h3 className="text-white/70 text-xs font-black uppercase tracking-widest mb-4">
+            🔔 Reminders
+          </h3>
+
+          {/* Browser push notifications */}
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-white/80 text-sm font-semibold">Browser Notifications</p>
+              {notifPerm === "granted" && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>ON</span>
+              )}
+              {notifPerm === "denied" && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}>Blocked</span>
+              )}
+            </div>
+            <p className="text-white/35 text-xs mb-3">
+              {notifPerm === "granted"
+                ? "रात 8 बजे practice reminder आएगा अगर आज test नहीं दिया।"
+                : notifPerm === "denied"
+                ? "Browser में notifications blocked हैं। Settings से allow करो।"
+                : notifPerm === "unsupported"
+                ? "This browser doesn't support notifications."
+                : "Practice miss करने पर हम remind करेंगे — रात 8 बजे।"}
+            </p>
+            {notifPerm === "default" && (
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={async () => {
+                  const result = await requestAndScheduleReminder();
+                  if (result === "scheduled") setNotifPerm("granted");
+                  else if (result === "denied") setNotifPerm("denied");
+                  else setNotifPerm("unsupported");
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white"
+                style={{ background: "linear-gradient(135deg,#8b5cf6,#6366f1)", boxShadow: "0 2px 12px rgba(139,92,246,0.3)" }}
+              >
+                🔔 Enable Reminders
+              </motion.button>
+            )}
+            {notifPerm === "granted" && (
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => scheduleEveningReminder()}
+                className="px-4 py-2 rounded-xl text-xs font-semibold"
+                style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)" }}
+              >
+                ✓ Reschedule tonight's reminder
+              </motion.button>
+            )}
+          </div>
+
+          {/* WhatsApp phone number */}
+          <div className="border-t border-white/8 pt-4">
+            <p className="text-white/80 text-sm font-semibold mb-1">WhatsApp Reminders</p>
+            <p className="text-white/35 text-xs mb-3">
+              अपना WhatsApp number save करो। Admin सीधे तुम्हें message भेज सकता है streak miss पर।
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="91XXXXXXXXXX"
+                maxLength={15}
+                className="flex-1 px-3 py-2 rounded-xl text-sm font-medium text-white placeholder-white/20 bg-white/6 border border-white/10 focus:border-white/25 outline-none transition-colors"
+              />
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={handlePhoneSave}
+                disabled={phoneSaving || !phone.trim()}
+                className="px-4 py-2 rounded-xl text-xs font-bold shrink-0"
+                style={{
+                  background: phoneSaved ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.08)",
+                  color: phoneSaved ? "#10b981" : "rgba(255,255,255,0.6)",
+                  border: phoneSaved ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(255,255,255,0.1)",
+                }}
+              >
+                {phoneSaving ? "…" : phoneSaved ? "✓ Saved" : "Save"}
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+
       </div>
     </div>
   );
