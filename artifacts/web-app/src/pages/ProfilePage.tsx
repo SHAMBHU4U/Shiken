@@ -47,14 +47,15 @@ function Avatar({ name, photo, size = 64 }: { name: string; photo?: string | nul
 }
 
 function AuthForm() {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
-  const [tab,       setTab]       = useState<"in" | "up">("in");
-  const [name,      setName]      = useState("");
-  const [email,     setEmail]     = useState("");
-  const [password,  setPassword]  = useState("");
-  const [error,     setError]     = useState("");
-  const [loading,   setLoading]   = useState(false);
-  const [shake,     setShake]     = useState(false);
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
+  const [tab,         setTab]         = useState<"in" | "up" | "reset">("in");
+  const [name,        setName]        = useState("");
+  const [email,       setEmail]       = useState("");
+  const [password,    setPassword]    = useState("");
+  const [error,       setError]       = useState("");
+  const [loading,     setLoading]     = useState(false);
+  const [shake,       setShake]       = useState(false);
+  const [resetSent,   setResetSent]   = useState(false);
 
   function friendlyError(code: string) {
     if (code.includes("user-not-found") || code.includes("wrong-password") || code.includes("invalid-credential")) return "Invalid email or password";
@@ -70,6 +71,21 @@ function AuthForm() {
     try { await signInWithGoogle(); }
     catch (e: unknown) { setError(friendlyError((e as { code?: string }).code ?? "")); }
     finally { setLoading(false); }
+  }
+
+  async function handleReset(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) { setError("Enter your email address first"); return; }
+    setError(""); setLoading(true);
+    try {
+      await resetPassword(email.trim());
+      setResetSent(true);
+    } catch (e: unknown) {
+      const code = (e as { code?: string }).code ?? "";
+      setError(code.includes("user-not-found") ? "No account found with that email" : friendlyError(code));
+      setShake(true);
+      setTimeout(() => setShake(false), 600);
+    } finally { setLoading(false); }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -100,6 +116,68 @@ function AuthForm() {
         transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
         className="relative z-10 w-full max-w-sm mx-4">
 
+        {/* ── Forgot Password screen ── */}
+        <AnimatePresence mode="wait">
+          {tab === "reset" && (
+            <motion.div key="reset"
+              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}>
+              <div className="text-center mb-8">
+                <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl"
+                  style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)" }}>
+                  🔑
+                </div>
+                <h1 className="text-white font-black text-2xl tracking-tight mb-1">Reset Password</h1>
+                <p className="text-white/30 text-sm">We'll send a reset link to your email</p>
+              </div>
+
+              {resetSent ? (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                  className="text-center p-6 rounded-2xl"
+                  style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                  <p className="text-3xl mb-3">📬</p>
+                  <p className="text-white font-bold text-sm mb-1">Email sent!</p>
+                  <p className="text-white/40 text-xs mb-4">Check your inbox at <span className="text-white/70">{email}</span> and follow the link to reset your password.</p>
+                  <button onClick={() => { setTab("in"); setResetSent(false); setError(""); }}
+                    className="text-purple-400 text-sm font-semibold hover:text-purple-300 transition-colors">
+                    ← Back to Sign In
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.form onSubmit={handleReset}
+                  animate={shake ? { x: [-8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+                  transition={{ duration: 0.5 }} className="flex flex-col gap-3">
+                  <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                    placeholder="Your email address" required autoFocus
+                    className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
+                    style={{
+                      background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.12)"}`,
+                    }} />
+                  {error && <p className="text-xs text-red-400 -mt-1 ml-1">{error}</p>}
+                  <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }}
+                    className="w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
+                    style={{
+                      background: loading ? "rgba(139,92,246,0.4)" : "linear-gradient(135deg,#8b5cf6,#6366f1)",
+                      boxShadow: loading ? "none" : "0 4px 20px rgba(139,92,246,0.35)",
+                    }}>
+                    {loading ? (
+                      <><motion.span animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                        className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white inline-block" />
+                        Sending…</>
+                    ) : "Send Reset Link →"}
+                  </motion.button>
+                  <button type="button" onClick={() => { setTab("in"); setError(""); }}
+                    className="text-center text-white/25 hover:text-white/50 text-xs transition-colors mt-1">
+                    ← Back to Sign In
+                  </button>
+                </motion.form>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {tab !== "reset" && (<>
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center font-black text-white text-xl"
             style={{ background: "conic-gradient(from 0deg, #8b5cf6, #06b6d4, #10b981, #f97316, #8b5cf6)" }}>
@@ -182,7 +260,16 @@ function AuthForm() {
                 Please wait…</>
             ) : tab === "in" ? "Sign In →" : "Create Account →"}
           </motion.button>
+
+          {tab === "in" && (
+            <button type="button"
+              onClick={() => { setTab("reset"); setError(""); setPassword(""); }}
+              className="text-center w-full text-white/30 hover:text-white/60 text-xs transition-colors mt-1">
+              Forgot your password?
+            </button>
+          )}
         </motion.form>
+        </>)}
       </motion.div>
     </div>
   );
