@@ -5,24 +5,113 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type { ExplainRequest, HealthStatus } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary Explain a quiz question in Hindi using Gemini
+ */
+export const getExplainQuestionUrl = () => {
+  return `/api/explain`;
+};
+
+export const explainQuestion = async (
+  explainRequest: ExplainRequest,
+  options?: RequestInit,
+): Promise<string> => {
+  return customFetch<string>(getExplainQuestionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(explainRequest),
+  });
+};
+
+export const getExplainQuestionMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof explainQuestion>>,
+    TError,
+    { data: BodyType<ExplainRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof explainQuestion>>,
+  TError,
+  { data: BodyType<ExplainRequest> },
+  TContext
+> => {
+  const mutationKey = ["explainQuestion"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof explainQuestion>>,
+    { data: BodyType<ExplainRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return explainQuestion(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ExplainQuestionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof explainQuestion>>
+>;
+export type ExplainQuestionMutationBody = BodyType<ExplainRequest>;
+export type ExplainQuestionMutationError = ErrorType<void>;
+
+/**
+ * @summary Explain a quiz question in Hindi using Gemini
+ */
+export const useExplainQuestion = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof explainQuestion>>,
+    TError,
+    { data: BodyType<ExplainRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof explainQuestion>>,
+  TError,
+  { data: BodyType<ExplainRequest> },
+  TContext
+> => {
+  return useMutation(getExplainQuestionMutationOptions(options));
+};
 
 /**
  * Returns server health status

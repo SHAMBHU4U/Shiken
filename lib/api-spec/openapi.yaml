@@ -10,7 +10,31 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: explain
+    description: AI question explanation
 paths:
+  /explain:
+    post:
+      operationId: explainQuestion
+      tags: [explain]
+      summary: Explain a quiz question in Hindi using Gemini
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExplainRequest"
+      responses:
+        "200":
+          description: Streaming SSE explanation text
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "400":
+          description: Bad request
+        "500":
+          description: Server error
   /healthz:
     get:
       operationId: healthCheck
@@ -33,4 +57,24 @@ components:
           type: string
       required:
         - status
+    ExplainRequest:
+      type: object
+      properties:
+        questionEnglish:
+          type: string
+        questionHindi:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        correctAnswer:
+          type: string
+        subject:
+          type: string
+      required:
+        - questionEnglish
+        - options
+        - correctAnswer
+        - subject
 

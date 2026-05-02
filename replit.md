@@ -35,21 +35,35 @@ Each subject uses a **different field structure** — the parser handles all of 
 ## Key Files
 
 - `artifacts/web-app/src/App.tsx` — dashboard with 6 subject cards + routing
-- `artifacts/web-app/src/pages/SubjectPage.tsx` — full quiz page: fetch, parseQuestions, mode-select, chapter-select, quiz render, result screen, localStorage progress
+- `artifacts/web-app/src/pages/SubjectPage.tsx` — full quiz page: fetch, parseQuestions, mode-select, chapter-select, quiz render, result screen, localStorage progress, palette, Gemini explain
 - `artifacts/web-app/src/components/MathText.tsx` — KaTeX renderer (safe, `throwOnError: false`)
 - `artifacts/web-app/src/firebase.js` — Firebase config (keeps SDK alive)
 - `artifacts/web-app/src/main.tsx` — app entry (no StrictMode)
+- `artifacts/api-server/src/routes/explain/index.ts` — POST /api/explain SSE streaming Gemini route
+- `lib/integrations-gemini-ai/` — Replit AI Integrations Gemini SDK wrapper
 
 ## Features
 
-- **Modes**: Full Length Test (50 random Qs), Chapter-wise (20 random Qs per chapter)
+- **Modes**: Full Length Test (50 random Qs, 60 min), Chapter-wise (20 random Qs per chapter, 20 min)
 - **Shuffle**: Fisher-Yates on every session start
 - **Progress**: localStorage saves after every answer; "Resume" banner on mode-select
 - **Result screen**: score, per-question review with correct answer highlight
 - **Bilingual**: English + Hindi questions shown together
 - **Math**: KaTeX for `$...$` inline and `$$...$$` display math
+- **Floating timer**: glassmorphism pill, dismissible, sound alerts at 5 min / 1 min / last 10 sec / time-up
+- **Question palette**: bottom sheet grid showing answered/current/unanswered; tap to jump to any question
+- **AI Explain (Gemini)**: "दोस्त से समझो" button after answering; streams a friendly Hindi explanation via Gemini 2.5 Flash; includes why correct answer is right, why others are wrong, real-life example, exam tip
+
+## Gemini Integration
+
+- Uses Replit AI Integrations proxy (no API key needed, billed to Replit credits)
+- Env vars: `AI_INTEGRATIONS_GEMINI_BASE_URL`, `AI_INTEGRATIONS_GEMINI_API_KEY` (auto-set)
+- Route: `POST /api/explain` → SSE stream → frontend reads with `ReadableStream`
+- Model: `gemini-2.5-flash`
+- `@google/genai` is bundled by esbuild (removed from external list in `build.mjs`)
 
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck
-- `pnpm --filter @workspace/web-app run dev` — run web app (handled by workflow)
+- `pnpm --filter @workspace/api-server run build` — build API server
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API client/zod from OpenAPI spec

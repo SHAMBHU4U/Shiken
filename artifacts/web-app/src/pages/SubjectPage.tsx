@@ -596,6 +596,20 @@ export default function SubjectPage() {
   // Question palette
   const [paletteOpen, setPaletteOpen] = useState(false);
 
+  // Gemini explanation
+  const [explainOpen,    setExplainOpen]    = useState(false);
+  const [explainText,    setExplainText]    = useState("");
+  const [explainLoading, setExplainLoading] = useState(false);
+  const explainAbortRef = useRef<AbortController | null>(null);
+
+  // Reset explanation when question changes
+  useEffect(() => {
+    explainAbortRef.current?.abort();
+    setExplainOpen(false);
+    setExplainText("");
+    setExplainLoading(false);
+  }, [currentIndex]);
+
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
@@ -811,6 +825,57 @@ export default function SubjectPage() {
     setCurrentIndex(idx);
     setSelectedOption(answers[idx] ?? null);
     setPaletteOpen(false);
+  };
+
+  const fetchExplanation = async () => {
+    if (!q) return;
+    explainAbortRef.current?.abort();
+    const ctrl = new AbortController();
+    explainAbortRef.current = ctrl;
+    setExplainOpen(true);
+    setExplainText("");
+    setExplainLoading(true);
+    const correctAnswer = q.options[q.answerIndex] ?? "";
+    try {
+      const resp = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionEnglish: q.english,
+          questionHindi: q.hindi || "",
+          options: q.options,
+          correctAnswer,
+          subject: meta?.label ?? subject,
+        }),
+        signal: ctrl.signal,
+      });
+      const reader = resp.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("No stream");
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const payload = JSON.parse(line.slice(6));
+            if (payload.content) setExplainText((t) => t + payload.content);
+            if (payload.done) break;
+            if (payload.error) setExplainText((t) => t + "\n" + payload.error);
+          } catch {}
+        }
+      }
+    } catch (e: unknown) {
+      if ((e as Error)?.name !== "AbortError") {
+        setExplainText("समझाने में दिक्कत आई। फिर से कोशिश करो 🙏");
+      }
+    } finally {
+      setExplainLoading(false);
+    }
   };
 
   // ── Render guards ─────────────────────────────────────────────────────────────
@@ -1164,6 +1229,97 @@ export default function SubjectPage() {
                     );
                   })}
                 </div>
+
+                {/* ── Gemini Explain Button + Card ────────────────────────────── */}
+                <AnimatePresence>
+                  {selectedOption !== null && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.35, delay: 0.15 }}
+                      className="mt-4"
+                    >
+                      {/* Toggle button */}
+                      <motion.button
+                        onClick={() => explainOpen ? setExplainOpen(false) : fetchExplanation()}
+                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-semibold transition-all"
+                        style={{
+                          background: explainOpen
+                            ? `linear-gradient(135deg, #6366f128, #8b5cf628)`
+                            : "rgba(99,102,241,0.1)",
+                          borderColor: explainOpen ? "#6366f155" : "rgba(99,102,241,0.25)",
+                          color: explainOpen ? "#a5b4fc" : "#818cf8",
+                        }}
+                      >
+                        <span className="text-base">{explainLoading ? "⏳" : "🤖"}</span>
+                        {explainLoading
+                          ? "दोस्त समझा रहा है..."
+                          : explainOpen
+                            ? "समझाना बंद करो ↑"
+                            : "दोस्त से समझो (Hindi में)"}
+                      </motion.button>
+
+                      {/* Explanation card */}
+                      <AnimatePresence>
+                        {explainOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                            className="overflow-hidden"
+                          >
+                            <div
+                              className="mt-3 rounded-2xl border p-4"
+                              style={{
+                                background: "linear-gradient(135deg, rgba(99,102,241,0.1), rgba(139,92,246,0.06))",
+                                borderColor: "rgba(99,102,241,0.22)",
+                                boxShadow: "0 4px 32px rgba(99,102,241,0.12)",
+                              }}
+                            >
+                              {/* Card header */}
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="text-lg">🤖</span>
+                                <span className="text-xs font-bold text-indigo-300">AI दोस्त</span>
+                                <span className="text-xs text-white/25 ml-auto">Gemini · Hindi</span>
+                              </div>
+
+                              {/* Streaming text */}
+                              {explainText ? (
+                                <div className="text-sm leading-relaxed text-white/85 whitespace-pre-wrap">
+                                  {explainText}
+                                  {explainLoading && (
+                                    <motion.span
+                                      animate={{ opacity: [1, 0, 1] }}
+                                      transition={{ repeat: Infinity, duration: 0.8 }}
+                                      className="inline-block w-1.5 h-4 bg-indigo-400 rounded-sm ml-0.5 align-middle"
+                                    />
+                                  )}
+                                </div>
+                              ) : explainLoading ? (
+                                <div className="flex items-center gap-3 py-2">
+                                  <div className="flex gap-1">
+                                    {[0, 1, 2].map((i) => (
+                                      <motion.div
+                                        key={i}
+                                        animate={{ y: [0, -6, 0] }}
+                                        transition={{ repeat: Infinity, duration: 0.7, delay: i * 0.15 }}
+                                        className="w-2 h-2 rounded-full bg-indigo-400"
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-xs text-white/40">समझा रहा हूँ...</span>
+                                </div>
+                              ) : null}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             </AnimatePresence>
           </div>

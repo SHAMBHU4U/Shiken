@@ -8,3 +8,11 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ExplainRequest {
+  questionEnglish: string;
+  questionHindi?: string;
+  options: string[];
+  correctAnswer: string;
+  subject: string;
+}

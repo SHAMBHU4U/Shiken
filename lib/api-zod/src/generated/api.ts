@@ -8,6 +8,17 @@
 import * as zod from "zod";
 
 /**
+ * @summary Explain a quiz question in Hindi using Gemini
+ */
+export const ExplainQuestionBody = zod.object({
+  questionEnglish: zod.string(),
+  questionHindi: zod.string().optional(),
+  options: zod.array(zod.string()),
+  correctAnswer: zod.string(),
+  subject: zod.string(),
+});
+
+/**
  * Returns server health status
  * @summary Health check
  */
