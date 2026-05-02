@@ -78,6 +78,34 @@ function toggleBookmark(subject: string, bookmarks: Question[], q: Question): Qu
   return next;
 }
 
+// ─── Test history persistence ──────────────────────────────────────────────────
+
+interface TestRecord {
+  date: number;
+  score: number;
+  total: number;
+  pct: number;
+  mode: "full" | "chapter" | "ai";
+  chapter: string;
+}
+
+function historyKey(subject: string) { return `shiken_history_${subject}`; }
+
+function loadHistory(subject: string): TestRecord[] {
+  try {
+    const raw = localStorage.getItem(historyKey(subject));
+    if (!raw) return [];
+    return JSON.parse(raw) as TestRecord[];
+  } catch { return []; }
+}
+
+function addRecord(subject: string, rec: TestRecord): TestRecord[] {
+  const prev = loadHistory(subject);
+  const next = [...prev, rec].slice(-50); // keep last 50
+  try { localStorage.setItem(historyKey(subject), JSON.stringify(next)); } catch { /* quota */ }
+  return next;
+}
+
 // ─── Audio alerts (Web Audio API — no external deps) ──────────────────────────
 
 function playBeep(
@@ -266,10 +294,70 @@ function MagicRipple({ color }: { color: string }) {
   );
 }
 
+// ─── Progress Chart ────────────────────────────────────────────────────────────
+
+function ProgressChart({ records, accent }: { records: TestRecord[]; accent: string }) {
+  const pts = records.slice(-12);
+  if (pts.length < 2) return null;
+
+  const W = 300, H = 72, PX = 10, PY = 8;
+  const iW = W - PX * 2, iH = H - PY * 2;
+
+  const xs = pts.map((_, i) => PX + (i / (pts.length - 1)) * iW);
+  const ys = pts.map((r) => PY + (1 - r.pct / 100) * iH);
+
+  // Smooth cubic bezier path
+  const linePath = pts.reduce((acc, _p, i) => {
+    if (i === 0) return `M ${xs[0]},${ys[0]}`;
+    const cpX = (xs[i - 1] + xs[i]) / 2;
+    return `${acc} C ${cpX},${ys[i - 1]} ${cpX},${ys[i]} ${xs[i]},${ys[i]}`;
+  }, "");
+
+  const fillPath = `${linePath} L ${xs[xs.length - 1]},${H} L ${xs[0]},${H} Z`;
+
+  const dotColor = (pct: number) =>
+    pct >= 80 ? "#10b981" : pct >= 60 ? "#f59e0b" : "#ef4444";
+
+  const gradId = `cg-${accent.replace("#", "")}`;
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 72 }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={accent} stopOpacity="0.35" />
+          <stop offset="100%" stopColor={accent} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      {/* 60% and 80% guide lines */}
+      {[60, 80].map((pct) => {
+        const y = PY + (1 - pct / 100) * iH;
+        return (
+          <line key={pct} x1={PX} y1={y} x2={W - PX} y2={y}
+            stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3" />
+        );
+      })}
+      <path d={fillPath} fill={`url(#${gradId})`} />
+      <path d={linePath} fill="none" stroke={accent} strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" />
+      {pts.map((r, i) => {
+        const last = i === pts.length - 1;
+        const dc = dotColor(r.pct);
+        return (
+          <g key={i}>
+            {last && <circle cx={xs[i]} cy={ys[i]} r={7} fill={dc} opacity={0.22} />}
+            <circle cx={xs[i]} cy={ys[i]} r={last ? 3.5 : 2.5}
+              fill={last ? dc : accent} stroke={last ? "#07080f" : "none"} strokeWidth={1} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 // ─── Mode Select Screen ────────────────────────────────────────────────────────
 
 function ModeSelect({
-  meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount,
+  meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount, history,
 }: {
   meta: { label: string; icon: string; accent: string };
   totalCount: number;
@@ -280,6 +368,7 @@ function ModeSelect({
   onSaved: () => void;
   onResume: () => void;
   savedCount: number;
+  history: TestRecord[];
 }) {
   const modes = [
     {
@@ -312,6 +401,9 @@ function ModeSelect({
   ];
 
   const hasSaved = savedCount > 0;
+  const hasHistory = history.length > 0;
+  const avgPct = hasHistory ? Math.round(history.reduce((a, r) => a + r.pct, 0) / history.length) : 0;
+  const bestPct = hasHistory ? Math.max(...history.map((r) => r.pct)) : 0;
 
   function formatRelativeTime(ts: number) {
     const diffMin = Math.round((Date.now() - ts) / 60000);
@@ -367,6 +459,38 @@ function ModeSelect({
             >
               Resume →
             </motion.button>
+          </motion.div>
+        )}
+
+        {/* History stats card */}
+        {hasHistory && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+            className="rounded-2xl border p-4"
+            style={{ background: `linear-gradient(135deg, ${meta.accent}10, rgba(255,255,255,0.02))`, borderColor: `${meta.accent}25` }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white/70 text-xs font-semibold">📈 Your Progress</p>
+              <div className="flex gap-3">
+                <div className="text-right">
+                  <p className="text-white text-xs font-bold">{bestPct}%</p>
+                  <p className="text-white/30 text-[10px]">Best</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white text-xs font-bold">{avgPct}%</p>
+                  <p className="text-white/30 text-[10px]">Avg</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-white text-xs font-bold">{history.length}</p>
+                  <p className="text-white/30 text-[10px]">Tests</p>
+                </div>
+              </div>
+            </div>
+            <ProgressChart records={history} accent={meta.accent} />
+            <div className="flex justify-between mt-1 px-1">
+              <span className="text-white/20 text-[10px]">Oldest</span>
+              <span className="text-white/20 text-[10px]">Latest →</span>
+            </div>
           </motion.div>
         )}
 
@@ -524,6 +648,16 @@ function ResultScreen({
   const [bmks, setBmks] = useState<Question[]>(() => loadBookmarks(subject));
   const bmkToggle = (q: Question) => setBmks((prev) => toggleBookmark(subject, prev, q));
 
+  // History — record this test once on mount (skip demo)
+  const [history, setHistory] = useState<TestRecord[]>(() => loadHistory(subject));
+  const recordedRef = useRef(false);
+  useEffect(() => {
+    if (recordedRef.current || isDemo) return;
+    recordedRef.current = true;
+    const rec: TestRecord = { date: Date.now(), score, total: questions.length, pct, mode, chapter };
+    setHistory(addRecord(subject, rec));
+  }, []);
+
   // Per-question explanation state
   const [explainTexts,   setExplainTexts]   = useState<Record<number, string>>({});
   const [explainLoading, setExplainLoading] = useState<number | null>(null);
@@ -657,11 +791,56 @@ function ResultScreen({
           </div>
         </motion.div>
 
+        {/* ── Progress chart ────────────────────────────────────────────────── */}
+        {history.length >= 2 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="rounded-2xl border p-4 mb-4"
+            style={{ background: `linear-gradient(135deg, ${accent}10, rgba(255,255,255,0.02))`, borderColor: `${accent}25` }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white/70 text-xs font-semibold">📈 Your Progress ({history.length} tests)</p>
+              <div className="flex gap-3">
+                {(() => {
+                  const best = Math.max(...history.map((r) => r.pct));
+                  const avg  = Math.round(history.reduce((a, r) => a + r.pct, 0) / history.length);
+                  const trend = history.length >= 2
+                    ? history[history.length - 1].pct - history[history.length - 2].pct
+                    : 0;
+                  return (
+                    <>
+                      <div className="text-right">
+                        <p className="text-white text-xs font-bold">{best}%</p>
+                        <p className="text-white/30 text-[10px]">Best</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white text-xs font-bold">{avg}%</p>
+                        <p className="text-white/30 text-[10px]">Avg</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs font-bold ${trend > 0 ? "text-emerald-400" : trend < 0 ? "text-red-400" : "text-white/40"}`}>
+                          {trend > 0 ? `+${trend}` : trend === 0 ? "–" : trend}%
+                        </p>
+                        <p className="text-white/30 text-[10px]">vs prev</p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+            <ProgressChart records={history} accent={accent} />
+            <div className="flex justify-between mt-1 px-1">
+              <span className="text-white/20 text-[10px]">Older tests</span>
+              <span className="text-white/20 text-[10px]">This test →</span>
+            </div>
+          </motion.div>
+        )}
+
         <div className="flex gap-3 mb-4">
           <motion.button
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.35 }}
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-            onClick={onRetry}
+            onClick={() => { onRetry(); }}
             className="flex-1 py-3 rounded-xl text-sm font-bold border"
             style={{ background: `${accent}20`, borderColor: `${accent}40`, color: accent }}
           >
@@ -898,6 +1077,10 @@ export default function SubjectPage() {
 
   // Bookmarks
   const [bookmarks, setBookmarks] = useState<Question[]>(() => loadBookmarks(subject));
+
+  // History (refreshed when returning from result screen)
+  const [subjectHistory, setSubjectHistory] = useState<TestRecord[]>(() => loadHistory(subject));
+  const refreshHistory = () => setSubjectHistory(loadHistory(subject));
 
 
   const mountedRef = useRef(true);
@@ -1186,6 +1369,7 @@ export default function SubjectPage() {
         onSaved={() => setScreen("saved-questions")}
         onResume={handleResume}
         savedCount={bookmarks.length}
+        history={subjectHistory}
       />
     );
   }
@@ -1312,7 +1496,7 @@ export default function SubjectPage() {
         questions={questions} answers={answers}
         accent={meta.accent} label={meta.label} icon={meta.icon}
         isDemo={isDemo} mode={mode} chapter={selectedChapter}
-        onHome={() => navigate("/")} onRetry={retryTest} subject={subject}
+        onHome={() => { refreshHistory(); setScreen("mode-select"); }} onRetry={retryTest} subject={subject}
       />
     );
   }
