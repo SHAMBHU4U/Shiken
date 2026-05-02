@@ -101,10 +101,40 @@ function loadHistory(subject: string): TestRecord[] {
   } catch { return []; }
 }
 
+function getDeviceId(): string {
+  const KEY = "shiken_device_id";
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = "u_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
 function addRecord(subject: string, rec: TestRecord): TestRecord[] {
   const prev = loadHistory(subject);
-  const next = [...prev, rec].slice(-50); // keep last 50
+  const next = [...prev, rec].slice(-50);
   try { localStorage.setItem(historyKey(subject), JSON.stringify(next)); } catch { /* quota */ }
+
+  // ── Push to Firebase for admin analytics ──────────────────────────────────
+  try {
+    const deviceId = getDeviceId();
+    const safeId = deviceId.replace(/[.#$/[\]]/g, "_");
+    push(ref(db, `userActivity/${safeId}/sessions`), {
+      subject,
+      score: rec.score,
+      total: rec.total,
+      pct: rec.pct,
+      mode: rec.mode,
+      chapter: rec.chapter,
+      timestamp: rec.date,
+    }).catch(() => { /* offline — ignore */ });
+    set(ref(db, `userActivity/${safeId}/meta`), {
+      lastActive: rec.date,
+      deviceId,
+    }).catch(() => { /* offline — ignore */ });
+  } catch { /* never block quiz flow */ }
+
   return next;
 }
 
