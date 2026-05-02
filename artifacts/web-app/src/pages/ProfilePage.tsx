@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { updateProfile } from "firebase/auth";
+import { auth } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
@@ -278,8 +280,39 @@ function AuthForm() {
 export default function ProfilePage() {
   const { user, loading, signOut } = useAuth();
   const [, navigate] = useLocation();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions,     setSessions]     = useState<Session[]>([]);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [editingName,  setEditingName]  = useState(false);
+  const [nameVal,      setNameVal]      = useState("");
+  const [nameSaving,   setNameSaving]   = useState(false);
+  const [nameSaved,    setNameSaved]    = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleNameSave() {
+    const trimmed = nameVal.trim().slice(0, 30);
+    if (!trimmed || !auth.currentUser) return;
+    setNameSaving(true);
+    try {
+      await updateProfile(auth.currentUser, { displayName: trimmed });
+      // Also sync to leaderboard meta
+      const safeId = auth.currentUser.uid.replace(/[.#$/[\]]/g, "_");
+      fetch(`https://shiken-d8789-default-rtdb.firebaseio.com/userActivity/${safeId}/meta.json`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: trimmed }),
+      }).catch(() => {});
+      setEditingName(false);
+      setNameSaved(true);
+      setTimeout(() => setNameSaved(false), 2500);
+    } catch { /* ignore */ }
+    finally { setNameSaving(false); }
+  }
+
+  function startEdit() {
+    setNameVal(user?.displayName || "");
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.focus(), 50);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -336,14 +369,58 @@ export default function ProfilePage() {
           style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)" }}>
           <Avatar name={user.displayName || user.email || "U"} photo={user.photoURL} size={64} />
           <div className="flex-1 min-w-0">
-            <p className="text-white font-black text-lg truncate">{user.displayName || "Student"}</p>
+            <AnimatePresence mode="wait">
+              {editingName ? (
+                <motion.div key="editing" initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 mb-1">
+                  <input
+                    ref={nameInputRef}
+                    value={nameVal}
+                    onChange={(e) => setNameVal(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleNameSave(); if (e.key === "Escape") setEditingName(false); }}
+                    maxLength={30}
+                    className="flex-1 min-w-0 px-2 py-1 rounded-lg text-sm font-bold text-white outline-none"
+                    style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(139,92,246,0.5)" }}
+                  />
+                  <motion.button onClick={handleNameSave} disabled={nameSaving} whileTap={{ scale: 0.9 }}
+                    className="shrink-0 px-2 py-1 rounded-lg text-xs font-bold text-white"
+                    style={{ background: nameSaving ? "rgba(139,92,246,0.3)" : "rgba(139,92,246,0.7)" }}>
+                    {nameSaving ? "…" : "Save"}
+                  </motion.button>
+                  <button onClick={() => setEditingName(false)}
+                    className="shrink-0 px-2 py-1 rounded-lg text-xs text-white/40 hover:text-white/70 transition-colors">
+                    ✕
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div key="display" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 mb-0.5">
+                  <p className="text-white font-black text-lg truncate">
+                    {user.displayName || "Student"}
+                  </p>
+                  <motion.button onClick={startEdit} whileTap={{ scale: 0.9 }} title="Edit name"
+                    className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                    style={{ background: "rgba(255,255,255,0.07)" }}>
+                    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                      <path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z" stroke="rgba(255,255,255,0.5)" strokeWidth="1.2" strokeLinejoin="round"/>
+                    </svg>
+                  </motion.button>
+                  {nameSaved && (
+                    <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }} className="text-xs text-emerald-400 font-medium">
+                      ✓ Saved
+                    </motion.span>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
             <p className="text-white/40 text-xs truncate">{user.email}</p>
             <p className="text-white/25 text-xs mt-0.5">
               Joined {new Date(user.metadata.creationTime || "").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
             </p>
           </div>
           <motion.button onClick={signOut} whileTap={{ scale: 0.95 }}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            className="shrink-0 self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "rgba(239,68,68,0.8)" }}>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M4.5 2H2.5A.5.5 0 002 2.5v7a.5.5 0 00.5.5h2M8 4l2 2-2 2M10 6H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
