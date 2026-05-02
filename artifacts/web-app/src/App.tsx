@@ -7,6 +7,10 @@ import { auth } from "@/firebase";
 import SubjectPage from "@/pages/SubjectPage";
 import AdminPage from "@/pages/AdminPage";
 import ProgressPage from "@/pages/ProgressPage";
+import ProfilePage from "@/pages/ProfilePage";
+import CounsellingPage from "@/pages/CounsellingPage";
+import ContactPage from "@/pages/ContactPage";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 // ─── Username helpers ──────────────────────────────────────────────────────────
 const USERNAME_KEY = "shiken_username";
@@ -15,6 +19,7 @@ const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
 function getStoredUsername(): string { return localStorage.getItem(USERNAME_KEY) ?? ""; }
 function getDeviceId(): string { return localStorage.getItem(DEVICE_ID_KEY) ?? ""; }
+function getMyId(): string { return auth.currentUser?.uid ?? getDeviceId(); }
 
 function saveUsername(name: string) {
   localStorage.setItem(USERNAME_KEY, name);
@@ -75,7 +80,7 @@ const GRADE_COLOR = (p: number) => p >= 80 ? "#10b981" : p >= 60 ? "#f59e0b" : "
 function Leaderboard() {
   const [entries, setEntries] = useState<LeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const myDeviceId = getDeviceId();
+  const myId = getMyId();
 
   useEffect(() => {
     fetchLeaderboard().then((data) => { setEntries(data); setLoading(false); });
@@ -115,7 +120,7 @@ function Leaderboard() {
 
       <div className="flex flex-col">
         {entries.map((e, i) => {
-          const isMe = e.deviceId === myDeviceId;
+          const isMe = e.deviceId === myId;
           return (
             <motion.div
               key={e.deviceId || i}
@@ -199,8 +204,11 @@ function UsernameSetup({ onDone }: { onDone: (name: string) => void }) {
   );
 }
 
+const ADMIN_SESSION = "shiken_admin_session";
+
 function AdminGuard() {
   const [user, setUser] = useState<User | null | "loading">("loading");
+  const [adminSession, setAdminSession] = useState(() => sessionStorage.getItem(ADMIN_SESSION) === "1");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -219,6 +227,8 @@ function AdminGuard() {
     setSubmitting(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
+      sessionStorage.setItem(ADMIN_SESSION, "1");
+      setAdminSession(true);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
       if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
@@ -251,7 +261,7 @@ function AdminGuard() {
     );
   }
 
-  if (user) return <AdminPage onSignOut={() => signOut(auth)} />;
+  if (user && adminSession) return <AdminPage onSignOut={() => { sessionStorage.removeItem(ADMIN_SESSION); setAdminSession(false); signOut(auth); }} />;
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#07080f" }}>
@@ -509,6 +519,60 @@ function SubjectCard({
   );
 }
 
+const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
+
+function BottomNav() {
+  const [location, navigate] = useLocation();
+  const { user } = useAuth();
+  const isQuiz  = QUIZ_SLUGS.some((s) => location === `/${s}`);
+  const isAdmin = location === "/admin";
+  if (isQuiz || isAdmin) return null;
+
+  const tabs = [
+    { path: "/",            icon: "🏠", label: "Home"       },
+    { path: "/profile",     icon: "👤", label: "Profile"    },
+    { path: "/counselling", icon: "🎓", label: "Counselling"},
+    { path: "/contact",     icon: "📩", label: "Contact"    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ y: 80 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      className="fixed bottom-0 left-0 right-0 z-50"
+      style={{ background: "rgba(7,8,15,0.92)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.07)" }}
+    >
+      <div className="max-w-lg mx-auto flex items-center justify-around px-2 py-2 pb-safe">
+        {tabs.map((tab) => {
+          const active = location === tab.path;
+          return (
+            <motion.button
+              key={tab.path}
+              onClick={() => navigate(tab.path)}
+              whileTap={{ scale: 0.92 }}
+              className="flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all min-w-0"
+              style={{
+                background: active ? "rgba(139,92,246,0.12)" : "transparent",
+                border: active ? "1px solid rgba(139,92,246,0.2)" : "1px solid transparent",
+              }}
+            >
+              <span className="text-lg leading-none">{tab.icon}</span>
+              <span className="text-xs font-semibold leading-none"
+                style={{ color: active ? "#a78bfa" : "rgba(255,255,255,0.3)" }}>
+                {tab.label}
+              </span>
+              {tab.path === "/profile" && user && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-400 border border-black" />
+              )}
+            </motion.button>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 function Dashboard() {
   const [, navigate] = useLocation();
   const [username, setUsername] = useState(getStoredUsername);
@@ -538,7 +602,7 @@ function Dashboard() {
         />
       </div>
 
-      <div className="relative z-10 max-w-lg mx-auto px-4 py-10">
+      <div className="relative z-10 max-w-lg mx-auto px-4 pt-10 pb-28">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -638,17 +702,31 @@ function Dashboard() {
   );
 }
 
+function AppRoutes() {
+  return (
+    <>
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/admin" component={AdminGuard} />
+        <Route path="/progress" component={ProgressPage} />
+        <Route path="/profile" component={ProfilePage} />
+        <Route path="/counselling" component={CounsellingPage} />
+        <Route path="/contact" component={ContactPage} />
+        <Route path="/:subject" component={SubjectPage} />
+      </Switch>
+      <BottomNav />
+    </>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/admin" component={AdminGuard} />
-          <Route path="/progress" component={ProgressPage} />
-          <Route path="/:subject" component={SubjectPage} />
-        </Switch>
-      </WouterRouter>
+      <AuthProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AppRoutes />
+        </WouterRouter>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

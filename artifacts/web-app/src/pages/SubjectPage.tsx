@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -118,7 +118,8 @@ function addRecord(subject: string, rec: TestRecord): TestRecord[] {
 
   // ── Push to Firebase for admin analytics ──────────────────────────────────
   try {
-    const deviceId = getDeviceId();
+    const uid = auth.currentUser?.uid;
+    const deviceId = uid ?? getDeviceId();
     const safeId = deviceId.replace(/[.#$/[\]]/g, "_");
     push(ref(db, `userActivity/${safeId}/sessions`), {
       subject,
