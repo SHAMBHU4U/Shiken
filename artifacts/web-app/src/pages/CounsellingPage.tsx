@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 
 // ── UPDATE THIS with your WhatsApp number (with country code, no + sign) ──────
-const WHATSAPP_NUMBER = "91XXXXXXXXXX";
+const WHATSAPP_NUMBER = "918340472013";
 const WHATSAPP_MSG = encodeURIComponent("Hi, I need career guidance after 10th.");
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MSG}`;
 

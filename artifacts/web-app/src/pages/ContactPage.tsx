@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 
-const CONTACT_EMAIL = "your@email.com"; // ← UPDATE with your email
+const CONTACT_EMAIL = "shiken.query@gmail.com";
 
 const socials = [
   { icon: "📘", label: "Facebook",  href: "#", color: "#1877f2" },
