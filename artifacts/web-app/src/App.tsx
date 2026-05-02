@@ -1,44 +1,66 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { auth } from "@/firebase";
 import SubjectPage from "@/pages/SubjectPage";
 import AdminPage from "@/pages/AdminPage";
 import ProgressPage from "@/pages/ProgressPage";
 
-const ADMIN_SECRET = import.meta.env.VITE_ADMIN_PASSWORD as string | undefined;
-const SESSION_KEY = "shiken_admin_auth";
-
-function isAdminAuthed(): boolean {
-  return sessionStorage.getItem(SESSION_KEY) === "1";
-}
-
 function AdminGuard() {
-  const [authed, setAuthed] = useState(isAdminAuthed);
-  const [input, setInput] = useState("");
-  const [error, setError] = useState(false);
+  const [user, setUser] = useState<User | null | "loading">("loading");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [shake, setShake] = useState(false);
   const [, navigate] = useLocation();
 
-  function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return unsub;
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!ADMIN_SECRET) {
-      setError(true);
-      return;
-    }
-    if (input === ADMIN_SECRET) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      setAuthed(true);
-      setError(false);
-    } else {
-      setError(true);
+    setError("");
+    setSubmitting(true);
+    try {
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/user-not-found" || code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setError("Invalid email or password");
+      } else if (code === "auth/invalid-email") {
+        setError("Enter a valid email address");
+      } else if (code === "auth/too-many-requests") {
+        setError("Too many attempts — try again later");
+      } else {
+        setError("Sign in failed. Check your credentials.");
+      }
       setShake(true);
-      setInput("");
+      setPassword("");
       setTimeout(() => setShake(false), 600);
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  if (authed) return <AdminPage />;
+  if (user === "loading") {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#07080f" }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+          className="w-8 h-8 rounded-full border-2 border-transparent"
+          style={{ borderTopColor: "#8b5cf6", borderRightColor: "#06b6d4" }}
+        />
+      </div>
+    );
+  }
+
+  if (user) return <AdminPage onSignOut={() => signOut(auth)} />;
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#07080f" }}>
@@ -65,7 +87,7 @@ function AdminGuard() {
             style={{ background: "conic-gradient(from 0deg, #8b5cf6, #06b6d4, #10b981, #f97316, #8b5cf6)" }}
           />
           <h1 className="text-white font-black text-2xl tracking-tight mb-1">Admin Access</h1>
-          <p className="text-white/30 text-sm">Enter the admin password to continue</p>
+          <p className="text-white/30 text-sm">Sign in with your Firebase admin account</p>
         </div>
 
         <motion.form
@@ -74,18 +96,32 @@ function AdminGuard() {
           transition={{ duration: 0.5 }}
           className="flex flex-col gap-3"
         >
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => { setEmail(e.target.value); setError(""); }}
+            placeholder="Admin Email"
+            autoComplete="email"
+            autoFocus
+            required
+            className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none transition-all"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.12)",
+            }}
+          />
           <div className="relative">
             <input
               type="password"
-              value={input}
-              onChange={(e) => { setInput(e.target.value); setError(false); }}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
               placeholder="Password"
-              autoFocus
+              autoComplete="current-password"
+              required
               className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none transition-all"
               style={{
                 background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
                 border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.12)"}`,
-                boxShadow: error ? "0 0 0 3px rgba(239,68,68,0.08)" : "none",
               }}
             />
             {error && (
@@ -94,22 +130,32 @@ function AdminGuard() {
                 animate={{ opacity: 1, y: 0 }}
                 className="absolute -bottom-5 left-1 text-xs text-red-400"
               >
-                Incorrect password
+                {error}
               </motion.p>
             )}
           </div>
 
           <motion.button
             type="submit"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="mt-2 w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all"
+            disabled={submitting}
+            whileHover={{ scale: submitting ? 1 : 1.02 }}
+            whileTap={{ scale: submitting ? 1 : 0.98 }}
+            className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
             style={{
-              background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-              boxShadow: "0 4px 20px rgba(139,92,246,0.35)",
+              background: submitting ? "rgba(139,92,246,0.4)" : "linear-gradient(135deg, #8b5cf6, #6366f1)",
+              boxShadow: submitting ? "none" : "0 4px 20px rgba(139,92,246,0.35)",
             }}
           >
-            Unlock Panel →
+            {submitting ? (
+              <>
+                <motion.span
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                  className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white inline-block"
+                />
+                Signing in…
+              </>
+            ) : "Sign In →"}
           </motion.button>
         </motion.form>
 

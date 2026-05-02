@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { db } from "../firebase.js";
+import { db } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";

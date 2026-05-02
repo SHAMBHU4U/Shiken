@@ -349,7 +349,7 @@ function AIReviewPanel({ subject, onClose }: { subject: (typeof ALL_SUBJECTS)[0]
   );
 }
 
-export default function AdminPage() {
+export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [, navigate] = useLocation();
   const [subjectData, setSubjectData] = useState<Record<string, SubjectInfo>>(
     Object.fromEntries(ALL_SUBJECTS.map((s) => [s.id, { count: 0, status: "loading" as SubjectStatus }]))
