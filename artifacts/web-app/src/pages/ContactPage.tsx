@@ -454,7 +454,15 @@ export default function ContactPage() {
           </div>
         </motion.div>
 
-        <p className="text-white/15 text-xs text-center mt-8">SHIKEN v1.0 · Bihar Board Prep</p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+          className="flex items-center justify-center gap-3 mt-8">
+          <a href="/privacy"
+            className="text-white/25 hover:text-white/50 text-xs transition-colors underline underline-offset-2">
+            Privacy Policy
+          </a>
+          <span className="text-white/15 text-xs">·</span>
+          <span className="text-white/15 text-xs">SHIKEN v1.0 · Bihar Board Prep</span>
+        </motion.div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import CounsellingPage from "@/pages/CounsellingPage";
 import ContactPage from "@/pages/ContactPage";
 import LeaderboardPage from "@/pages/LeaderboardPage";
 import PricingPage from "@/pages/PricingPage";
+import PrivacyPage from "@/pages/PrivacyPage";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
@@ -879,6 +880,7 @@ function AppRoutes() {
         <Route path="/contact" component={ContactPage} />
         <Route path="/leaderboard" component={LeaderboardPage} />
         <Route path="/pricing" component={PricingPage} />
+        <Route path="/privacy" component={PrivacyPage} />
         <Route path="/:subject" component={SubjectPage} />
       </Switch>
       <BottomNav />
