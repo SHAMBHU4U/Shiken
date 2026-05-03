@@ -718,34 +718,116 @@ function Dashboard() {
           transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
           className="text-center mb-10"
         >
-          <div className="inline-flex items-center gap-2 mb-3">
+          {/* ── Logo mark ─────────────────────────────────────────── */}
+          <div className="flex justify-center mb-5">
             <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              className="w-8 h-8 rounded-full"
-              style={{
-                background:
-                  "conic-gradient(from 0deg, #8b5cf6, #06b6d4, #10b981, #f97316, #8b5cf6)",
-              }}
-            />
-            <span className="text-white/40 text-sm font-medium tracking-widest uppercase">
-              Bihar Board
-            </span>
+              initial={{ scale: 0.7, opacity: 0, y: 12 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              transition={{ delay: 0.05, duration: 0.7, ease: [0.23, 1, 0.32, 1] }}
+              className="relative"
+            >
+              <div
+                className="absolute inset-0 rounded-[28px] blur-2xl scale-125 opacity-55"
+                style={{ background: "linear-gradient(135deg, #8b5cf6, #06b6d4)" }}
+              />
+              <div
+                className="relative w-[84px] h-[84px] rounded-[24px] flex items-center justify-center"
+                style={{
+                  background: "linear-gradient(145deg, #5b21b6 0%, #312e81 50%, #0c4a6e 100%)",
+                  boxShadow: "0 16px 48px rgba(139,92,246,0.55), 0 4px 16px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
+                }}
+              >
+                <svg viewBox="0 0 40 40" className="w-11 h-11" fill="none">
+                  <rect x="7" y="5" width="19" height="27" rx="2.5" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" />
+                  <path d="M20 5v5h6" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" strokeLinejoin="round" />
+                  <path d="M11 15h11M11 19h11M11 23h7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
+                  <path d="M29.5 3.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="#fcd34d" />
+                  <circle cx="33" cy="13" r="1.2" fill="#67e8f9" opacity="0.8" />
+                  <circle cx="35.5" cy="7.5" r="0.7" fill="#c4b5fd" opacity="0.7" />
+                </svg>
+              </div>
+            </motion.div>
           </div>
 
-          <h1
-            className="text-6xl font-black tracking-tight mb-1"
+          {/* ── AI badge ───────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4"
+            style={{ background: "rgba(139,92,246,0.13)", border: "1px solid rgba(139,92,246,0.32)" }}
+          >
+            <motion.span
+              animate={{ opacity: [1, 0.35, 1] }}
+              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: "#a78bfa" }}
+            />
+            <span className="text-violet-300 text-[11px] font-bold tracking-[0.18em] uppercase">
+              Bihar Board Class 10 · AI Powered
+            </span>
+          </motion.div>
+
+          {/* ── SHIKEN title ───────────────────────────────────────── */}
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.65, ease: [0.23, 1, 0.32, 1] }}
+            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none"
             style={{
-              background: "linear-gradient(135deg, #fff 30%, #8b5cf6 60%, #06b6d4 100%)",
+              background: "linear-gradient(135deg, #ffffff 0%, #ddd6fe 45%, #67e8f9 90%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              filter: "drop-shadow(0 0 32px rgba(139,92,246,0.25))",
             }}
           >
             SHIKEN
-          </h1>
-          <p className="text-white/40 text-sm font-medium">
+          </motion.h1>
+
+          {/* ── Hindi name ─────────────────────────────────────────── */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35, duration: 0.5 }}
+            className="text-base font-bold tracking-wide mb-1"
+            style={{ color: "rgba(167,139,250,0.75)" }}
+          >
+            शिकेन &nbsp;·&nbsp; परीक्षा की तैयारी
+          </motion.p>
+
+          {/* ── Subtitle ───────────────────────────────────────────── */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="text-white/35 text-sm font-medium mb-5"
+          >
             Choose your subject and start learning
-          </p>
+          </motion.p>
+
+          {/* ── Stats row ──────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className="inline-flex items-center gap-0 rounded-2xl overflow-hidden"
+            style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}
+          >
+            {[
+              { label: "1000+", sub: "Questions" },
+              { label: "6",     sub: "Subjects"  },
+              { label: "Free",  sub: "Forever"   },
+            ].map((s, i) => (
+              <div
+                key={s.sub}
+                className="px-5 py-2.5 text-center"
+                style={{ borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.07)" : "none" }}
+              >
+                <p className="text-white font-black text-sm leading-none">{s.label}</p>
+                <p className="text-white/30 text-[10px] font-medium mt-0.5">{s.sub}</p>
+              </div>
+            ))}
+          </motion.div>
         </motion.div>
 
         <StreakReminderBanner onPractice={() => {
