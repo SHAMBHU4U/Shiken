@@ -1631,9 +1631,14 @@ export default function SubjectPage() {
   const chapters = (() => {
     const map = new Map<string, number>();
     allQuestions.forEach((q) => map.set(q.chapter, (map.get(q.chapter) ?? 0) + 1));
-    return Array.from(map.entries())
+    const list = Array.from(map.entries())
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
+    // Inject virtual Comprehension chapter for Hindi and Sanskrit (AI-generated passages)
+    if ((subject === "hindi" || subject === "sanskrit") && !map.has("Comprehension")) {
+      list.push({ name: "Comprehension", count: 7 });
+    }
+    return list;
   })();
 
   // ── Persist helper (called after any state mutation) ─────────────────────────
@@ -1794,9 +1799,12 @@ export default function SubjectPage() {
     setShowPassageInQuiz(false);
     setScreen("comprehension-generating");
 
+    const subj = subject as "english" | "hindi" | "sanskrit";
+    const fbPath = subj === "hindi" ? "hindi_passages" : subj === "sanskrit" ? "sanskrit_passages" : "english_passages";
+
     try {
       // 1. Try Firebase passage bank first
-      const snap = await get(ref(db, "english_passages"));
+      const snap = await get(ref(db, fbPath));
       const data = snap.val() as Record<string, { title: string; passage: string; questions: Array<{ english?: string; hindi?: string; options: string[]; optionsHindi?: string[]; correctAnswer: number; chapter: string }> }> | null;
 
       if (data) {
@@ -1816,13 +1824,13 @@ export default function SubjectPage() {
           .filter((q) => (q.english || q.hindi) && q.options.length >= 2);
         setQuestions(qs);
       } else {
-        // 2. Generate via Gemini AI
-        const result = await generateComprehension(7);
+        // 2. Generate via Gemini AI with subject-aware prompt
+        const result = await generateComprehension(7, subj);
         setPassageTitle(result.title);
         setPassageText(result.passage);
         setQuestions(result.questions.map((q) => ({ ...q, chapter: "Comprehension" })));
-        // Cache to Firebase for future use
-        push(ref(db, "english_passages"), {
+        // Cache to Firebase for future students
+        push(ref(db, fbPath), {
           title:     result.title,
           passage:   result.passage,
           questions: result.questions.map((q) => ({ ...q, correctAnswer: q.answerIndex })),
@@ -1847,7 +1855,8 @@ export default function SubjectPage() {
   }
 
   function handleMiniChapterSelect(chapter: string) {
-    if (subject === "english" && chapter === "Comprehension") {
+    const isComprehensionSubject = subject === "english" || subject === "hindi" || subject === "sanskrit";
+    if (isComprehensionSubject && chapter === "Comprehension") {
       if (!isPremium) { setUpgradeOpen(true); return; }
       void startComprehensionTest();
     } else {
@@ -1901,7 +1910,7 @@ export default function SubjectPage() {
 
   function retryTest() {
     if (mode === "full") { void startFullTest(); }
-    else if (mode === "mini" && selectedChapter === "Comprehension" && subject === "english") { void startComprehensionTest(); }
+    else if (mode === "mini" && selectedChapter === "Comprehension" && (subject === "english" || subject === "hindi" || subject === "sanskrit")) { void startComprehensionTest(); }
     else if (mode === "mini") { startMiniTest(selectedChapter); }
     else if (mode === "chapter") { startChapterTest(selectedChapter); }
     else { startAIPractice(selectedChapter); }
@@ -2060,7 +2069,7 @@ export default function SubjectPage() {
           title="Mini Test · Free"
           showAll
           allLabel="All Chapters — Mixed"
-          lockedChapters={!isPremium && subject === "english" ? ["Comprehension"] : []}
+          lockedChapters={!isPremium && (subject === "english" || subject === "hindi" || subject === "sanskrit") ? ["Comprehension"] : []}
           onUpgrade={() => setUpgradeOpen(true)}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
