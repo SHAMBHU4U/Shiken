@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithGemini, generateQuestions } from "@/lib/gemini";
+import { explainWithGemini, generateQuestions, translateToEnglish } from "@/lib/gemini";
 import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -766,6 +766,33 @@ function ResultScreen({
   function cycleExplainLang() { setExplainLang((l) => l === "hi" ? "en" : "hi"); }
   const explainLangLabel = explainLang === "hi" ? "हिंदी" : "English";
 
+  // Per-question translation state (for questions stored only in Hindi)
+  const [translateTexts,   setTranslateTexts]   = useState<Record<number, string>>({});
+  const [translateLoading, setTranslateLoading] = useState<Record<number, boolean>>({});
+
+  function translateCacheKey(hindiText: string): string {
+    return btoa(unescape(encodeURIComponent(hindiText.slice(0, 80)))).replace(/[/+=]/g, "_") + "_en";
+  }
+
+  async function fetchTranslation(i: number, hindiText: string) {
+    if (translateLoading[i] || translateTexts[i]) return;
+    setTranslateLoading((l) => ({ ...l, [i]: true }));
+    try {
+      const cacheKey = translateCacheKey(hindiText);
+      const cached = await get(ref(db, `translations/${subject}/${cacheKey}`));
+      if (cached.exists()) {
+        setTranslateTexts((t) => ({ ...t, [i]: cached.val() as string }));
+      } else {
+        const text = await translateToEnglish(hindiText);
+        setTranslateTexts((t) => ({ ...t, [i]: text }));
+        set(ref(db, `translations/${subject}/${cacheKey}`), text).catch(() => {});
+      }
+    } catch {
+      setTranslateTexts((t) => ({ ...t, [i]: "Translation failed. Try again." }));
+    } finally {
+      setTranslateLoading((l) => { const n = { ...l }; delete n[i]; return n; });
+    }
+  }
 
   // Stable Firebase key from question text + lang (safe for Firebase paths)
   function explainCacheKey(questionEnglish: string, lang: string): string {
@@ -1203,9 +1230,33 @@ function ResultScreen({
                     }}>
                     {isRight ? "✓" : isSkipped ? "–" : "✗"}
                   </span>
-                  <p className="text-white/80 text-sm font-medium leading-snug flex-1">
-                    {i + 1}. <MathText text={q.english || q.hindi} />
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    {!q.english && q.hindi ? (
+                      <>
+                        {translateTexts[i] && (
+                          <p className="text-white/85 text-sm font-semibold leading-snug mb-0.5">
+                            {i + 1}. <MathText text={translateTexts[i]} />
+                          </p>
+                        )}
+                        <p className={`leading-snug font-medium ${translateTexts[i] ? "text-white/35 text-xs" : "text-white/80 text-sm"}`}>
+                          {!translateTexts[i] && <>{i + 1}. </>}<MathText text={q.hindi} />
+                        </p>
+                        {!translateTexts[i] && (
+                          <button
+                            onClick={() => { void fetchTranslation(i, q.hindi); }}
+                            disabled={!!translateLoading[i]}
+                            className="mt-1.5 text-xs flex items-center gap-1 px-2.5 py-0.5 rounded-full border transition-all"
+                            style={{ background: `${accent}0f`, borderColor: `${accent}35`, color: `${accent}bb` }}>
+                            {translateLoading[i] ? "🔄 Translating..." : "🔤 Translate to English"}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-white/80 text-sm font-medium leading-snug">
+                        {i + 1}. <MathText text={q.english || q.hindi} />
+                      </p>
+                    )}
+                  </div>
                   <motion.button
                     onClick={() => bmkToggle(q)}
                     whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
@@ -1380,6 +1431,30 @@ export default function SubjectPage() {
   // Subscription & upgrade modal
   const { isPremium } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Quiz per-question translation state (for questions stored only in Hindi)
+  const [quizTranslateTexts,   setQuizTranslateTexts]   = useState<Record<number, string>>({});
+  const [quizTranslateLoading, setQuizTranslateLoading] = useState<Record<number, boolean>>({});
+
+  async function fetchQuizTranslation(i: number, hindiText: string) {
+    if (quizTranslateLoading[i] || quizTranslateTexts[i]) return;
+    setQuizTranslateLoading((l) => ({ ...l, [i]: true }));
+    try {
+      const cacheKey = btoa(unescape(encodeURIComponent(hindiText.slice(0, 80)))).replace(/[/+=]/g, "_") + "_en";
+      const cached = await get(ref(db, `translations/${subject}/${cacheKey}`));
+      if (cached.exists()) {
+        setQuizTranslateTexts((t) => ({ ...t, [i]: cached.val() as string }));
+      } else {
+        const text = await translateToEnglish(hindiText);
+        setQuizTranslateTexts((t) => ({ ...t, [i]: text }));
+        set(ref(db, `translations/${subject}/${cacheKey}`), text).catch(() => {});
+      }
+    } catch {
+      setQuizTranslateTexts((t) => ({ ...t, [i]: "Translation failed." }));
+    } finally {
+      setQuizTranslateLoading((l) => { const n = { ...l }; delete n[i]; return n; });
+    }
+  }
 
 
   const mountedRef = useRef(true);
@@ -2235,9 +2310,35 @@ export default function SubjectPage() {
                     </motion.svg>
                   </motion.button>
                   {langMode !== "hi" && (
-                    <p className="text-white font-semibold text-base leading-relaxed mb-1 pr-8">
-                      {currentIndex + 1}. <MathText text={q.english || q.hindi} />
-                    </p>
+                    <div className="mb-1 pr-8">
+                      {!q.english && q.hindi ? (
+                        <>
+                          {quizTranslateTexts[currentIndex] && (
+                            <p className="text-white font-semibold text-base leading-relaxed mb-0.5">
+                              {currentIndex + 1}. <MathText text={quizTranslateTexts[currentIndex]} />
+                            </p>
+                          )}
+                          <p className={`font-semibold leading-relaxed ${quizTranslateTexts[currentIndex] ? "text-white/40 text-sm" : "text-white text-base"}`}>
+                            {!quizTranslateTexts[currentIndex] && <>{currentIndex + 1}. </>}
+                            <MathText text={q.hindi} />
+                          </p>
+                          {!quizTranslateTexts[currentIndex] && (
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => { void fetchQuizTranslation(currentIndex, q.hindi); }}
+                              disabled={!!quizTranslateLoading[currentIndex]}
+                              className="mt-2 text-xs flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all"
+                              style={{ background: `${meta.accent}10`, borderColor: `${meta.accent}35`, color: `${meta.accent}cc` }}>
+                              {quizTranslateLoading[currentIndex] ? "🔄 Translating..." : "🔤 Translate to English"}
+                            </motion.button>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-white font-semibold text-base leading-relaxed">
+                          {currentIndex + 1}. <MathText text={q.english || q.hindi} />
+                        </p>
+                      )}
+                    </div>
                   )}
                   {langMode === "hi" && (
                     <p className="text-white font-semibold text-base leading-relaxed mb-1 pr-8">

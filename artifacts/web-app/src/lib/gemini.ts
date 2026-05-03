@@ -145,6 +145,32 @@ JSON format (return ONLY this, nothing else):
     .filter((q) => q.english && q.options.length >= 2);
 }
 
+export async function translateToEnglish(hindiText: string): Promise<string> {
+  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+  const prompt = `Translate the following Hindi question to English for a Bihar Board Class 10 student.
+
+STRICT RULES:
+- Return ONLY the translated English question text.
+- Keep fill-in-the-blank markers (............, ........., ___) exactly as-is.
+- Keep any English words, numbers, or formulas unchanged.
+- Use simple, clear English suitable for a 10th grade student.
+- Do NOT add any explanation, prefix, or extra text. Just the translation.
+
+Hindi question:
+${hindiText}`;
+
+  const response = await ai.models.generateContent({
+    model: FREE_MODEL,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { temperature: 0.2, maxOutputTokens: 256 },
+  });
+
+  return (response.text ?? "").trim();
+}
+
 export async function explainWithGemini(
   params: {
     questionEnglish: string;
