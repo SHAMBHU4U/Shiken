@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
+const API_BASE = import.meta.env.BASE_URL;
 
 // UPI deep-link — ID is never rendered in the DOM
 function buildUpiLink(amount: number, note: string) {
@@ -90,6 +91,7 @@ function PaymentSheet({
     setActivating(true);
     try {
       const uid = auth.currentUser.uid;
+      const message = `New premium request:\nUser ID: ${uid}\nPlan: ${plan.name}\nAmount: ${plan.price}\nAction: verify in admin panel`;
       await fetch(`${DB_URL}/users/${uid}.json`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -101,6 +103,11 @@ function PaymentSheet({
           requestedAt: Date.now(),
           paymentVerified: false,
         }),
+      });
+      await fetch(`${API_BASE}api/notify-whatsapp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
       });
       onSuccess(uid);
     } catch { /* ignore */ }
