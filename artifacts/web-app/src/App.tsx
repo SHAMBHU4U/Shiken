@@ -121,9 +121,9 @@ function StreakReminderBanner({ onPractice }: { onPractice: () => void }) {
       transition={{ duration: 0.45, ease: [0.23, 1, 0.32, 1] }}
       className="mb-5 rounded-2xl p-4"
       style={{
-        background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(245,158,11,0.06))",
-        border: "1px solid rgba(251,191,36,0.3)",
-        boxShadow: "0 0 32px rgba(251,191,36,0.08)",
+        background: "linear-gradient(135deg, rgba(251,191,36,0.22), rgba(245,158,11,0.13))",
+        border: "1px solid rgba(251,191,36,0.45)",
+        boxShadow: "0 0 32px rgba(251,191,36,0.18), inset 0 1px 0 rgba(251,191,36,0.15)",
       }}
     >
       <div className="flex items-start gap-3">
@@ -522,7 +522,7 @@ function SubjectCard({
       whileHover={{ scale: 1.04, y: -4 }}
       whileTap={{ scale: 0.97 }}
       className={`relative overflow-hidden w-full bg-gradient-to-br ${subject.gradient} backdrop-blur-xl border ${subject.border} rounded-2xl p-6 text-left shadow-xl transition-all duration-300 cursor-pointer group`}
-      style={{ boxShadow: `0 8px 32px ${subject.accent}18, 0 2px 8px rgba(0,0,0,0.4)` }}
+      style={{ boxShadow: `0 8px 40px ${subject.accent}40, 0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px ${subject.accent}20` }}
     >
       <AnimatePresence>
         {ripples.map((ripple) => (
@@ -562,14 +562,14 @@ function SubjectCard({
           <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}cc` }}>{subject.labelHindi}</p>
         </div>
         <motion.div
-          className="ml-auto text-white/30 group-hover:text-white/70 transition-colors"
-          whileHover={{ x: 4 }}
+          className="ml-auto text-white/55 group-hover:text-white transition-colors duration-200"
+          whileHover={{ x: 5 }}
         >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
-              d="M7 4l6 6-6 6"
+              d="M9 5l7 7-7 7"
               stroke="currentColor"
-              strokeWidth="2"
+              strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
@@ -582,6 +582,49 @@ function SubjectCard({
 
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
+function NavIcon({ id, active }: { id: string; active: boolean }) {
+  const color = active ? "#38bdf8" : "rgba(255,255,255,0.45)";
+  const sw: React.SVGProps<SVGSVGElement> = {
+    viewBox: "0 0 24 24", fill: "none", stroke: color,
+    strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",
+    width: 22, height: 22,
+  };
+  if (id === "home") return (
+    <svg {...sw}>
+      <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z" />
+      <path d="M9 21V12h6v9" />
+    </svg>
+  );
+  if (id === "ranks") return (
+    <svg {...sw}>
+      <path d="M8 21V10M12 21V4M16 21v-6" />
+      <path d="M6 21h12" />
+    </svg>
+  );
+  if (id === "profile") return (
+    <svg {...sw}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  );
+  if (id === "counselling") return (
+    <svg {...sw}>
+      <path d="M3 11a9 9 0 1 1 18 0c0 5-4 9-9 9" />
+      <path d="M9 14s1 1 3 1 3-1 3-1" />
+      <circle cx="9" cy="11" r="1" fill={color} stroke="none" />
+      <circle cx="15" cy="11" r="1" fill={color} stroke="none" />
+      <path d="M12 20v-4" strokeWidth="1.5" />
+      <path d="M9 20h6" strokeWidth="1.5" />
+    </svg>
+  );
+  return (
+    <svg {...sw}>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  );
+}
+
 function BottomNav() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
@@ -590,11 +633,11 @@ function BottomNav() {
   if (isQuiz || isAdmin) return null;
 
   const tabs = [
-    { path: "/",             icon: "🏠", label: "Home"       },
-    { path: "/leaderboard",  icon: "🏆", label: "Ranks"      },
-    { path: "/profile",      icon: "👤", label: "Profile"    },
-    { path: "/counselling",  icon: "🎓", label: "Counselling"},
-    { path: "/contact",      icon: "📩", label: "Contact"    },
+    { path: "/",             iconId: "home",        label: "Home"       },
+    { path: "/leaderboard",  iconId: "ranks",       label: "Ranks"      },
+    { path: "/profile",      iconId: "profile",     label: "Profile"    },
+    { path: "/counselling",  iconId: "counselling", label: "Counselling"},
+    { path: "/contact",      iconId: "contact",     label: "Contact"    },
   ];
 
   return (
@@ -603,30 +646,49 @@ function BottomNav() {
       animate={{ y: 0 }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
       className="fixed bottom-0 left-0 right-0 z-50"
-      style={{ background: "rgba(7,8,15,0.92)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255,255,255,0.07)" }}
+      style={{
+        background: "rgba(26,27,46,0.97)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        borderTop: "1px solid rgba(255,255,255,0.09)",
+        boxShadow: "0 -4px 24px rgba(0,0,0,0.45)",
+      }}
     >
-      <div className="max-w-lg mx-auto flex items-center justify-around px-2 py-2 pb-safe">
+      <div className="max-w-lg mx-auto flex items-stretch justify-around px-1 py-1 pb-safe">
         {tabs.map((tab) => {
           const active = location === tab.path;
           return (
             <motion.button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              whileTap={{ scale: 0.92 }}
-              className="flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all min-w-0"
-              style={{
-                background: active ? "rgba(139,92,246,0.12)" : "transparent",
-                border: active ? "1px solid rgba(139,92,246,0.2)" : "1px solid transparent",
-              }}
+              whileTap={{ scale: 0.91 }}
+              className="relative flex flex-col items-center justify-center gap-1 flex-1 py-3 min-w-0 rounded-xl transition-all duration-200"
+              style={{ background: "transparent" }}
             >
-              <span className="text-lg leading-none">{tab.icon}</span>
-              <span className="text-xs font-semibold leading-none"
-                style={{ color: active ? "#a78bfa" : "rgba(255,255,255,0.3)" }}>
+              {active && (
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="absolute top-0 left-1/2 -translate-x-1/2 rounded-full"
+                  style={{
+                    width: 32, height: 2,
+                    background: "linear-gradient(90deg, #38bdf8, #818cf8)",
+                    boxShadow: "0 0 8px rgba(56,189,248,0.7)",
+                  }}
+                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
+                />
+              )}
+              <div className="relative">
+                <NavIcon id={tab.iconId} active={active} />
+                {tab.iconId === "profile" && user && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#1a1b2e]" />
+                )}
+              </div>
+              <span
+                className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
+                style={{ color: active ? "#38bdf8" : "rgba(255,255,255,0.42)" }}
+              >
                 {tab.label}
               </span>
-              {tab.path === "/profile" && user && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-green-400 border border-black" />
-              )}
             </motion.button>
           );
         })}
@@ -680,17 +742,17 @@ function Dashboard() {
               className="relative"
             >
               <div
-                className="absolute inset-0 rounded-[28px] blur-2xl scale-125 opacity-55"
+                className="absolute inset-0 rounded-[24px] blur-2xl scale-125 opacity-50"
                 style={{ background: "linear-gradient(135deg, #8b5cf6, #06b6d4)" }}
               />
               <div
-                className="relative w-[84px] h-[84px] rounded-[24px] flex items-center justify-center"
+                className="relative w-[68px] h-[68px] rounded-[20px] flex items-center justify-center"
                 style={{
                   background: "linear-gradient(145deg, #5b21b6 0%, #312e81 50%, #0c4a6e 100%)",
-                  boxShadow: "0 16px 48px rgba(139,92,246,0.55), 0 4px 16px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
+                  boxShadow: "0 12px 36px rgba(139,92,246,0.55), 0 4px 12px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
                 }}
               >
-                <svg viewBox="0 0 40 40" className="w-11 h-11" fill="none">
+                <svg viewBox="0 0 40 40" className="w-9 h-9" fill="none">
                   <rect x="7" y="5" width="19" height="27" rx="2.5" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" />
                   <path d="M20 5v5h6" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" strokeLinejoin="round" />
                   <path d="M11 15h11M11 19h11M11 23h7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
@@ -742,8 +804,8 @@ function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.5 }}
-            className="text-base font-bold tracking-wide mb-1"
-            style={{ color: "rgba(167,139,250,0.75)" }}
+            className="text-base font-bold mb-1"
+            style={{ color: "rgba(167,139,250,0.8)", letterSpacing: "0.13em" }}
           >
             शिकेन &nbsp;·&nbsp; परीक्षा की तैयारी
           </motion.p>
