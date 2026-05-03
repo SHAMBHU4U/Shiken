@@ -455,13 +455,18 @@ export default function ContactPage() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-          className="flex items-center justify-center gap-3 mt-8">
+          className="flex items-center justify-center gap-2 mt-8 flex-wrap">
           <a href="/privacy"
             className="text-white/25 hover:text-white/50 text-xs transition-colors underline underline-offset-2">
-            Privacy Policy
+            Privacy
           </a>
           <span className="text-white/15 text-xs">·</span>
-          <span className="text-white/15 text-xs">SHIKEN v1.0 · Bihar Board Prep</span>
+          <a href="/terms"
+            className="text-white/25 hover:text-white/50 text-xs transition-colors underline underline-offset-2">
+            Terms
+          </a>
+          <span className="text-white/15 text-xs">·</span>
+          <span className="text-white/15 text-xs">SHIKEN v1.0</span>
         </motion.div>
       </div>
     </div>

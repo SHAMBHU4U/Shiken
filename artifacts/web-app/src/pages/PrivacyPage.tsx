@@ -279,7 +279,15 @@ export default function PrivacyPage() {
               {CONTACT_EMAIL}
             </a>
           </p>
-          <p className="text-white/20 text-xs mt-1">SHIKEN — Bihar Board Class 10 Exam Prep</p>
+          <p className="text-white/20 text-xs mt-3 flex items-center justify-center gap-2">
+            <a href="/terms" className="text-white/25 hover:text-white/50 transition-colors underline underline-offset-2">
+              Terms of Use
+            </a>
+            <span className="text-white/15">·</span>
+            <a href="/contact" className="text-white/25 hover:text-white/50 transition-colors underline underline-offset-2">
+              Contact Us
+            </a>
+          </p>
         </motion.div>
 
       </div>
