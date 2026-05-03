@@ -49,6 +49,12 @@ const CHAPTER_ICONS: Record<string, string> = {
   "लोकोक्तियाँ":         "📜",
   "शुद्ध-अशुद्ध वाक्य":  "✅",
   "एक शब्द":            "💡",
+  // Sanskrit grammar chapters
+  "प्रकरणम्":           "📋",
+  "प्रत्यय":             "🔧",
+  "शब्दरूप":             "📊",
+  "धातुरूप":             "⚙️",
+  "वाक्य रचना":          "✏️",
 };
 function getChapterIcon(name: string) { return CHAPTER_ICONS[name] ?? "📂"; }
 
@@ -1697,21 +1703,27 @@ export default function SubjectPage() {
     const existing25 = pick(allQuestions, 25);
 
     // Pick representative chapters for Gemini prompt
-    // For Hindi: filter out untagged "?" questions and prioritise grammar chapters
+    // For Hindi/Sanskrit: filter out untagged "?" questions and prioritise grammar chapters
     const HINDI_GRAMMAR_CHAPTERS = [
       "वर्ण विचार","संज्ञा","सर्वनाम","क्रिया","विशेषण",
       "संधि","समास","काल","कारक","मुहावरे","लोकोक्तियाँ","शुद्ध-अशुद्ध वाक्य","एक शब्द",
     ];
-    const isHindiSubject = subject === "hindi";
+    const SANSKRIT_GRAMMAR_CHAPTERS = [
+      "संधि","समास","प्रकरणम्","प्रत्यय","शब्दरूप","धातुरूप","वाक्य रचना",
+    ];
+    const isHindiSubject   = subject === "hindi";
+    const isSanskritSubject = subject === "sanskrit";
+    const isGrammarSubject  = isHindiSubject || isSanskritSubject;
     const chapterCounts = new Map<string, number>();
     allQuestions.forEach((q) => {
-      if (isHindiSubject && q.chapter === "?") return;
+      if (isGrammarSubject && q.chapter === "?") return;
       chapterCounts.set(q.chapter, (chapterCounts.get(q.chapter) ?? 0) + 1);
     });
+    const fallbackGrammarChapters = isSanskritSubject ? SANSKRIT_GRAMMAR_CHAPTERS : HINDI_GRAMMAR_CHAPTERS;
     const topChapters = chapterCounts.size > 0
       ? [...chapterCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([c]) => c).join(", ")
-      : isHindiSubject
-        ? HINDI_GRAMMAR_CHAPTERS.sort(() => Math.random() - 0.5).slice(0, 4).join(", ")
+      : isGrammarSubject
+        ? fallbackGrammarChapters.sort(() => Math.random() - 0.5).slice(0, 4).join(", ")
         : "General";
 
     let aiQuestions: Question[] = [];

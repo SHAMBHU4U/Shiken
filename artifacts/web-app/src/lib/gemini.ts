@@ -212,6 +212,11 @@ const HINDI_GRAMMAR_CHAPTERS = [
   "मुहावरे", "लोकोक्तियाँ", "शुद्ध-अशुद्ध वाक्य", "एक शब्द",
 ];
 
+// Sanskrit grammar chapters for Bihar Board Class 10
+const SANSKRIT_GRAMMAR_CHAPTERS = [
+  "संधि", "समास", "प्रकरणम्", "प्रत्यय", "शब्दरूप", "धातुरूप", "वाक्य रचना",
+];
+
 export async function generateQuestions(
   subject: string,
   chapter: string,
@@ -221,11 +226,15 @@ export async function generateQuestions(
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-  const isHindi = subject.toLowerCase().includes("hindi");
+  const isHindi   = subject.toLowerCase().includes("hindi");
+  const isSanskrit = subject.toLowerCase().includes("sanskrit");
 
-  // For Hindi, if the chapter key is generic/unknown, rotate through grammar chapters
-  const effectiveChapter = isHindi && (!chapter || chapter === "?" || chapter === "General")
-    ? HINDI_GRAMMAR_CHAPTERS[Math.floor(Math.random() * HINDI_GRAMMAR_CHAPTERS.length)]
+  // For Hindi/Sanskrit, if chapter is generic, rotate through grammar chapters
+  const effectiveChapter =
+    isHindi    && (!chapter || chapter === "?" || chapter === "General")
+      ? HINDI_GRAMMAR_CHAPTERS[Math.floor(Math.random() * HINDI_GRAMMAR_CHAPTERS.length)]
+    : isSanskrit && (!chapter || chapter === "?" || chapter === "General")
+      ? SANSKRIT_GRAMMAR_CHAPTERS[Math.floor(Math.random() * SANSKRIT_GRAMMAR_CHAPTERS.length)]
     : chapter;
 
   const prompt = isHindi
@@ -242,6 +251,22 @@ STRICT RULES:
 - "optionsHindi": same 4 options (copy)
 - "answerIndex": 0-3 (correct option index)
 - Questions must vary: definitions, fill-in-blank, identification, examples।
+
+JSON format (return ONLY this):
+[{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`
+    : isSanskrit
+    ? `तुम Bihar Board Class 10 Sanskrit Vyakaran (व्याकरण) के expert हो।
+
+"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो BSEB Class 10 परीक्षा के लिए उपयुक्त हों।
+
+STRICT RULES:
+- Return ONLY a valid JSON array — no markdown, no code fences।
+- "hindi": प्रश्न Devanagari में (Sanskrit/Hindi — यही main question है)।
+- "english": same question in simple English।
+- "options": EXACTLY 4 Devanagari strings (Sanskrit/Hindi)।
+- "optionsHindi": same 4 options (copy)।
+- "answerIndex": 0-3 (correct option index)।
+- Questions must vary: रूप पहचानना, विग्रह, नाम पहचानना, fill-in-blank।
 
 JSON format (return ONLY this):
 [{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`
