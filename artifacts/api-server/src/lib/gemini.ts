@@ -22,7 +22,7 @@ export async function streamGemini(
   sseHeaders(res);
   try {
     const stream = await genai.models.generateContentStream({
-      model: "gemini-2.5-flash",
+      model: "gemini-1.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { maxOutputTokens: 8192 },
     });
