@@ -1,0 +1,108 @@
+import { GoogleGenAI } from "@google/genai";
+
+const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+
+const FREE_MODEL = "gemini-2.0-flash-lite";
+
+function buildPrompt(params: {
+  questionEnglish: string;
+  questionHindi:   string;
+  options:         string[];
+  optionsHindi?:   string[];
+  correctAnswer:   string;
+  subject:         string;
+  lang:            "en" | "hi";
+}): string {
+  const { questionEnglish, questionHindi, options, optionsHindi, correctAnswer, subject, lang } = params;
+
+  const optsList = options
+    .map((opt, i) => {
+      const h = optionsHindi?.[i];
+      if (lang === "en") return `${String.fromCharCode(65 + i)}. ${opt}`;
+      return h ? `${String.fromCharCode(65 + i)}. ${h}` : `${String.fromCharCode(65 + i)}. ${opt}`;
+    })
+    .join("\n");
+
+  const questionLine = lang === "en" ? questionEnglish : (questionHindi || questionEnglish);
+
+  const writingRule = lang === "en"
+    ? "Write ENTIRELY in simple English. Short sentences. Beginner-friendly."
+    : "पूरा जवाब Hindi (Devanagari) में लिखो। English सिर्फ formulas, numbers, और scientific terms के लिए। सरल और आम Hindi words use करो।";
+
+  const sectionLabels = lang === "en"
+    ? { answer: `Correct Answer: ${correctAnswer}`, solution: "Solution:", formula: "Formula / Theory:", notes: "Remember:" }
+    : { answer: `सही जवाब: ${correctAnswer}`, solution: "हल:", formula: "सूत्र / सिद्धांत:", notes: "याद रखो:" };
+
+  return `तुम Bihar Board Class 10 के ${subject} teacher हो। एक student पहली बार यह topic पढ़ रहा है — उसे clearly समझाओ।
+
+Question: ${questionLine}
+
+Options:
+${optsList}
+
+Correct Answer: ${correctAnswer}
+
+${writingRule}
+
+STRICT FORMATTING RULES — हर rule follow करो, कोई exception नहीं:
+- कोई asterisk (*), star, hash (#) या dash (-) as bullet मत use करो
+- कोई markdown bold, italic, heading मत use करो
+- Plain text only
+- हर point के लिए • symbol use करो (number नहीं)
+- Math के लिए: inline $formula$, block $$formula$$ (LaTeX)
+- सूत्र का नाम Hindi में लिखो
+- Total length: 12-16 lines। Short और sharp।
+
+इस EXACT structure में लिखो — यही sections, यही order:
+
+${sectionLabels.answer}
+[एक line में — यह जवाब सही क्यों है, simple words में]
+
+${sectionLabels.solution}
+• [यह question किस concept/topic पर है — एक line में सरलता से]
+• [solve करने का तरीका या सूत्र — clearly बताओ]
+• [step-by-step working दिखाओ — calculation या logic के साथ]
+• [final result confirm करो और सही option बताओ]
+
+${sectionLabels.formula}
+[अगर formula है तो LaTeX में लिखो। सूत्र का नाम ${lang === "hi" ? "Hindi" : "English"} में लिखो। अगर formula नहीं है तो एक line में key definition या rule।]
+
+${sectionLabels.notes}
+• [इस topic की सबसे important बात जो हर student को याद रखनी चाहिए]
+• [students यहाँ सबसे common गलती करते हैं — और उससे कैसे बचें]
+• [एक sharp memory trick या quick shortcut इस type के questions के लिए]`;
+}
+
+export async function explainWithGemini(
+  params: {
+    questionEnglish: string;
+    questionHindi:   string;
+    options:         string[];
+    optionsHindi?:   string[];
+    correctAnswer:   string;
+    subject:         string;
+    lang:            "en" | "hi";
+  },
+  onChunk: (text: string) => void,
+): Promise<string> {
+  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const prompt = buildPrompt(params);
+
+  const stream = await ai.models.generateContentStream({
+    model: FREE_MODEL,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { temperature: 0.4, maxOutputTokens: 1024 },
+  });
+
+  let fullText = "";
+  for await (const chunk of stream) {
+    const text = chunk.text ?? "";
+    if (text) {
+      fullText += text;
+      onChunk(text);
+    }
+  }
+  return fullText;
+}

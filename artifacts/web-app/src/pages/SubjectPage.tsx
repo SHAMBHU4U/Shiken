@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
+import { explainWithGemini } from "@/lib/gemini";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
@@ -777,42 +778,65 @@ function ResultScreen({
         return;
       }
 
-      // ── Not cached — call API and stream ────────────────────────────────────
-      const resp = await fetch("/api/explain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionEnglish: q.english,
-          questionHindi:   q.hindi || "",
-          options:         q.options,
-          optionsHindi:    q.optionsHindi,
-          correctAnswer:   q.options[q.answerIndex] ?? "",
-          subject:         label,
-          lang:            effectiveLang,
-        }),
-      });
-      const reader = resp.body?.getReader();
-      const decoder = new TextDecoder();
-      if (!reader) throw new Error("No stream");
-      let buf = "";
+      // ── Not cached — call Gemini directly from browser ─────────────────────
       let fullText = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const payload = JSON.parse(line.slice(6));
-            if (payload.content) {
-              fullText += payload.content;
-              setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + payload.content }));
-            }
-          } catch { /* skip */ }
+      const tryDirect = async () => {
+        fullText = await explainWithGemini(
+          {
+            questionEnglish: q.english,
+            questionHindi:   q.hindi || "",
+            options:         q.options,
+            optionsHindi:    q.optionsHindi,
+            correctAnswer:   q.options[q.answerIndex] ?? "",
+            subject:         label,
+            lang:            effectiveLang,
+          },
+          (chunk) => setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + chunk })),
+        );
+      };
+
+      // ── Fallback to API server if direct call fails ─────────────────────────
+      try {
+        await tryDirect();
+      } catch {
+        setExplainTexts((t) => ({ ...t, [i]: "" }));
+        fullText = "";
+        const resp = await fetch("/api/explain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            questionEnglish: q.english,
+            questionHindi:   q.hindi || "",
+            options:         q.options,
+            optionsHindi:    q.optionsHindi,
+            correctAnswer:   q.options[q.answerIndex] ?? "",
+            subject:         label,
+            lang:            effectiveLang,
+          }),
+        });
+        const reader = resp.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) throw new Error("No stream");
+        let buf = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split("\n");
+          buf = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const payload = JSON.parse(line.slice(6));
+              if (payload.content) {
+                fullText += payload.content;
+                setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + payload.content }));
+              }
+            } catch { /* skip */ }
+          }
         }
       }
+
       if (fullText.length > 10) {
         const cacheKey = explainCacheKey(q.english, effectiveLang);
         set(ref(db, `explanations/${subject}/${cacheKey}`), fullText).catch(() => {});
