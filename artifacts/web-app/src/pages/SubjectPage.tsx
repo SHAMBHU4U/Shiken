@@ -8,6 +8,7 @@ import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
+import { SubjectIcon } from "@/components/SubjectIcon";
 import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
 
@@ -469,10 +470,11 @@ function ProgressChart({ records, accent }: { records: TestRecord[]; accent: str
 // ─── Mode Select Screen ────────────────────────────────────────────────────────
 
 function ModeSelect({
-  meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount, history,
+  meta, subject, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount, history,
   isPremium, onMiniTest, onUpgrade,
 }: {
   meta: { label: string; labelHindi?: string; icon: string; accent: string };
+  subject: string;
   totalCount: number;
   savedProgress: SavedProgress | null;
   onFull: () => void;
@@ -561,7 +563,7 @@ function ModeSelect({
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-8 relative z-10"
       >
-        <div className="text-5xl mb-2">{meta.icon}</div>
+        <div className="mb-3 flex justify-center"><SubjectIcon id={subject} color={meta.accent} size="lg" /></div>
         <h2 className="text-3xl font-black text-white mb-0.5 leading-tight">{meta.label}</h2>
         <p className="text-base font-bold mb-2" style={{ color: meta.accent }}>{meta.labelHindi}</p>
         <p className="text-white/40 text-sm">Choose your test mode</p>
@@ -1051,7 +1053,7 @@ function ResultScreen({
     >
       <div className="max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center mb-6">
-          <div className="text-4xl mb-2">{icon}</div>
+          <div className="mb-2 flex justify-center"><SubjectIcon id={subject} color={accent} size="lg" /></div>
           <h2 className="text-2xl font-bold text-white mb-0 leading-tight">{label} — Results</h2>
           {subjectMeta[subject]?.labelHindi && (
             <p className="text-sm font-semibold mb-0.5" style={{ color: accent }}>{subjectMeta[subject].labelHindi}</p>
@@ -2055,6 +2057,7 @@ export default function SubjectPage() {
       <>
         <ModeSelect
           meta={meta}
+          subject={subject}
           totalCount={allQuestions.length}
           savedProgress={savedProgress}
           onFull={startFullTest}
@@ -2827,7 +2830,7 @@ export default function SubjectPage() {
               </button>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 15 }}>{meta.icon}</span>
+                  <SubjectIcon id={subject} color={meta.accent} size="sm" />
                   <span style={{ color: "#fff", fontWeight: 700, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
                   <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: `${meta.accent}20`, color: meta.accent, flexShrink: 0 }}>
                     {mode === "full" ? "Full Test" : selectedChapter}
