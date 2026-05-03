@@ -11,6 +11,34 @@ import ExplainText from "@/components/ExplainText";
 import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
 
+const CHAPTER_ICONS: Record<string, string> = {
+  "Grammar":         "📝",
+  "Prose":           "📖",
+  "Poetry":          "🎭",
+  "Vocabulary":      "🔤",
+  "Comprehension":   "🔍",
+  "Unseen Passage":  "📄",
+  "Writing Skills":  "✍️",
+  "General":         "📚",
+  "AI Generated":    "🤖",
+  "Numbers":         "🔢",
+  "Geometry":        "📐",
+  "Finance":         "💰",
+  "Biology":         "🌿",
+  "Chemistry":       "⚗️",
+  "Physics":         "⚡",
+  "Astronomy":       "🌌",
+  "History":         "🏛️",
+  "Geography":       "🗺️",
+  "Polity":          "🏛️",
+  "व्याकरण":         "📝",
+  "शब्द-भंडार":      "🔤",
+  "साहित्य":         "📖",
+  "शब्द-ज्ञान":      "💡",
+  "वाक्य":           "✍️",
+};
+function getChapterIcon(name: string) { return CHAPTER_ICONS[name] ?? "📂"; }
+
 const subjectMeta: Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }> = {
   maths:   { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "maths"          },
   english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "📖", accent: "#8b5cf6", path: "english"        },
@@ -425,7 +453,7 @@ function ModeSelect({
   meta, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount, history,
   isPremium, onMiniTest, onUpgrade,
 }: {
-  meta: { label: string; icon: string; accent: string };
+  meta: { label: string; labelHindi?: string; icon: string; accent: string };
   totalCount: number;
   savedProgress: SavedProgress | null;
   onFull: () => void;
@@ -443,9 +471,9 @@ function ModeSelect({
     {
       id: "mini",
       title: "Mini Test",
-      subtitle: `10 quick questions · Free for everyone`,
+      subtitle: `10 questions · Free · Choose any chapter`,
       icon: "⚡",
-      desc: "Quick revision in ~10 minutes. No signup needed. Available to all students!",
+      desc: "Quick revision in ~10 minutes. Pick a chapter or practice all. Available to all students!",
       onClick: onMiniTest,
       glowColor: meta.accent,
       locked: false,
@@ -664,13 +692,19 @@ function ModeSelect({
 // ─── Chapter Select Screen ─────────────────────────────────────────────────────
 
 function ChapterSelect({
-  meta, chapters, onBack, onSelect,
+  meta, chapters, onBack, onSelect, title, showAll, allLabel,
 }: {
   meta: { label: string; icon: string; accent: string };
   chapters: { name: string; count: number }[];
   onBack: () => void;
   onSelect: (chapter: string) => void;
+  title?: string;
+  showAll?: boolean;
+  allLabel?: string;
 }) {
+  const displayTitle = title ?? "Chapter-wise Test";
+  const allTotalCount = chapters.reduce((s, c) => s + c.count, 0);
+
   return (
     <div className="min-h-screen px-4 py-6" style={{ background: "#07080f" }}>
       <div
@@ -678,21 +712,44 @@ function ChapterSelect({
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}15 0%, transparent 50%)` }}
       />
       <div className="max-w-sm mx-auto relative z-10">
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-3 mb-6">
           <button onClick={onBack} className="text-white/40 hover:text-white/70 transition-colors text-xl p-1">←</button>
           <div>
-            <p className="text-white/40 text-xs">Chapter-wise Test</p>
+            <p className="text-white/40 text-xs">{displayTitle}</p>
             <h2 className="text-white font-bold text-lg">{meta.label} — Pick a Chapter</h2>
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
+          {showAll && (
+            <motion.button
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+              whileHover={{ scale: 1.02, x: 4 }} whileTap={{ scale: 0.97 }}
+              onClick={() => onSelect("All Chapters")}
+              className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
+              style={{ background: `${meta.accent}12`, borderColor: `${meta.accent}40` }}
+            >
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
+                style={{ background: `linear-gradient(90deg, ${meta.accent}20, transparent)` }} />
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                style={{ background: `${meta.accent}25` }}>
+                🌟
+              </div>
+              <div className="flex-1 relative z-10">
+                <p className="font-semibold text-sm" style={{ color: meta.accent }}>{allLabel ?? "All Chapters"}</p>
+                <p className="text-white/40 text-xs">{allTotalCount} questions · Mix of everything</p>
+              </div>
+              <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10">→</span>
+            </motion.button>
+          )}
+
           {chapters.map((ch, i) => (
             <motion.button
               key={ch.name}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.06, duration: 0.35 }}
+              transition={{ delay: (showAll ? i + 1 : i) * 0.06, duration: 0.35 }}
               whileHover={{ scale: 1.02, x: 4 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => onSelect(ch.name)}
@@ -707,14 +764,14 @@ function ChapterSelect({
                 style={{ background: `linear-gradient(90deg, ${meta.accent}18, transparent)` }}
               />
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                style={{ background: `${meta.accent}20`, color: meta.accent }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                style={{ background: `${meta.accent}20` }}
               >
-                {i + 1}
+                {getChapterIcon(ch.name)}
               </div>
               <div className="flex-1 relative z-10">
                 <p className="text-white font-semibold text-sm">{ch.name}</p>
-                <p className="text-white/40 text-xs">{ch.count} questions</p>
+                <p className="text-white/40 text-xs">{ch.count} question{ch.count !== 1 ? "s" : ""}</p>
               </div>
               <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10">→</span>
             </motion.button>
@@ -1379,7 +1436,7 @@ function ResultScreen({
 
 // ─── Main SubjectPage ─────────────────────────────────────────────────────────
 
-type Screen = "loading" | "mode-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "smart-generating" | "quiz" | "result" | "saved-questions";
+type Screen = "loading" | "mode-select" | "mini-chapter-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "smart-generating" | "quiz" | "result" | "saved-questions";
 
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
@@ -1667,12 +1724,13 @@ export default function SubjectPage() {
     setScreen("quiz");
   }
 
-  function startMiniTest() {
+  function startMiniTest(chapter = "All Chapters") {
     clearProgress(subject);
     setSavedProgress(null);
     setMode("mini");
-    setSelectedChapter("All Chapters");
-    const picked = pick(allQuestions, 10);
+    setSelectedChapter(chapter);
+    const pool = chapter === "All Chapters" ? allQuestions : allQuestions.filter(q => q.chapter === chapter);
+    const picked = pick(pool.length > 0 ? pool : allQuestions, 10);
     setQuestions(picked);
     setCurrentIndex(0);
     setAnswers({});
@@ -1681,7 +1739,7 @@ export default function SubjectPage() {
     setDirection(1);
     setTimerLeft(10 * 60);
     setTimerHidden(false);
-    saveProgress(subject, { mode: "mini", chapter: "All Chapters", questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: 10 * 60 });
+    saveProgress(subject, { mode: "mini", chapter, questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: 10 * 60 });
     setScreen("quiz");
   }
 
@@ -1869,11 +1927,25 @@ export default function SubjectPage() {
           savedCount={bookmarks.length}
           history={subjectHistory}
           isPremium={isPremium}
-          onMiniTest={startMiniTest}
+          onMiniTest={() => setScreen("mini-chapter-select")}
           onUpgrade={() => setUpgradeOpen(true)}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
       </>
+    );
+  }
+
+  if (screen === "mini-chapter-select") {
+    return (
+      <ChapterSelect
+        meta={meta}
+        chapters={chapters}
+        onBack={() => setScreen("mode-select")}
+        onSelect={startMiniTest}
+        title="Mini Test · Free"
+        showAll
+        allLabel="All Chapters — Mixed"
+      />
     );
   }
 
