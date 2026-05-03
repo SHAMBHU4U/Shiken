@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 
-const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
+const DB_URL  = "https://shiken-d8789-default-rtdb.firebaseio.com";
+const APP_URL = "https://shiken.replit.app";
 
 // ─── User Activity types ───────────────────────────────────────────────────────
 
@@ -408,6 +409,26 @@ function RatingsPanel() {
           </div>
         </div>
       </div>
+
+      {/* WhatsApp Broadcast */}
+      <a
+        href={`https://wa.me/?text=${encodeURIComponent(
+          `📊 SHIKEN App Rating Update!\n\n⭐ ${avg.toFixed(1)}/5 stars from ${entries.length} student${entries.length !== 1 ? "s" : ""}!\n\nThank you for your feedback — it helps us improve every day. Keep studying hard! 🎓\n\n🔗 ${APP_URL}`
+        )}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-3 px-4 py-3 rounded-xl mb-5 transition-opacity hover:opacity-85"
+        style={{ background: "rgba(37,211,102,0.12)", border: "1px solid rgba(37,211,102,0.28)" }}
+      >
+        <svg viewBox="0 0 24 24" className="w-5 h-5 flex-shrink-0" fill="#25d366">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.555 4.116 1.526 5.847L.057 23.882l6.198-1.625A11.93 11.93 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.793 9.793 0 01-5.012-1.376l-.36-.214-3.68.965.982-3.587-.234-.368A9.787 9.787 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+        </svg>
+        <div className="flex-1">
+          <p className="text-white/85 text-xs font-bold">Broadcast Rating Update</p>
+          <p className="text-white/35 text-xs">Share ⭐ {avg.toFixed(1)}/5 summary with your WhatsApp group</p>
+        </div>
+        <span className="text-white/25 text-xs">→</span>
+      </a>
 
       {/* Feedback section */}
       {withFeedback.length > 0 && (
