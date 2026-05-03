@@ -39,28 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
-
-    if (isInIframe()) {
-      // Popup is blocked in iframes — use redirect flow instead
-      await signInWithRedirect(auth, provider);
-      return;
-    }
-
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (e: unknown) {
-      const code = (e as { code?: string }).code ?? "";
-      // If popup was blocked, fall back to redirect
-      if (
-        code === "auth/popup-blocked" ||
-        code === "auth/cancelled-popup-request" ||
-        code === "auth/popup-closed-by-user"
-      ) {
-        await signInWithRedirect(auth, provider);
-      } else {
-        throw e;
-      }
-    }
+    // Always use popup — redirect cannot complete inside an iframe (Replit preview)
+    // The popup opens as a new window above the iframe and works correctly everywhere
+    await signInWithPopup(auth, provider);
   };
 
   const signInWithEmail = async (email: string, password: string) => {
