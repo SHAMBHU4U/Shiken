@@ -27,8 +27,11 @@ STRICT RULES:
 - Return ONLY a valid JSON array. No markdown, no explanation, no code fences.
 - Each question must have exactly 4 options.
 - answerIndex must be 0, 1, 2, or 3 (index of correct option).
-- Hindi translation of question in the "hindi" field (keep simple Hindi).
+- "hindi" field: Hindi translation of the question text (simple, clear Hindi).
+- "options": answer choices written in English.
+- "optionsHindi": the same 4 answer choices translated into Hindi (same order, same index).
 - Questions must be factual, syllabus-appropriate, and varied in difficulty.
+- Both the question AND all options must make sense in both languages.
 
 JSON format (return ONLY this, nothing else):
 [
@@ -36,6 +39,7 @@ JSON format (return ONLY this, nothing else):
     "english": "Question text in English",
     "hindi": "प्रश्न का Hindi अनुवाद",
     "options": ["Option A", "Option B", "Option C", "Option D"],
+    "optionsHindi": ["विकल्प A का हिंदी", "विकल्प B का हिंदी", "विकल्प C का हिंदी", "विकल्प D का हिंदी"],
     "answerIndex": 0
   }
 ]`;

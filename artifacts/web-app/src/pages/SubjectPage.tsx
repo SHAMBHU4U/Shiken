@@ -22,6 +22,7 @@ interface Question {
   english: string;
   hindi: string;
   options: string[];
+  optionsHindi?: string[];
   answerIndex: number;
   chapter: string;
 }
@@ -1175,18 +1176,24 @@ function ResultScreen({
                 {q.hindi && <p className="text-white/35 text-xs mb-2 pl-1"><MathText text={q.hindi} /></p>}
                 <div className="flex flex-col gap-1 pl-1 mb-3">
                   {q.options.map((opt, oi) => {
-                    const isCorrect = oi === q.answerIndex;
-                    const isUser    = oi === userAnswer;
+                    const isCorrect  = oi === q.answerIndex;
+                    const isUser     = oi === userAnswer;
+                    const optHindi   = q.optionsHindi?.[oi];
                     return (
-                      <div key={oi} className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
+                      <div key={oi} className="flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg"
                         style={{
                           background: isCorrect ? `${accent}25` : isUser && !isRight ? "rgba(255,80,80,0.12)" : "transparent",
                           color:      isCorrect ? accent : isUser && !isRight ? "#f87171" : "rgba(255,255,255,0.28)",
                         }}>
-                        <span className="font-bold w-4 shrink-0">{String.fromCharCode(65 + oi)}.</span>
-                        <MathText text={opt} />
-                        {isCorrect          && <span className="ml-auto font-semibold">✓ Correct</span>}
-                        {isUser && !isRight && <span className="ml-auto">Your pick</span>}
+                        <span className="font-bold w-4 shrink-0 mt-0.5">{String.fromCharCode(65 + oi)}.</span>
+                        <span className="flex flex-col gap-0.5 flex-1 min-w-0">
+                          <MathText text={opt} />
+                          {optHindi && (
+                            <span style={{ opacity: 0.65, fontSize: "10px" }}><MathText text={optHindi} /></span>
+                          )}
+                        </span>
+                        {isCorrect          && <span className="ml-auto font-semibold shrink-0">✓ Correct</span>}
+                        {isUser && !isRight && <span className="ml-auto shrink-0">Your pick</span>}
                       </div>
                     );
                   })}
@@ -1473,6 +1480,7 @@ export default function SubjectPage() {
             english: String(q.english ?? ""),
             hindi: String(q.hindi ?? ""),
             options: Array.isArray(q.options) ? (q.options as unknown[]).map(String) : [],
+            optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : undefined,
             answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
             chapter: "AI Generated",
           }))
@@ -1582,10 +1590,11 @@ export default function SubjectPage() {
       });
       const data = await resp.json() as { questions?: Question[]; error?: string };
       if (!data.questions?.length) throw new Error("No questions returned");
-      const generated: Question[] = data.questions.map((q: Question) => ({
-        english: q.english ?? "",
-        hindi: q.hindi ?? "",
-        options: Array.isArray(q.options) ? q.options : [],
+      const generated: Question[] = (data.questions as Record<string, unknown>[]).map((q) => ({
+        english: String(q.english ?? ""),
+        hindi: String(q.hindi ?? ""),
+        options: Array.isArray(q.options) ? (q.options as unknown[]).map(String) : [],
+        optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : undefined,
         answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
         chapter,
       }));
@@ -2115,6 +2124,7 @@ export default function SubjectPage() {
                 <div className="flex flex-col gap-3">
                   {q.options.map((opt, oi) => {
                     const isSelected = selectedOption === oi;
+                    const optHindi   = q.optionsHindi?.[oi];
                     return (
                       <motion.button
                         key={oi}
@@ -2142,8 +2152,15 @@ export default function SubjectPage() {
                           style={{ background: isSelected ? `${magicColor}40` : "rgba(255,255,255,0.08)", color: isSelected ? magicColor : "rgba(255,255,255,0.4)" }}>
                           {String.fromCharCode(65 + oi)}
                         </span>
-                        <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
-                          <MathText text={opt} />
+                        <span className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
+                            <MathText text={opt} />
+                          </span>
+                          {optHindi && (
+                            <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)" }}>
+                              <MathText text={optHindi} />
+                            </span>
+                          )}
                         </span>
                       </motion.button>
                     );
