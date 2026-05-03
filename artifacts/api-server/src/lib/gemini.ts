@@ -1,17 +1,23 @@
 import { GoogleGenAI } from "@google/genai";
 
-const baseUrl  = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
-const apiKey   = process.env.AI_INTEGRATIONS_GEMINI_API_KEY ?? process.env.GEMINI_API_KEY;
+// Prefer Replit AI Integration proxy (no daily cap, uses Replit credits).
+// Falls back to direct GEMINI_API_KEY if proxy is not configured.
+const useProxy  = !!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
+const apiKey    = useProxy
+  ? process.env.AI_INTEGRATIONS_GEMINI_API_KEY!
+  : process.env.GEMINI_API_KEY!;
 
 if (!apiKey) {
-  throw new Error("No Gemini API key available (AI_INTEGRATIONS_GEMINI_API_KEY or GEMINI_API_KEY).");
+  throw new Error("No Gemini API key found. Set GEMINI_API_KEY or provision the AI integration.");
 }
 
 export const genai = new GoogleGenAI(
-  baseUrl
-    ? { apiKey, httpOptions: { apiVersion: "", baseUrl } }
+  useProxy
+    ? { apiKey, httpOptions: { apiVersion: "", baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL } }
     : { apiKey }
 );
+
+const MODEL = "gemini-2.5-flash";
 
 export function sseHeaders(res: import("express").Response) {
   res.setHeader("Content-Type", "text/event-stream");
@@ -29,7 +35,7 @@ export async function streamGemini(
   sseHeaders(res);
   try {
     const stream = await genai.models.generateContentStream({
-      model: "gemini-2.5-flash",
+      model: MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { maxOutputTokens: 8192 },
     });
