@@ -1266,7 +1266,13 @@ function ResultScreen({
                       className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold"
                       style={{ color: isExLoading ? "#a5b4fc" : "#818cf8" }}
                     >
-                      <span>{isExLoading ? "Loading explanation..." : isExOpen ? "Hide Explanation ↑" : "Explain Question ↓"}</span>
+                      <span>{isExLoading ? "समझाया जा रहा है…" : isExOpen ? "Explanation छुपाएं ↑" : "🤖 Explain करें ↓"}</span>
+                      {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-2 shrink-0"
+                          style={{ background: `${accent}18`, color: `${accent}cc`, border: `1px solid ${accent}30` }}>
+                          {q.chapter}
+                        </span>
+                      )}
                     </button>
 
                     <AnimatePresence>
@@ -1300,9 +1306,15 @@ function ResultScreen({
                   </div>
                 ) : (
                   <button onClick={() => fetchExplain(i, q, explainLang)}
-                    className="w-full flex items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold mt-2"
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-semibold mt-2"
                     style={{ background: "rgba(99,102,241,0.04)", borderColor: "rgba(99,102,241,0.16)", color: "#818cf8" }}>
-                    Explain Question — Upgrade to unlock
+                    <span>🤖 Explain करें — Premium unlock करें</span>
+                    {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-2 shrink-0"
+                        style={{ background: `${accent}18`, color: `${accent}cc`, border: `1px solid ${accent}30` }}>
+                        {q.chapter}
+                      </span>
+                    )}
                   </button>
                 )}
               </motion.div>
