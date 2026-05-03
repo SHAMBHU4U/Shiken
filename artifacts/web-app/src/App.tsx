@@ -754,14 +754,23 @@ function Dashboard() {
                   boxShadow: "0 12px 36px rgba(139,92,246,0.55), 0 4px 12px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
                 }}
               >
-                <svg viewBox="0 0 40 40" className="w-9 h-9" fill="none">
-                  <rect x="7" y="5" width="19" height="27" rx="2.5" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" />
-                  <path d="M20 5v5h6" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" strokeLinejoin="round" />
-                  <path d="M11 15h11M11 19h11M11 23h7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
-                  <path d="M29.5 3.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="#fcd34d" />
-                  <circle cx="33" cy="13" r="1.2" fill="#67e8f9" opacity="0.8" />
-                  <circle cx="35.5" cy="7.5" r="0.7" fill="#c4b5fd" opacity="0.7" />
-                </svg>
+                <svg viewBox="0 0 48 48" className="w-9 h-9" fill="none">
+                {/* Brain outline */}
+                <circle cx="12" cy="14" r="4.5" stroke="white" strokeWidth="2.2" strokeOpacity="0.88" />
+                <path d="M16.5 14c0-2.5 1.5-4.8 3.5-5.5M19.5 8.5c2 0.7 3.5 3 3.5 5.5m0 0c0-2.5 1.5-4.8 3.5-5.5" stroke="white" strokeWidth="2" strokeOpacity="0.88" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M36 14c0-2.5-1.5-4.8-3.5-5.5M32.5 8.5c-2 0.7-3.5 3-3.5 5.5m0 0c0-2.5-1.5-4.8-3.5-5.5" stroke="white" strokeWidth="2" strokeOpacity="0.88" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 18.5c0 4 2 8 6 10m12 0c4-2 6-6 6-10" stroke="white" strokeWidth="2" strokeOpacity="0.88" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M18 28.5c1 1.5 2 2.5 6 2.5s5-1 6-2.5" stroke="white" strokeWidth="2" strokeOpacity="0.75" strokeLinecap="round" />
+                
+                {/* Checkmark */}
+                <g transform="translate(8, 6)">
+                  <path d="M8 12l3 3 6-8" stroke="#14b8a6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </g>
+                
+                {/* Glow spark */}
+                <circle cx="38" cy="8" r="1.8" fill="#14b8a6" opacity="0.9" />
+                <circle cx="41" cy="6" r="0.9" fill="#7dd3fc" opacity="0.7" />
+              </svg>
               </div>
             </motion.div>
           </div>
