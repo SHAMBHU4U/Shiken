@@ -745,9 +745,9 @@ function ResultScreen({
   const [explainOpen,    setExplainOpen]    = useState<Record<number, boolean>>({});
 
   // Explanation language toggle
-  const [explainLang, setExplainLang] = useState<"both" | "en" | "hi">("both");
-  function cycleExplainLang() { setExplainLang((l) => l === "both" ? "en" : l === "en" ? "hi" : "both"); }
-  const explainLangLabel = explainLang === "both" ? "A / अ" : explainLang === "en" ? "English" : "हिंदी";
+  const [explainLang, setExplainLang] = useState<"en" | "hi">("hi");
+  function cycleExplainLang() { setExplainLang((l) => l === "hi" ? "en" : "hi"); }
+  const explainLangLabel = explainLang === "hi" ? "हिंदी" : "English";
 
 
   // Stable Firebase key from question text (safe for Firebase paths)
@@ -1079,8 +1079,7 @@ function ResultScreen({
               boxShadow: analysisOpen ? "0 0 30px rgba(99,102,241,0.2)" : "none",
             }}
           >
-            <span className="text-lg">{analysisLoading ? "⏳" : "🧠"}</span>
-            {analysisLoading ? "AI विश्लेषण कर रहा है..." : analysisOpen ? "विश्लेषण बंद करो ↑" : "AI से Test विश्लेषण लो (Hindi में)"}
+            {analysisLoading ? "विश्लेषण हो रहा है..." : analysisOpen ? "विश्लेषण बंद करो ↑" : "Test का विश्लेषण करो ↓"}
           </motion.button>
 
           <AnimatePresence>
@@ -1095,9 +1094,7 @@ function ResultScreen({
                 <div className="mt-3 rounded-2xl border p-5"
                   style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.06))", borderColor: "rgba(99,102,241,0.22)", boxShadow: "0 4px 40px rgba(99,102,241,0.12)" }}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-xl">🧠</span>
-                    <span className="text-sm font-bold text-indigo-300">AI Teacher — Personal Analysis</span>
-                    <span className="text-xs text-white/25 ml-auto">Gemini · Hindi</span>
+                    <span className="text-sm font-bold text-indigo-300">Performance Analysis</span>
                   </div>
                   {analysisText ? (
                     <div className="text-sm leading-relaxed text-white/85 whitespace-pre-wrap">

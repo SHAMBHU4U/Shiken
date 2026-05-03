@@ -11,7 +11,7 @@ const ExplainBodySchema = z.object({
   optionsHindi:    z.array(z.string()).optional(),
   correctAnswer:   z.string().min(1),
   subject:         z.string().min(1),
-  lang:            z.enum(["both", "en", "hi"]).default("both"),
+  lang:            z.enum(["en", "hi"]).default("hi"),
 });
 
 router.post("/explain", async (req, res) => {
@@ -26,25 +26,24 @@ router.post("/explain", async (req, res) => {
   const optsList = options
     .map((opt, i) => {
       const h = optionsHindi?.[i];
-      if (lang === "hi" && h) return `${String.fromCharCode(65 + i)}. ${h}`;
       if (lang === "en") return `${String.fromCharCode(65 + i)}. ${opt}`;
-      return h ? `${String.fromCharCode(65 + i)}. ${opt} / ${h}` : `${String.fromCharCode(65 + i)}. ${opt}`;
+      return h ? `${String.fromCharCode(65 + i)}. ${h}` : `${String.fromCharCode(65 + i)}. ${opt}`;
     })
     .join("\n");
 
   const questionLine =
     lang === "en" ? questionEnglish
-    : lang === "hi" ? (questionHindi || questionEnglish)
-    : questionHindi ? `${questionEnglish}\n${questionHindi}` : questionEnglish;
+    : (questionHindi || questionEnglish);
 
-  const writingRule =
-    lang === "en"
-      ? "Write ENTIRELY in simple English. Use short sentences. Explain as if the student is hearing this topic for the first time."
-      : lang === "hi"
-      ? "Write ENTIRELY in Hindi (Devanagari). Keep English ONLY for formulas, numbers, and scientific terms. Use simple everyday Hindi words."
-      : "Write mainly in Hindi (Devanagari). Use English for technical terms, formulas, and key scientific words. Simple Hinglish is fine.";
+  const writingRule = lang === "en"
+    ? "Write ENTIRELY in simple English. Short sentences. Beginner-friendly."
+    : "पूरा जवाब Hindi (Devanagari) में लिखो। English सिर्फ formulas, numbers, और scientific terms के लिए। सरल और आम Hindi words use करो।";
 
-  const prompt = `You are a friendly Bihar Board Class 10 ${subject} teacher. A student who is learning this topic for the very first time needs your help understanding this question.
+  const sectionLabels = lang === "en"
+    ? { answer: `Correct Answer: ${correctAnswer}`, solution: "Solution:", formula: "Formula / Theory:", notes: "Remember:" }
+    : { answer: `सही जवाब: ${correctAnswer}`, solution: "हल:", formula: "सूत्र / सिद्धांत:", notes: "याद रखो:" };
+
+  const prompt = `तुम Bihar Board Class 10 के ${subject} teacher हो। एक student पहली बार यह topic पढ़ रहा है — उसे clearly समझाओ।
 
 Question: ${questionLine}
 
@@ -55,34 +54,33 @@ Correct Answer: ${correctAnswer}
 
 ${writingRule}
 
-STRICT FORMATTING RULES — follow every rule exactly, no exceptions:
-- Do NOT use any asterisks (*), stars, hash symbols (#), or dashes (-) as bullet points
-- Do NOT use any markdown bold, italic, or heading syntax whatsoever
-- Write plain text only — no decorators of any kind
-- Use numbers for steps: 1. 2. 3. 4.
-- Use the arrow symbol for sub-points: →
-- For math: use $formula$ for inline and $$formula$$ for block display (LaTeX syntax)
-- Keep total length between 14 and 18 lines
-- Every explanation must be simple enough for a first-time learner
+STRICT FORMATTING RULES — हर rule follow करो, कोई exception नहीं:
+- कोई asterisk (*), star, hash (#) या dash (-) as bullet मत use करो
+- कोई markdown bold, italic, heading मत use करो
+- Plain text only
+- हर point के लिए • symbol use करो (number नहीं)
+- Math के लिए: inline $formula$, block $$formula$$ (LaTeX)
+- सूत्र का नाम Hindi में लिखो
+- Total length: 12-16 lines। Short और sharp।
 
-Output the solution in this exact structure — use these exact section labels, nothing else:
+इस EXACT structure में लिखो — यही sections, यही order:
 
-सही जवाब: ${correctAnswer}
-[One sentence in plain words — why this option is correct]
+${sectionLabels.answer}
+[एक line में — यह जवाब सही क्यों है, simple words में]
 
-हल:
-1. [What concept or topic is being tested — explain it simply in one line]
-2. [What approach or formula is needed — state it clearly]
-3. [Show the working step by step — include the calculation or logic]
-4. [State the final result and confirm the correct option]
+${sectionLabels.solution}
+• [यह question किस concept/topic पर है — एक line में सरलता से]
+• [solve करने का तरीका या सूत्र — clearly बताओ]
+• [step-by-step working दिखाओ — calculation या logic के साथ]
+• [final result confirm करो और सही option बताओ]
 
-Formula / Theory:
-[Write the formula using LaTeX ($...$) if applicable. If no formula exists, write the key definition or rule in one plain sentence.]
+${sectionLabels.formula}
+[अगर formula है तो LaTeX में लिखो। सूत्र का नाम ${lang === "hi" ? "Hindi" : "English"} में लिखो। अगर formula नहीं है तो एक line में key definition या rule।]
 
-Notes:
-1. [An important point about this topic every student must remember]
-2. [A common mistake students make — and how to avoid it]
-3. [A quick shortcut or memory tip for this type of question]`;
+${sectionLabels.notes}
+• [इस topic की सबसे important बात जो हर student को याद रखनी चाहिए]
+• [students यहाँ सबसे common गलती करते हैं — और उससे कैसे बचें]
+• [एक sharp memory trick या quick shortcut इस type के questions के लिए]`;
 
   await streamGemini(res, prompt, "Explanation नहीं मिली। Please try again.", req.log);
 });

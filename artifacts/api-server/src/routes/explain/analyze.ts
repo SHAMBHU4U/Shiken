@@ -29,32 +29,34 @@ router.post("/analyze-test", async (req, res) => {
   const { subject, score, total, mode, chapter, wrong } = parsed.data;
   const pct = Math.round((score / total) * 100);
 
-  const wrongList = wrong.slice(0, 15)
-    .map((w, i) => `${i + 1}. Q: ${w.questionEnglish}\n   Correct: ${w.correctAnswer}${w.userAnswer ? `\n   Your answer: ${w.userAnswer}` : ""}`)
-    .join("\n\n");
+  const wrongTopics = wrong.slice(0, 10)
+    .map((w, i) => `${i + 1}. ${w.questionEnglish.slice(0, 80)}`)
+    .join("\n");
 
-  const prompt = `तुम Bihar Board के एक expert teacher और mentor हो। एक student ने अभी ${subject} का test दिया है।
+  const context = mode === "full"
+    ? `Full Test (${total} questions)`
+    : mode === "chapter"
+    ? `Chapter: ${chapter}`
+    : `AI Practice: ${chapter}`;
 
-📊 **Test Result:**
-- Subject: ${subject}
-- Mode: ${mode === "full" ? "Full Length Test (50 questions)" : mode === "chapter" ? `Chapter Test: ${chapter}` : `AI Practice: ${chapter}`}
-- Score: ${score} / ${total} (${pct}%)
-- Wrong answers: ${wrong.length}
+  const prompt = `तुम एक sharp और honest Bihar Board Class 10 ${subject} teacher हो। Student का result देखकर 8-10 lines में सीधी बात करो।
 
-${wrong.length > 0 ? `❌ **Questions जो गलत हुईं:**\n${wrongList}` : ""}
+Result: ${score}/${total} (${pct}%) — ${context}
+गलत: ${wrong.length} question${wrong.length !== 1 ? "s" : ""}
 
-अब इस student को एकदम detailed और personalized analysis दो Hindi में। इन sections में लिखो:
+${wrong.length > 0 ? `गलत questions:\n${wrongTopics}` : "सभी जवाब सही थे!"}
 
-🎯 **Performance Summary** - score का मतलब क्या है, कहाँ खड़े हो तुम
-💪 **Strong Points** - क्या अच्छा किया
-⚠️ **Weak Areas** - किन topics पर ध्यान देना है (wrong questions देखकर)
-📚 **Study Plan** - अगले 1 हफ्ते के लिए specific tips और strategy
-🏆 **Bihar Board Exam Tips** - exam में इस subject के लिए खास सलाह
-✨ **Motivational Message** - एक encouraging message Hindi में
+अब इस student को Hindi में feedback दो। Rules:
+- कोई headings नहीं, कोई sections नहीं — बस natural paragraphs
+- कोई asterisk (*), star, dash bullet, या hash (#) मत use करो — plain text only
+- पहले score का honest evaluation (8-10 words में sharp)
+- फिर weak areas identify करो — गलत questions देखकर
+- फिर एक specific, actionable study tip
+- आखिर में एक motivational line जो दिल को छुए
+- Tone: strict but caring teacher — जैसे कोई अच्छा mentor बात करता हो
+- Total: 8-10 lines। हर line impactful हो।`;
 
-Language casual और friendly रखो जैसे एक अच्छा दोस्त/mentor बात करता है। Emojis use करो। WhatsApp जैसी simple Hindi लिखो।`;
-
-  await streamGemini(res, prompt, "Analysis में दिक्कत आई, फिर से try करो 🙏", req.log);
+  await streamGemini(res, prompt, "Analysis में दिक्कत आई, फिर से try करो।", req.log);
 });
 
 export default router;
