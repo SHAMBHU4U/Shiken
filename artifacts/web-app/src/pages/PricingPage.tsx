@@ -53,6 +53,7 @@ const PLANS = [
     emoji: "🚀",
     features: [
       "सब कुछ Basic में +",
+      "📖 गद्यांश Comprehension (Hindi, English, Sanskrit)",
       "Board exams तक access",
       "Direct mentor sessions",
       "Priority support",

@@ -8,19 +8,24 @@ export type SubscriptionType = "free" | "premium";
 export function useSubscription() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionType>("free");
-  const [subLoading, setSubLoading] = useState(false);
+  const [plan, setPlan]                 = useState<string | null>(null);
+  const [subLoading, setSubLoading]     = useState(false);
 
   useEffect(() => {
-    if (!user) { setSubscription("free"); return; }
+    if (!user) { setSubscription("free"); setPlan(null); return; }
     setSubLoading(true);
     const safeId = user.uid.replace(/[.#$/[\]]/g, "_");
-    fetch(`${DB_URL}/users/${safeId}/subscriptionType.json`)
+    fetch(`${DB_URL}/users/${safeId}.json`)
       .then((r) => r.json())
-      .then((data) => setSubscription(data === "premium" ? "premium" : "free"))
-      .catch(() => setSubscription("free"))
+      .then((data: Record<string, unknown> | null) => {
+        setSubscription(data?.subscriptionType === "premium" ? "premium" : "free");
+        setPlan(typeof data?.plan === "string" ? data.plan : null);
+      })
+      .catch(() => { setSubscription("free"); setPlan(null); })
       .finally(() => setSubLoading(false));
   }, [user?.uid]);
 
   const isPremium = subscription === "premium";
-  return { subscription, isPremium, subLoading };
+  const isTopper  = isPremium && plan === "biannual";
+  return { subscription, isPremium, isTopper, plan, subLoading };
 }

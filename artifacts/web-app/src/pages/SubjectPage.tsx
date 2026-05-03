@@ -706,7 +706,7 @@ function ModeSelect({
 
 function ChapterSelect({
   meta, chapters, onBack, onSelect, title, showAll, allLabel,
-  lockedChapters, onUpgrade,
+  lockedChapters, topperChapters, onUpgrade,
 }: {
   meta: { label: string; icon: string; accent: string };
   chapters: { name: string; count: number }[];
@@ -716,6 +716,7 @@ function ChapterSelect({
   showAll?: boolean;
   allLabel?: string;
   lockedChapters?: string[];
+  topperChapters?: string[];
   onUpgrade?: () => void;
 }) {
   const displayTitle = title ?? "Chapter-wise Test";
@@ -761,7 +762,9 @@ function ChapterSelect({
           )}
 
           {chapters.map((ch, i) => {
-            const isLocked = lockedChapters?.includes(ch.name) ?? false;
+            const isTopper  = topperChapters?.includes(ch.name) ?? false;
+            const isLocked  = isTopper || (lockedChapters?.includes(ch.name) ?? false);
+            const badgeLabel = isTopper ? "🏆 Topper" : "👑 Premium";
             return (
               <motion.button
                 key={ch.name}
@@ -773,17 +776,17 @@ function ChapterSelect({
                 onClick={() => isLocked ? onUpgrade?.() : onSelect(ch.name)}
                 className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
                 style={{
-                  background: isLocked ? "rgba(251,191,36,0.05)" : "rgba(255,255,255,0.04)",
-                  borderColor: isLocked ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.08)",
+                  background: isTopper ? "rgba(245,158,11,0.06)" : isLocked ? "rgba(251,191,36,0.05)" : "rgba(255,255,255,0.04)",
+                  borderColor: isTopper ? "rgba(245,158,11,0.25)" : isLocked ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.08)",
                 }}
               >
                 <div
                   className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
-                  style={{ background: isLocked ? "linear-gradient(90deg, rgba(251,191,36,0.12), transparent)" : `linear-gradient(90deg, ${meta.accent}18, transparent)` }}
+                  style={{ background: isLocked ? "linear-gradient(90deg, rgba(245,158,11,0.14), transparent)" : `linear-gradient(90deg, ${meta.accent}18, transparent)` }}
                 />
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
-                  style={{ background: isLocked ? "rgba(251,191,36,0.15)" : `${meta.accent}20` }}
+                  style={{ background: isLocked ? "rgba(245,158,11,0.15)" : `${meta.accent}20` }}
                 >
                   {getChapterIcon(ch.name)}
                 </div>
@@ -793,8 +796,8 @@ function ChapterSelect({
                 </div>
                 {isLocked ? (
                   <span className="relative z-10 text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
-                    style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}>
-                    👑 Premium
+                    style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.35)" }}>
+                    {badgeLabel}
                   </span>
                 ) : (
                   <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10">→</span>
@@ -1512,7 +1515,7 @@ export default function SubjectPage() {
   const refreshHistory = () => setSubjectHistory(loadHistory(subject));
 
   // Subscription & upgrade modal
-  const { isPremium } = useSubscription();
+  const { isPremium, isTopper } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   // Comprehension passage state
@@ -1857,7 +1860,7 @@ export default function SubjectPage() {
   function handleMiniChapterSelect(chapter: string) {
     const isComprehensionSubject = subject === "english" || subject === "hindi" || subject === "sanskrit";
     if (isComprehensionSubject && chapter === "Comprehension") {
-      if (!isPremium) { setUpgradeOpen(true); return; }
+      if (!isTopper) { setUpgradeOpen(true); return; }
       void startComprehensionTest();
     } else {
       startMiniTest(chapter);
@@ -1910,7 +1913,7 @@ export default function SubjectPage() {
 
   function retryTest() {
     if (mode === "full") { void startFullTest(); }
-    else if (mode === "mini" && selectedChapter === "Comprehension" && (subject === "english" || subject === "hindi" || subject === "sanskrit")) { void startComprehensionTest(); }
+    else if (mode === "mini" && selectedChapter === "Comprehension" && isTopper && (subject === "english" || subject === "hindi" || subject === "sanskrit")) { void startComprehensionTest(); }
     else if (mode === "mini") { startMiniTest(selectedChapter); }
     else if (mode === "chapter") { startChapterTest(selectedChapter); }
     else { startAIPractice(selectedChapter); }
@@ -2069,7 +2072,7 @@ export default function SubjectPage() {
           title="Mini Test · Free"
           showAll
           allLabel="All Chapters — Mixed"
-          lockedChapters={!isPremium && (subject === "english" || subject === "hindi" || subject === "sanskrit") ? ["Comprehension"] : []}
+          topperChapters={!isTopper && (subject === "english" || subject === "hindi" || subject === "sanskrit") ? ["Comprehension"] : []}
           onUpgrade={() => setUpgradeOpen(true)}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
