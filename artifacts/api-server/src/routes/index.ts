@@ -1,10 +1,10 @@
 // @ts-nocheck
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import explainRouter from "./explain/index";
-import generateRouter from "./explain/generate";
-import analyzeRouter from "./explain/analyze";
-import notifyWhatsappRouter from "./notify-whatsapp";
+import healthRouter from "./health.js";
+import explainRouter from "./explain/index.js";
+import generateRouter from "./explain/generate.js";
+import analyzeRouter from "./explain/analyze.js";
+import notifyWhatsappRouter from "./notify-whatsapp.js";
 
 const router: IRouter = Router();
 
