@@ -1100,6 +1100,248 @@ function PaymentsPanel() {
   );
 }
 
+// ─── Cache Stats Panel ────────────────────────────────────────────────────────
+
+interface CacheChapter {
+  subjectKey:   string;
+  chapterKey:   string;
+  count:        number;
+  updatedAt:    number;
+}
+
+interface CacheSubjectGroup {
+  subjectKey: string;
+  chapters:   CacheChapter[];
+  total:      number;
+}
+
+function prettifySlug(slug: string): string {
+  return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+async function fetchCacheStats(): Promise<CacheSubjectGroup[]> {
+  const res = await fetch(`${DB_URL}/aiQuestionsCache.json`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json() as Record<string, Record<string, { questions?: unknown[]; updatedAt?: number }>> | null;
+  if (!data) return [];
+
+  return Object.entries(data).map(([subjectKey, chapters]) => {
+    const chapterList: CacheChapter[] = Object.entries(chapters ?? {}).map(([chapterKey, val]) => ({
+      subjectKey,
+      chapterKey,
+      count:     Array.isArray(val.questions) ? val.questions.length : 0,
+      updatedAt: val.updatedAt ?? 0,
+    })).sort((a, b) => b.count - a.count);
+    return {
+      subjectKey,
+      chapters: chapterList,
+      total: chapterList.reduce((s, c) => s + c.count, 0),
+    };
+  }).sort((a, b) => b.total - a.total);
+}
+
+async function clearChapterCache(subjectKey: string, chapterKey: string): Promise<void> {
+  await fetch(`${DB_URL}/aiQuestionsCache/${subjectKey}/${chapterKey}.json`, { method: "DELETE" });
+}
+
+async function clearSubjectCache(subjectKey: string): Promise<void> {
+  await fetch(`${DB_URL}/aiQuestionsCache/${subjectKey}.json`, { method: "DELETE" });
+}
+
+function CachePanel() {
+  const [groups, setGroups]   = useState<CacheSubjectGroup[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+  const [clearing, setClearing] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { setGroups(await fetchCacheStats()); }
+    catch (e) { setError(String(e)); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleClearChapter(subjectKey: string, chapterKey: string) {
+    const key = `${subjectKey}/${chapterKey}`;
+    setClearing(key);
+    try {
+      await clearChapterCache(subjectKey, chapterKey);
+      setGroups((gs) => gs.map((g) =>
+        g.subjectKey !== subjectKey ? g :
+        { ...g, chapters: g.chapters.filter((c) => c.chapterKey !== chapterKey),
+          total: g.chapters.filter((c) => c.chapterKey !== chapterKey).reduce((s, c) => s + c.count, 0) }
+      ).filter((g) => g.chapters.length > 0));
+    } catch { /* ignore */ }
+    finally { setClearing(null); }
+  }
+
+  async function handleClearSubject(subjectKey: string) {
+    setClearing(subjectKey);
+    try {
+      await clearSubjectCache(subjectKey);
+      setGroups((gs) => gs.filter((g) => g.subjectKey !== subjectKey));
+    } catch { /* ignore */ }
+    finally { setClearing(null); }
+  }
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3">
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="w-7 h-7 rounded-full border-2 border-transparent"
+        style={{ borderTopColor: "#06b6d4", borderRightColor: "#06b6d420" }} />
+      <p className="text-white/30 text-xs">Loading cache stats…</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="text-center py-12">
+      <p className="text-red-400 text-sm mb-3">Failed: {error}</p>
+      <button onClick={load} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/50 text-xs">Retry</button>
+    </div>
+  );
+
+  const totalCached  = groups.reduce((s, g) => s + g.total, 0);
+  const totalChapters = groups.reduce((s, g) => s + g.chapters.length, 0);
+  const totalSubjects = groups.length;
+
+  return (
+    <div>
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {[
+          { label: "Cached Questions", value: totalCached,   color: "#06b6d4" },
+          { label: "Chapters Cached",  value: totalChapters, color: "#8b5cf6" },
+          { label: "Subjects",         value: totalSubjects, color: "#10b981" },
+        ].map((s) => (
+          <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
+            <p className="text-lg font-black" style={{ color: s.color }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {totalCached === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">🗄️</p>
+          <p className="text-white/40 text-sm font-medium">Cache is empty</p>
+          <p className="text-white/20 text-xs mt-1">Questions get cached automatically when students take AI tests</p>
+        </div>
+      ) : (
+        <>
+          {/* How it works note */}
+          <div className="rounded-xl px-4 py-3 mb-4 flex items-start gap-3"
+            style={{ background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.18)" }}>
+            <span className="text-lg shrink-0 mt-0.5">⚡</span>
+            <div>
+              <p className="text-cyan-400 text-xs font-bold">Shared question cache</p>
+              <p className="text-white/30 text-xs mt-0.5 leading-relaxed">
+                Cached chapters load instantly — zero Gemini API calls. New questions are generated only when a chapter has no cache yet. Max 100 per chapter.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-white/40 text-xs font-medium">Cached by subject</p>
+            <button onClick={load} className="text-white/25 hover:text-white/50 text-xs transition-colors">↻ Refresh</button>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {groups.map((group, gi) => {
+              const subjectMeta = ALL_SUBJECTS.find((s) => s.id === group.subjectKey || s.label.toLowerCase() === group.subjectKey);
+              const accent  = subjectMeta?.accent ?? "#8b5cf6";
+              const icon    = subjectMeta?.icon   ?? "📚";
+              const isOpen  = expanded === group.subjectKey;
+
+              return (
+                <motion.div key={group.subjectKey} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: gi * 0.05 }}
+                  className="rounded-xl overflow-hidden"
+                  style={{ background: `${accent}08`, border: `1px solid ${accent}20` }}>
+
+                  {/* Subject header */}
+                  <div className="flex items-center gap-3 px-4 py-3 cursor-pointer"
+                    onClick={() => setExpanded(isOpen ? null : group.subjectKey)}>
+                    <span className="text-xl shrink-0">{icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold text-sm">{prettifySlug(group.subjectKey)}</p>
+                      <p className="text-white/30 text-xs">
+                        {group.chapters.length} chapter{group.chapters.length !== 1 ? "s" : ""}
+                        {" · "}{group.total} questions cached
+                      </p>
+                    </div>
+
+                    {/* Capacity bar */}
+                    <div className="w-14 h-1.5 rounded-full overflow-hidden shrink-0" style={{ background: "rgba(255,255,255,0.08)" }}>
+                      <div className="h-full rounded-full transition-all"
+                        style={{ width: `${Math.min(100, (group.total / (group.chapters.length * 100)) * 100)}%`, background: accent }} />
+                    </div>
+
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleClearSubject(group.subjectKey); }}
+                      disabled={clearing !== null}
+                      className="text-xs px-2 py-1 rounded-lg font-bold shrink-0 transition-all"
+                      style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}
+                      title="Clear all chapters for this subject">
+                      {clearing === group.subjectKey ? "…" : "Clear"}
+                    </button>
+
+                    <span className="text-white/25 text-xs transition-transform shrink-0"
+                      style={{ display: "inline-block", transform: isOpen ? "rotate(90deg)" : "rotate(0)" }}>›</span>
+                  </div>
+
+                  {/* Chapter list */}
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
+                        <div className="border-t px-4 py-3 flex flex-col gap-2" style={{ borderColor: `${accent}18` }}>
+                          {group.chapters.map((ch) => {
+                            const chKey = `${ch.subjectKey}/${ch.chapterKey}`;
+                            const fillPct = Math.min(100, (ch.count / 100) * 100);
+                            const updatedLabel = ch.updatedAt
+                              ? new Date(ch.updatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                              : "—";
+                            return (
+                              <div key={ch.chapterKey} className="flex items-center gap-3 py-1.5">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white/75 text-xs font-medium truncate">{prettifySlug(ch.chapterKey)}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.07)" }}>
+                                      <motion.div initial={{ width: 0 }} animate={{ width: `${fillPct}%` }}
+                                        transition={{ duration: 0.5, ease: "easeOut" }}
+                                        className="h-full rounded-full" style={{ background: accent }} />
+                                    </div>
+                                    <span className="text-white/35 text-xs shrink-0 w-14">{ch.count}/100 q</span>
+                                  </div>
+                                  <p className="text-white/20 text-xs mt-0.5">Updated {updatedLabel}</p>
+                                </div>
+                                <button
+                                  onClick={() => handleClearChapter(ch.subjectKey, ch.chapterKey)}
+                                  disabled={clearing !== null}
+                                  className="text-xs px-2 py-1 rounded-lg shrink-0 transition-all"
+                                  style={{ background: "rgba(239,68,68,0.08)", color: "#f87171aa", border: "1px solid rgba(239,68,68,0.15)" }}>
+                                  {clearing === chKey ? "…" : "✕"}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
 export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
@@ -1112,9 +1354,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache">(initialTab);
   const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {
@@ -1214,7 +1456,8 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "ai",        label: "🤖 AI",       badge: 0 },
             { id: "users",     label: "👥 Users",    badge: 0 },
             { id: "payments",  label: "💳 Pay",      badge: pendingBadge },
-            { id: "ratings",   label: "⭐ Ratings",  badge: 0 },
+            { id: "ratings",   label: "⭐ Stars",    badge: 0 },
+            { id: "cache",     label: "🗄️ Cache",    badge: 0 },
           ] as const).map(({ id, label, badge }) => (
             <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
               className="flex-1 py-2 rounded-lg text-xs font-bold transition-all relative"
@@ -1295,6 +1538,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "ratings" && (
             <motion.div key="ratings" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <RatingsPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "cache" && (
+            <motion.div key="cache" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <CachePanel />
             </motion.div>
           )}
         </AnimatePresence>
