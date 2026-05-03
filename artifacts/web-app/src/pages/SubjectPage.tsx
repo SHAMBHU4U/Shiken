@@ -9,13 +9,13 @@ import ExplainText from "@/components/ExplainText";
 import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
 
-const subjectMeta: Record<string, { label: string; icon: string; accent: string; path: string }> = {
-  maths:   { label: "Maths",          icon: "📐", accent: "#06b6d4", path: "maths"          },
-  english: { label: "English",        icon: "📖", accent: "#8b5cf6", path: "english"        },
-  hindi:   { label: "Hindi",          icon: "🔤", accent: "#f97316", path: "hindi"          },
-  science: { label: "Science",        icon: "🔬", accent: "#10b981", path: "science"        },
-  social:  { label: "Social Science", icon: "🌍", accent: "#f59e0b", path: "social science" },
-  sanskrit:{ label: "Sanskrit",       icon: "📜", accent: "#ec4899", path: "sanskrit"       },
+const subjectMeta: Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }> = {
+  maths:   { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "maths"          },
+  english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "📖", accent: "#8b5cf6", path: "english"        },
+  hindi:   { label: "Hindi",          labelHindi: "हिंदी",             icon: "🔤", accent: "#f97316", path: "hindi"          },
+  science: { label: "Science",        labelHindi: "विज्ञान",           icon: "🔬", accent: "#10b981", path: "science"        },
+  social:  { label: "Social Science", labelHindi: "सामाजिक विज्ञान",  icon: "🌍", accent: "#f59e0b", path: "social science" },
+  sanskrit:{ label: "Sanskrit",       labelHindi: "संस्कृत",           icon: "📜", accent: "#ec4899", path: "sanskrit"       },
 };
 
 interface Question {
@@ -498,8 +498,9 @@ function ModeSelect({
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-8 relative z-10"
       >
-        <div className="text-5xl mb-3">{meta.icon}</div>
-        <h2 className="text-3xl font-black text-white mb-1">{meta.label}</h2>
+        <div className="text-5xl mb-2">{meta.icon}</div>
+        <h2 className="text-3xl font-black text-white mb-0.5 leading-tight">{meta.label}</h2>
+        <p className="text-base font-bold mb-2" style={{ color: meta.accent }}>{meta.labelHindi}</p>
         <p className="text-white/40 text-sm">Choose your test mode</p>
       </motion.div>
 
@@ -893,7 +894,10 @@ function ResultScreen({
       <div className="max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center mb-6">
           <div className="text-4xl mb-2">{icon}</div>
-          <h2 className="text-2xl font-bold text-white mb-0.5">{label} — Results</h2>
+          <h2 className="text-2xl font-bold text-white mb-0 leading-tight">{label} — Results</h2>
+          {subjectMeta[subject]?.labelHindi && (
+            <p className="text-sm font-semibold mb-0.5" style={{ color: accent }}>{subjectMeta[subject].labelHindi}</p>
+          )}
           <p className="text-white/40 text-xs mb-1">
             {mode === "full" ? "Full Length Test" : `Chapter: ${chapter}`}
           </p>

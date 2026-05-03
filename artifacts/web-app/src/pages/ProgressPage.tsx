@@ -12,12 +12,12 @@ interface TestRecord {
 }
 
 const ALL_SUBJECTS = [
-  { id: "maths",    label: "Maths",         icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20"   },
-  { id: "english",  label: "English",       icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
-  { id: "hindi",    label: "Hindi",         icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",   border: "border-orange-400/20" },
-  { id: "science",  label: "Science",       icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20", border: "border-emerald-400/20"},
-  { id: "social",   label: "Social Science",icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20"  },
-  { id: "sanskrit", label: "Sanskrit",      icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",   border: "border-pink-400/20"   },
+  { id: "maths",    label: "Maths",          labelHindi: "गणित",            icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20"   },
+  { id: "english",  label: "English",        labelHindi: "अंग्रेज़ी",        icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "hindi",    label: "Hindi",          labelHindi: "हिंदी",            icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",   border: "border-orange-400/20" },
+  { id: "science",  label: "Science",        labelHindi: "विज्ञान",          icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20", border: "border-emerald-400/20"},
+  { id: "social",   label: "Social Science", labelHindi: "सामाजिक विज्ञान", icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20"  },
+  { id: "sanskrit", label: "Sanskrit",       labelHindi: "संस्कृत",          icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",   border: "border-pink-400/20"   },
 ];
 
 function loadHistory(subject: string): TestRecord[] {
@@ -297,8 +297,8 @@ export default function ProgressPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">{s.icon}</span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold text-sm">{s.label}</p>
-                        <p className="text-white/30 text-xs">No tests yet</p>
+                        <p className="text-white font-semibold text-sm leading-tight">{s.label}</p>
+                        <p className="font-medium text-xs" style={{ color: s.accent + "99" }}>{s.labelHindi}</p>
                       </div>
                       <button onClick={() => navigate(`/${s.id}`)}
                         className="text-xs px-3 py-1.5 rounded-lg font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 transition-colors">
@@ -313,7 +313,10 @@ export default function ProgressPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               <span className="text-xl">{s.icon}</span>
-                              <p className="text-white font-bold text-sm">{s.label}</p>
+                              <div>
+                                <p className="text-white font-bold text-sm leading-tight">{s.label}</p>
+                                <p className="text-xs font-semibold" style={{ color: s.accent + "99" }}>{s.labelHindi}</p>
+                              </div>
                             </div>
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                               style={{ background: `${gradeColor(s.avg)}22`, color: gradeColor(s.avg) }}>

@@ -476,57 +476,63 @@ function AdminGuard() {
 const queryClient = new QueryClient();
 
 const subjects = [
-  {
-    id: "maths",
-    label: "Maths",
-    icon: "📐",
-    gradient: "from-cyan-500/30 to-blue-600/30",
-    border: "border-cyan-400/30",
-    accent: "#06b6d4",
-  },
-  {
-    id: "english",
-    label: "English",
-    icon: "📖",
-    gradient: "from-violet-500/30 to-purple-700/30",
-    border: "border-violet-400/30",
-    accent: "#8b5cf6",
-  },
-  {
-    id: "hindi",
-    label: "Hindi",
-    icon: "🔤",
-    gradient: "from-orange-500/30 to-red-600/30",
-    border: "border-orange-400/30",
-    accent: "#f97316",
-  },
-  {
-    id: "science",
-    label: "Science",
-    icon: "🔬",
-    gradient: "from-emerald-500/30 to-teal-600/30",
-    border: "border-emerald-400/30",
-    accent: "#10b981",
-  },
-  {
-    id: "social",
-    label: "Social Science",
-    icon: "🌍",
-    gradient: "from-amber-500/30 to-yellow-600/30",
-    border: "border-amber-400/30",
-    accent: "#f59e0b",
-  },
-  {
-    id: "sanskrit",
-    label: "Sanskrit",
-    icon: "📜",
-    gradient: "from-pink-500/30 to-rose-600/30",
-    border: "border-pink-400/30",
-    accent: "#ec4899",
-  },
+  { id: "maths",    label: "Maths",          labelHindi: "गणित",               gradient: "from-cyan-500/30 to-blue-600/30",    border: "border-cyan-400/30",    accent: "#06b6d4" },
+  { id: "english",  label: "English",         labelHindi: "अंग्रेज़ी",           gradient: "from-violet-500/30 to-purple-700/30",border: "border-violet-400/30",  accent: "#8b5cf6" },
+  { id: "hindi",    label: "Hindi",           labelHindi: "हिंदी",               gradient: "from-orange-500/30 to-red-600/30",   border: "border-orange-400/30",  accent: "#f97316" },
+  { id: "science",  label: "Science",         labelHindi: "विज्ञान",             gradient: "from-emerald-500/30 to-teal-600/30", border: "border-emerald-400/30", accent: "#10b981" },
+  { id: "social",   label: "Social Science",  labelHindi: "सामाजिक विज्ञान",    gradient: "from-amber-500/30 to-yellow-600/30", border: "border-amber-400/30",   accent: "#f59e0b" },
+  { id: "sanskrit", label: "Sanskrit",        labelHindi: "संस्कृत",             gradient: "from-pink-500/30 to-rose-600/30",    border: "border-pink-400/30",    accent: "#ec4899" },
 ];
 
 type Ripple = { id: number; x: number; y: number; color: string };
+
+function SubjectIcon({ id, color }: { id: string; color: string }) {
+  const sw: React.SVGProps<SVGSVGElement> = {
+    viewBox: "0 0 24 24", fill: "none", stroke: color,
+    strokeWidth: "1.75", strokeLinecap: "round", strokeLinejoin: "round",
+    className: "w-7 h-7",
+  };
+  if (id === "maths") return (
+    <svg {...sw}>
+      <path d="M3 8h18" /><path d="M8.5 8v10" />
+      <path d="M15.5 8v6c0 2 2.5 2 2.5 4" />
+    </svg>
+  );
+  if (id === "english") return (
+    <svg {...sw}>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      <path d="M8 7h8M8 11h5" />
+    </svg>
+  );
+  if (id === "hindi") return (
+    <svg viewBox="0 0 24 24" className="w-7 h-7">
+      <text x="12" y="18" textAnchor="middle" fontSize="16" fontWeight="800"
+        fill={color} fontFamily="system-ui,sans-serif">अ</text>
+    </svg>
+  );
+  if (id === "science") return (
+    <svg {...{ ...sw, strokeWidth: "1.5" }}>
+      <circle cx="12" cy="12" r="2.5" fill={color} stroke="none" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.5" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(60 12 12)" />
+      <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(120 12 12)" />
+    </svg>
+  );
+  if (id === "social") return (
+    <svg {...{ ...sw, strokeWidth: "1.5" }}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3a14 14 0 0 1 3.5 9 14 14 0 0 1-3.5 9 14 14 0 0 1-3.5-9A14 14 0 0 1 12 3z" />
+    </svg>
+  );
+  return (
+    <svg viewBox="0 0 24 24" className="w-7 h-7">
+      <text x="12" y="18" textAnchor="middle" fontSize="15" fontWeight="800"
+        fill={color} fontFamily="system-ui,sans-serif">ॐ</text>
+    </svg>
+  );
+}
 
 function SubjectCard({
   subject,
@@ -590,17 +596,17 @@ function SubjectCard({
 
       <div className="relative z-10 flex items-center gap-4">
         <motion.div
-          className="text-4xl select-none"
-          whileHover={{ rotate: [0, -10, 10, 0], scale: 1.2 }}
+          className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
+          style={{ background: `${subject.accent}18`, border: `1.5px solid ${subject.accent}38` }}
+          whileHover={{ rotate: [0, -8, 8, 0], scale: 1.1 }}
           transition={{ duration: 0.4 }}
         >
-          {subject.icon}
+          <SubjectIcon id={subject.id} color={subject.accent} />
         </motion.div>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/40 mb-0.5">
-            Bihar Board
-          </p>
-          <h3 className="text-xl font-bold text-white">{subject.label}</h3>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">Bihar Board Class 10</p>
+          <h3 className="text-xl font-black text-white leading-tight">{subject.label}</h3>
+          <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}cc` }}>{subject.labelHindi}</p>
         </div>
         <motion.div
           className="ml-auto text-white/30 group-hover:text-white/70 transition-colors"
