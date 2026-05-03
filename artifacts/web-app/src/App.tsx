@@ -744,22 +744,15 @@ function Dashboard() {
               className="relative"
             >
               <div
-                className="absolute inset-0 rounded-[32px] blur-3xl scale-125 opacity-60"
+                className="absolute inset-0 rounded-full blur-3xl scale-125 opacity-40"
                 style={{ background: "linear-gradient(135deg, #8b5cf6, #06b6d4)" }}
               />
-              <div
-                className="relative w-[120px] h-[120px] rounded-[28px] flex items-center justify-center overflow-hidden"
-                style={{
-                  background: "linear-gradient(145deg, #5b21b6 0%, #312e81 50%, #0c4a6e 100%)",
-                  boxShadow: "0 16px 48px rgba(139,92,246,0.6), 0 4px 12px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
-                }}
-              >
-                <img
-                  src="/shiken-logo.png"
-                  alt="SHIKEN"
-                  className="w-[85px] h-[85px] object-contain drop-shadow-lg"
-                />
-              </div>
+              <img
+                src="/shiken-logo.png"
+                alt="SHIKEN"
+                className="relative w-[140px] h-[140px] object-contain drop-shadow-xl"
+                style={{ filter: "brightness(0) invert(1)", textShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+              />
             </motion.div>
           </div>
 
