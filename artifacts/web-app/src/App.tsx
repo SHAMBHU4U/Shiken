@@ -834,28 +834,6 @@ function Dashboard() {
           document.getElementById("subject-cards")?.scrollIntoView({ behavior: "smooth" });
         }} />
 
-        <AnimatePresence mode="wait">
-          {!hasName ? (
-            <UsernameSetup key="setup" onDone={(n) => setUsername(n)} />
-          ) : (
-            <motion.div key="leaderboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="flex items-center justify-between mb-2 px-1">
-                <span />
-                <button
-                  onClick={() => {
-                    const n = prompt("Change your display name:", username);
-                    if (n !== null && n.trim()) { const clean = n.trim().slice(0, 20); saveUsername(clean); setUsername(clean); }
-                  }}
-                  className="text-white/20 hover:text-white/50 text-xs transition-colors"
-                >
-                  ✏ {username}
-                </button>
-              </div>
-              <Leaderboard />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <div id="subject-cards" className="flex flex-col gap-4">
           {subjects.map((subject, index) => (
             <SubjectCard
