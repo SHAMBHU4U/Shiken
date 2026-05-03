@@ -940,7 +940,11 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments">("overview");
+  const initialTab = (() => {
+    const p = new URLSearchParams(window.location.search).get("tab");
+    return (["overview", "ai", "users", "payments"] as const).find(t => t === p) ?? "overview";
+  })();
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments">(initialTab);
   const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {

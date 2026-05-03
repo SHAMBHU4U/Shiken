@@ -91,24 +91,44 @@ function PaymentSheet({
     setActivating(true);
     try {
       const uid = auth.currentUser.uid;
-      const message = `New premium request:\nUser ID: ${uid}\nPlan: ${plan.name}\nAmount: ${plan.price}\nAction: verify in admin panel`;
-      await fetch(`${DB_URL}/users/${uid}.json`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscriptionType: "premium",
-          premiumUntil: Date.now() + plan.days * 86400000,
-          plan: plan.id,
-          activatedAt: Date.now(),
-          requestedAt: Date.now(),
-          paymentVerified: false,
+
+      const [, phoneRes] = await Promise.all([
+        fetch(`${DB_URL}/users/${uid}.json`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscriptionType: "premium",
+            premiumUntil: Date.now() + plan.days * 86400000,
+            plan: plan.id,
+            activatedAt: Date.now(),
+            requestedAt: Date.now(),
+            paymentVerified: false,
+          }),
         }),
-      });
+        fetch(`${DB_URL}/users/${uid}/phone.json`),
+      ]);
+
+      const phone: string | null = await phoneRes.json();
+      const verifyLink = `${window.location.origin}/admin?tab=payments`;
+
+      const lines = [
+        `💳 New Premium Request!`,
+        ``,
+        `👤 UID: ${uid}`,
+        `📱 Phone: ${phone ?? "not saved"}`,
+        `📦 Plan: ${plan.name}`,
+        `💰 Amount: ${plan.price}`,
+        ``,
+        `✅ Verify now: ${verifyLink}`,
+      ];
+      const message = lines.join("\n");
+
       await fetch(`${API_BASE}api/notify-whatsapp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
       });
+
       onSuccess(uid);
     } catch { /* ignore */ }
     finally { setActivating(false); }
