@@ -81,6 +81,72 @@ export interface GeneratedQuestion {
   answerIndex:  number;
 }
 
+export interface ComprehensionResult {
+  title:     string;
+  passage:   string;
+  questions: GeneratedQuestion[];
+}
+
+export async function generateComprehension(count = 7): Promise<ComprehensionResult> {
+  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+  const topics = [
+    "the importance of trees and forests",
+    "water conservation and saving water",
+    "the life of a great Indian leader or scientist",
+    "the importance of education for progress",
+    "environmental pollution and its effects",
+  ];
+  const topic = topics[Math.floor(Math.random() * topics.length)];
+
+  const prompt = `You are a Bihar Board Class 10 English exam expert.
+Create ONE unseen comprehension passage on: "${topic}"
+With EXACTLY ${count} MCQ questions strictly based on the passage.
+
+Passage requirements:
+- 180-240 words
+- Class 10 level formal English
+- Clear and informative
+
+Question requirements:
+- Strictly passage-based (no general knowledge)
+- Mix of: factual recall, inference, vocabulary in context, title identification
+- Each has exactly 4 options, one correct answer
+
+Return ONLY this JSON (no markdown, no explanation):
+{"title":"...","passage":"Full passage text...","questions":[{"english":"Q?","hindi":"हिंदी प्रश्न?","options":["A","B","C","D"],"optionsHindi":["A","B","C","D"],"answerIndex":0}]}`;
+
+  const response = await ai.models.generateContent({
+    model: FREE_MODEL,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { maxOutputTokens: 4096 },
+  });
+
+  const raw = (response.text ?? "").trim();
+  let parsed: Record<string, unknown>;
+  try { parsed = JSON.parse(raw); }
+  catch { const m = raw.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; }
+
+  const questions: GeneratedQuestion[] = Array.isArray(parsed.questions)
+    ? (parsed.questions as Record<string, unknown>[])
+        .map((q) => ({
+          english:      String(q.english      ?? ""),
+          hindi:        String(q.hindi        ?? ""),
+          options:      Array.isArray(q.options)      ? (q.options as unknown[]).map(String).slice(0, 4) : [],
+          optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String).slice(0, 4) : [],
+          answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+        }))
+        .filter((q) => q.english && q.options.length >= 2)
+    : [];
+
+  return {
+    title:     String(parsed.title   ?? "Unseen Passage"),
+    passage:   String(parsed.passage ?? ""),
+    questions,
+  };
+}
+
 // Hindi grammar chapters for Bihar Board Class 10
 const HINDI_GRAMMAR_CHAPTERS = [
   "वर्ण विचार", "संज्ञा", "सर्वनाम", "क्रिया", "विशेषण",

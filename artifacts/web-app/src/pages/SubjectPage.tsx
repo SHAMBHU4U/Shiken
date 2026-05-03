@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithGemini, generateQuestions, translateToEnglish } from "@/lib/gemini";
+import { explainWithGemini, generateQuestions, generateComprehension, translateToEnglish } from "@/lib/gemini";
 import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -1449,7 +1449,7 @@ function ResultScreen({
 
 // ─── Main SubjectPage ─────────────────────────────────────────────────────────
 
-type Screen = "loading" | "mode-select" | "mini-chapter-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "smart-generating" | "quiz" | "result" | "saved-questions";
+type Screen = "loading" | "mode-select" | "mini-chapter-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "smart-generating" | "comprehension-generating" | "comprehension-passage" | "quiz" | "result" | "saved-questions";
 
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
@@ -1501,6 +1501,11 @@ export default function SubjectPage() {
   // Subscription & upgrade modal
   const { isPremium } = useSubscription();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Comprehension passage state
+  const [passageTitle,       setPassageTitle]       = useState("");
+  const [passageText,        setPassageText]        = useState("");
+  const [showPassageInQuiz,  setShowPassageInQuiz]  = useState(false);
 
   // Quiz per-question translation state (for questions stored only in Hindi)
   const [quizTranslateTexts,   setQuizTranslateTexts]   = useState<Record<number, string>>({});
@@ -1751,6 +1756,9 @@ export default function SubjectPage() {
     setSavedProgress(null);
     setMode("mini");
     setSelectedChapter(chapter);
+    setPassageTitle("");
+    setPassageText("");
+    setShowPassageInQuiz(false);
     const pool = chapter === "All Chapters" ? allQuestions : allQuestions.filter(q => q.chapter === chapter);
     const picked = pick(pool.length > 0 ? pool : allQuestions, 10);
     setQuestions(picked);
@@ -1763,6 +1771,74 @@ export default function SubjectPage() {
     setTimerHidden(false);
     saveProgress(subject, { mode: "mini", chapter, questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: 10 * 60 });
     setScreen("quiz");
+  }
+
+  async function startComprehensionTest() {
+    clearProgress(subject);
+    setSavedProgress(null);
+    setMode("mini");
+    setSelectedChapter("Comprehension");
+    setShowPassageInQuiz(false);
+    setScreen("comprehension-generating");
+
+    try {
+      // 1. Try Firebase passage bank first
+      const snap = await get(ref(db, "english_passages"));
+      const data = snap.val() as Record<string, { title: string; passage: string; questions: Array<{ english?: string; hindi?: string; options: string[]; optionsHindi?: string[]; correctAnswer: number; chapter: string }> }> | null;
+
+      if (data) {
+        const passages = Object.values(data);
+        const picked   = passages[Math.floor(Math.random() * passages.length)];
+        setPassageTitle(picked.title);
+        setPassageText(picked.passage);
+        const qs = picked.questions
+          .map((q) => ({
+            english:      String(q.english ?? ""),
+            hindi:        String(q.hindi   ?? ""),
+            options:      (q.options       ?? []).slice(0, 4).map(String),
+            optionsHindi: (q.optionsHindi  ?? q.options ?? []).slice(0, 4).map(String),
+            answerIndex:  q.correctAnswer ?? 0,
+            chapter:      "Comprehension",
+          }))
+          .filter((q) => (q.english || q.hindi) && q.options.length >= 2);
+        setQuestions(qs);
+      } else {
+        // 2. Generate via Gemini AI
+        const result = await generateComprehension(7);
+        setPassageTitle(result.title);
+        setPassageText(result.passage);
+        setQuestions(result.questions.map((q) => ({ ...q, chapter: "Comprehension" })));
+        // Cache to Firebase for future use
+        push(ref(db, "english_passages"), {
+          title:     result.title,
+          passage:   result.passage,
+          questions: result.questions.map((q) => ({ ...q, correctAnswer: q.answerIndex })),
+        }).catch(() => {});
+      }
+    } catch {
+      // Fallback: use existing Comprehension questions (no passage shown)
+      const pool = allQuestions.filter((q) => q.chapter === "Comprehension");
+      setQuestions(pick(pool.length > 0 ? pool : allQuestions, 7));
+      setPassageTitle("Comprehension");
+      setPassageText("");
+    }
+
+    setCurrentIndex(0);
+    setAnswers({});
+    setSelectedOption(null);
+    setRippleKey(0);
+    setDirection(1);
+    setTimerLeft(-1);
+    setTimerHidden(false);
+    setScreen("comprehension-passage");
+  }
+
+  function handleMiniChapterSelect(chapter: string) {
+    if (subject === "english" && chapter === "Comprehension") {
+      void startComprehensionTest();
+    } else {
+      startMiniTest(chapter);
+    }
   }
 
   function startChapterTest(chapter: string) {
@@ -1811,6 +1887,8 @@ export default function SubjectPage() {
 
   function retryTest() {
     if (mode === "full") { void startFullTest(); }
+    else if (mode === "mini" && selectedChapter === "Comprehension" && subject === "english") { void startComprehensionTest(); }
+    else if (mode === "mini") { startMiniTest(selectedChapter); }
     else if (mode === "chapter") { startChapterTest(selectedChapter); }
     else { startAIPractice(selectedChapter); }
   }
@@ -1963,7 +2041,7 @@ export default function SubjectPage() {
         meta={meta}
         chapters={chapters}
         onBack={() => setScreen("mode-select")}
-        onSelect={startMiniTest}
+        onSelect={handleMiniChapterSelect}
         title="Mini Test · Free"
         showAll
         allLabel="All Chapters — Mixed"
@@ -2127,6 +2205,83 @@ export default function SubjectPage() {
             ))}
           </div>
         </motion.div>
+      </div>
+    );
+  }
+
+  if (screen === "comprehension-generating") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}20 0%, transparent 60%)` }} />
+        <motion.div className="relative z-10 text-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.3, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 rounded-full border-2 border-transparent mx-auto mb-6"
+            style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }}
+          />
+          <p className="text-white font-bold text-xl mb-2">📖 Loading Passage…</p>
+          <p className="text-white/40 text-sm">Fetching your comprehension passage</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (screen === "comprehension-passage") {
+    return (
+      <div className="min-h-screen w-full overflow-auto relative" style={{ background: "#07080f" }}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at 50% 15%, ${meta.accent}18 0%, transparent 55%)` }} />
+
+        <div className="relative z-10 max-w-lg mx-auto px-4 pt-6 pb-10 flex flex-col min-h-screen">
+          {/* Top bar */}
+          <div className="flex items-center justify-between mb-6">
+            <motion.button
+              onClick={() => setScreen("mini-chapter-select")}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-1.5 text-white/40 hover:text-white/70 transition-colors text-sm"
+            >
+              ← Back
+            </motion.button>
+            <span className="text-xs font-semibold px-3 py-1 rounded-full"
+              style={{ background: `${meta.accent}18`, color: `${meta.accent}dd`, border: `1px solid ${meta.accent}30` }}>
+              📖 Unseen Passage
+            </span>
+          </div>
+
+          {/* Title */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-5">
+            <h1 className="text-2xl font-black text-white leading-tight">{passageTitle}</h1>
+            <p className="text-white/35 text-xs mt-2 font-medium">
+              {questions.length} questions · Read carefully before answering
+            </p>
+          </motion.div>
+
+          {/* Passage card */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1 }}
+            className="rounded-2xl border p-5 mb-6 flex-1"
+            style={{ background: `linear-gradient(145deg, ${meta.accent}10, rgba(255,255,255,0.02))`, borderColor: `${meta.accent}28` }}
+          >
+            <div className="flex items-center gap-2 mb-4 pb-3 border-b" style={{ borderColor: `${meta.accent}20` }}>
+              <span className="text-lg">📄</span>
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: `${meta.accent}aa` }}>Read the passage</span>
+            </div>
+            <p className="text-white/85 text-sm leading-7 whitespace-pre-wrap">{passageText}</p>
+          </motion.div>
+
+          {/* Begin Quiz button */}
+          <motion.button
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}
+            onClick={() => { setShowPassageInQuiz(false); setScreen("quiz"); }}
+            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+            className="w-full py-4 rounded-2xl font-bold text-base text-white"
+            style={{ background: `linear-gradient(135deg, ${meta.accent}, ${meta.accent}cc)`, boxShadow: `0 4px 24px ${meta.accent}40` }}
+          >
+            Begin Quiz → ({questions.length} Questions)
+          </motion.button>
+        </div>
       </div>
     );
   }
@@ -2357,6 +2512,42 @@ export default function SubjectPage() {
             <span>{langLabel}</span>
           </motion.button>
         </div>
+
+        {/* Passage toggle — shown when doing comprehension quiz */}
+        {selectedChapter === "Comprehension" && passageText && (
+          <div className="mb-3">
+            <motion.button
+              onClick={() => setShowPassageInQuiz((v) => !v)}
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border w-full transition-all"
+              style={{
+                background:   showPassageInQuiz ? `${meta.accent}18` : "rgba(255,255,255,0.05)",
+                borderColor:  showPassageInQuiz ? `${meta.accent}45` : "rgba(255,255,255,0.12)",
+                color:        showPassageInQuiz ? meta.accent : "rgba(255,255,255,0.4)",
+              }}
+            >
+              <span>📖</span>
+              <span className="flex-1 text-left truncate">{passageTitle || "View Passage"}</span>
+              <span className="shrink-0">{showPassageInQuiz ? "▲ Hide" : "▼ Show"}</span>
+            </motion.button>
+            <AnimatePresence>
+              {showPassageInQuiz && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-2 rounded-xl border p-4 max-h-52 overflow-y-auto"
+                    style={{ background: `${meta.accent}08`, borderColor: `${meta.accent}22` }}>
+                    <p className="text-white/75 text-xs leading-6 whitespace-pre-wrap">{passageText}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Question + Options */}
         <div className="flex-1 flex flex-col">
