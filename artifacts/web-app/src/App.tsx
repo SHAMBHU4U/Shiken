@@ -750,8 +750,8 @@ function Dashboard() {
               <div
                 className="relative w-[80px] h-[80px] rounded-[20px] flex items-center justify-center overflow-hidden"
                 style={{
-                  background: "linear-gradient(145deg, #5b21b6 0%, #312e81 50%, #0c4a6e 100%)",
-                  boxShadow: "0 12px 36px rgba(139,92,246,0.55), 0 4px 12px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
+                  background: "#ffffff",
+                  boxShadow: "0 12px 36px rgba(139,92,246,0.4), 0 4px 12px rgba(0,0,0,0.3)",
                 }}
               >
                 <img
