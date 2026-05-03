@@ -805,29 +805,6 @@ function Dashboard() {
             Choose your subject and start learning
           </motion.p>
 
-          {/* ── Stats row ──────────────────────────────────────────── */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-            className="inline-flex items-center gap-0 rounded-2xl overflow-hidden"
-            style={{ border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)" }}
-          >
-            {[
-              { label: "1000+", sub: "Questions" },
-              { label: "6",     sub: "Subjects"  },
-              { label: "Free",  sub: "Forever"   },
-            ].map((s, i) => (
-              <div
-                key={s.sub}
-                className="px-5 py-2.5 text-center"
-                style={{ borderLeft: i > 0 ? "1px solid rgba(255,255,255,0.07)" : "none" }}
-              >
-                <p className="text-white font-black text-sm leading-none">{s.label}</p>
-                <p className="text-white/30 text-[10px] font-medium mt-0.5">{s.sub}</p>
-              </div>
-            ))}
-          </motion.div>
         </motion.div>
 
         <StreakReminderBanner onPractice={() => {
