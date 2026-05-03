@@ -1,8 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { db } from "@/firebase";
+import { ref, set, get, onValue } from "firebase/database";
 
 const CONTACT_EMAIL = "shiken.query@gmail.com";
 const APP_URL = "https://shiken.replit.app";
+
+const DEVICE_KEY = "shiken_device_id";
+function getDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem(DEVICE_KEY, id); }
+  return id;
+}
+
+interface RatingEntry { stars: number; feedback: string; ts: number; }
+interface RatingSummary { avg: number; count: number; myStars: number; }
 
 const socials = [
   { icon: "📘", label: "Facebook",  href: "#", color: "#1877f2" },
@@ -16,6 +28,41 @@ export default function ContactPage() {
   const [email,   setEmail]   = useState("");
   const [message, setMessage] = useState("");
   const [shared,  setShared]  = useState<"idle" | "copied" | "shared">("idle");
+
+  // ── Rating state ────────────────────────────────────────────────
+  const [hovered,   setHovered]   = useState(0);
+  const [selected,  setSelected]  = useState(0);
+  const [feedback,  setFeedback]  = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting,setSubmitting]= useState(false);
+  const [summary,   setSummary]   = useState<RatingSummary>({ avg: 0, count: 0, myStars: 0 });
+
+  useEffect(() => {
+    const deviceId = getDeviceId();
+    const ratingsRef = ref(db, "ratings");
+    const unsub = onValue(ratingsRef, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.val() as Record<string, RatingEntry>;
+      const entries = Object.entries(data);
+      const total = entries.reduce((s, [, v]) => s + v.stars, 0);
+      const avg   = entries.length ? total / entries.length : 0;
+      const myEntry = data[deviceId.replace(/[.#$[\]]/g, "_")];
+      setSummary({ avg, count: entries.length, myStars: myEntry?.stars ?? 0 });
+      if (myEntry) { setSelected(myEntry.stars); setSubmitted(true); }
+    });
+    return () => unsub();
+  }, []);
+
+  async function handleRatingSubmit() {
+    if (!selected) return;
+    setSubmitting(true);
+    const deviceId = getDeviceId().replace(/[.#$[\]]/g, "_");
+    await set(ref(db, `ratings/${deviceId}`), {
+      stars: selected, feedback: feedback.trim(), ts: Date.now(),
+    });
+    setSubmitting(false);
+    setSubmitted(true);
+  }
 
   async function handleShare() {
     const shareData = {
@@ -266,6 +313,111 @@ export default function ContactPage() {
             </motion.button>
           </form>
           <p className="text-white/20 text-xs text-center mt-3">Opens your default email app</p>
+        </motion.div>
+
+        {/* Rate this App */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.28, duration: 0.5 }}
+          className="rounded-2xl p-5 mb-6"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+
+          {/* Header row with aggregate */}
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-white font-black text-sm">Rate this App</p>
+              <p className="text-white/35 text-xs mt-0.5">Your feedback helps us improve</p>
+            </div>
+            {summary.count > 0 && (
+              <div className="text-right">
+                <div className="flex items-center gap-1 justify-end">
+                  <span className="text-amber-400 text-sm">★</span>
+                  <span className="text-white font-black text-sm">{summary.avg.toFixed(1)}</span>
+                </div>
+                <p className="text-white/25 text-[11px]">{summary.count} {summary.count === 1 ? "rating" : "ratings"}</p>
+              </div>
+            )}
+          </div>
+
+          <AnimatePresence mode="wait">
+            {submitted ? (
+              <motion.div key="thanks"
+                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                className="flex flex-col items-center py-4 gap-3">
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map((s) => (
+                    <span key={s} className="text-2xl transition-all"
+                      style={{ color: s <= selected ? "#fbbf24" : "rgba(255,255,255,0.15)" }}>★</span>
+                  ))}
+                </div>
+                <p className="text-white font-bold text-sm">Thanks for rating! 🎉</p>
+                <p className="text-white/35 text-xs text-center">You gave {selected} star{selected !== 1 ? "s" : ""}. You can update your rating anytime.</p>
+                <button onClick={() => setSubmitted(false)}
+                  className="text-violet-400 text-xs font-semibold mt-1 hover:text-violet-300 transition-colors">
+                  Edit rating →
+                </button>
+              </motion.div>
+            ) : (
+              <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                {/* Star selector */}
+                <div className="flex justify-center gap-2 mb-4">
+                  {[1,2,3,4,5].map((s) => (
+                    <motion.button key={s}
+                      whileTap={{ scale: 0.85 }}
+                      onMouseEnter={() => setHovered(s)}
+                      onMouseLeave={() => setHovered(0)}
+                      onClick={() => setSelected(s)}
+                      className="text-3xl transition-all duration-150 select-none"
+                      style={{
+                        color: s <= (hovered || selected) ? "#fbbf24" : "rgba(255,255,255,0.18)",
+                        filter: s <= (hovered || selected) ? "drop-shadow(0 0 6px rgba(251,191,36,0.6))" : "none",
+                        transform: s <= (hovered || selected) ? "scale(1.15)" : "scale(1)",
+                      }}>
+                      ★
+                    </motion.button>
+                  ))}
+                </div>
+
+                {/* Label */}
+                <AnimatePresence mode="wait">
+                  {(hovered || selected) > 0 && (
+                    <motion.p key={hovered || selected}
+                      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                      className="text-center text-xs font-semibold mb-3"
+                      style={{ color: "#fbbf24" }}>
+                      {["", "Poor 😞", "Fair 😐", "Good 🙂", "Great 😊", "Excellent! 🤩"][hovered || selected]}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+
+                {/* Feedback */}
+                <textarea
+                  value={feedback}
+                  onChange={(e) => setFeedback(e.target.value)}
+                  placeholder="Any suggestions? (optional)"
+                  rows={2}
+                  maxLength={200}
+                  className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none resize-none mb-3"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                />
+
+                <motion.button
+                  onClick={handleRatingSubmit}
+                  whileTap={{ scale: 0.97 }}
+                  disabled={!selected || submitting}
+                  className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all"
+                  style={{
+                    background: selected
+                      ? "linear-gradient(135deg, #f59e0b, #f97316)"
+                      : "rgba(255,255,255,0.06)",
+                    color: selected ? "white" : "rgba(255,255,255,0.25)",
+                    boxShadow: selected ? "0 4px 16px rgba(245,158,11,0.35)" : "none",
+                    cursor: selected ? "pointer" : "not-allowed",
+                  }}>
+                  {submitting ? "Submitting…" : selected ? `Submit ${selected}-Star Rating` : "Select a rating above"}
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         {/* Direct contact */}
