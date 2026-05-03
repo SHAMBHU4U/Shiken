@@ -706,6 +706,7 @@ function ModeSelect({
 
 function ChapterSelect({
   meta, chapters, onBack, onSelect, title, showAll, allLabel,
+  lockedChapters, onUpgrade,
 }: {
   meta: { label: string; icon: string; accent: string };
   chapters: { name: string; count: number }[];
@@ -714,6 +715,8 @@ function ChapterSelect({
   title?: string;
   showAll?: boolean;
   allLabel?: string;
+  lockedChapters?: string[];
+  onUpgrade?: () => void;
 }) {
   const displayTitle = title ?? "Chapter-wise Test";
   const allTotalCount = chapters.reduce((s, c) => s + c.count, 0);
@@ -757,38 +760,48 @@ function ChapterSelect({
             </motion.button>
           )}
 
-          {chapters.map((ch, i) => (
-            <motion.button
-              key={ch.name}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: (showAll ? i + 1 : i) * 0.06, duration: 0.35 }}
-              whileHover={{ scale: 1.02, x: 4 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => onSelect(ch.name)}
-              className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                borderColor: "rgba(255,255,255,0.08)",
-              }}
-            >
-              <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
-                style={{ background: `linear-gradient(90deg, ${meta.accent}18, transparent)` }}
-              />
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
-                style={{ background: `${meta.accent}20` }}
+          {chapters.map((ch, i) => {
+            const isLocked = lockedChapters?.includes(ch.name) ?? false;
+            return (
+              <motion.button
+                key={ch.name}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: (showAll ? i + 1 : i) * 0.06, duration: 0.35 }}
+                whileHover={{ scale: 1.02, x: 4 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => isLocked ? onUpgrade?.() : onSelect(ch.name)}
+                className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
+                style={{
+                  background: isLocked ? "rgba(251,191,36,0.05)" : "rgba(255,255,255,0.04)",
+                  borderColor: isLocked ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.08)",
+                }}
               >
-                {getChapterIcon(ch.name)}
-              </div>
-              <div className="flex-1 relative z-10">
-                <p className="text-white font-semibold text-sm">{ch.name}</p>
-                <p className="text-white/40 text-xs">{ch.count} question{ch.count !== 1 ? "s" : ""}</p>
-              </div>
-              <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10">→</span>
-            </motion.button>
-          ))}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
+                  style={{ background: isLocked ? "linear-gradient(90deg, rgba(251,191,36,0.12), transparent)" : `linear-gradient(90deg, ${meta.accent}18, transparent)` }}
+                />
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                  style={{ background: isLocked ? "rgba(251,191,36,0.15)" : `${meta.accent}20` }}
+                >
+                  {getChapterIcon(ch.name)}
+                </div>
+                <div className="flex-1 relative z-10">
+                  <p className={`font-semibold text-sm ${isLocked ? "text-white/60" : "text-white"}`}>{ch.name}</p>
+                  <p className="text-white/40 text-xs">{ch.count} question{ch.count !== 1 ? "s" : ""}</p>
+                </div>
+                {isLocked ? (
+                  <span className="relative z-10 text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
+                    style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}>
+                    👑 Premium
+                  </span>
+                ) : (
+                  <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10">→</span>
+                )}
+              </motion.button>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -1835,6 +1848,7 @@ export default function SubjectPage() {
 
   function handleMiniChapterSelect(chapter: string) {
     if (subject === "english" && chapter === "Comprehension") {
+      if (!isPremium) { setUpgradeOpen(true); return; }
       void startComprehensionTest();
     } else {
       startMiniTest(chapter);
@@ -2037,15 +2051,20 @@ export default function SubjectPage() {
 
   if (screen === "mini-chapter-select") {
     return (
-      <ChapterSelect
-        meta={meta}
-        chapters={chapters}
-        onBack={() => setScreen("mode-select")}
-        onSelect={handleMiniChapterSelect}
-        title="Mini Test · Free"
-        showAll
-        allLabel="All Chapters — Mixed"
-      />
+      <>
+        <ChapterSelect
+          meta={meta}
+          chapters={chapters}
+          onBack={() => setScreen("mode-select")}
+          onSelect={handleMiniChapterSelect}
+          title="Mini Test · Free"
+          showAll
+          allLabel="All Chapters — Mixed"
+          lockedChapters={!isPremium && subject === "english" ? ["Comprehension"] : []}
+          onUpgrade={() => setUpgradeOpen(true)}
+        />
+        <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+      </>
     );
   }
 
