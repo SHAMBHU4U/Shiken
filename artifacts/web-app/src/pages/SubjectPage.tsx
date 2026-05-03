@@ -269,6 +269,20 @@ function parseQuestions(data: unknown): Question[] {
       }
     }
 
+    // ── Normalize mislabeled fields ───────────────────────────────────────────
+    // Some subjects (e.g. English) store question text only in the `hindi` field.
+    // If english is empty and hindi contains no Devanagari script, it's an
+    // English question stored in the wrong field — move it to english.
+    const devanagariRe = /[\u0900-\u097F]/;
+    if (!english && hindi && !devanagariRe.test(hindi)) {
+      english = hindi;
+      hindi   = "";
+    }
+    // If both fields are identical (AI sometimes echoes same text), clear hindi.
+    if (hindi && hindi === english) {
+      hindi = "";
+    }
+
     // ── Chapter ───────────────────────────────────────────────────────────────
     const chapter = String(q.chapter ?? q.chapter_name ?? "General");
 
