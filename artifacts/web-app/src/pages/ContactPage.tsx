@@ -51,18 +51,76 @@ export default function ContactPage() {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="rounded-2xl p-5 mb-6"
           style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-white text-sm"
-              style={{ background: "conic-gradient(from 0deg, #8b5cf6, #06b6d4, #10b981, #f97316, #8b5cf6)" }}>
-              S
+
+          {/* Brand row */}
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(145deg, #5b21b6, #312e81, #0c4a6e)", boxShadow: "0 4px 16px rgba(139,92,246,0.4)" }}>
+              <svg viewBox="0 0 40 40" className="w-7 h-7" fill="none">
+                <rect x="7" y="5" width="19" height="27" rx="2.5" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" />
+                <path d="M20 5v5h6" stroke="white" strokeWidth="1.5" strokeOpacity="0.92" strokeLinejoin="round" />
+                <path d="M11 15h11M11 19h11M11 23h7" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.7" />
+                <path d="M29.5 3.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="#fcd34d" />
+              </svg>
             </div>
             <div>
-              <p className="text-white font-black">SHIKEN</p>
-              <p className="text-white/30 text-xs">Bihar Board Exam Preparation</p>
+              <p className="text-white font-black text-base tracking-tight">SHIKEN · शिकेन</p>
+              <p className="text-violet-400/70 text-xs font-medium">Bihar Board Class 10 · AI Powered</p>
             </div>
           </div>
-          <p className="text-white/45 text-xs leading-relaxed">
-            SHIKEN is a free exam preparation app for Bihar Board students. Practice questions, track your progress, and get AI-powered explanations — all in Hindi and English.
+
+          {/* Description */}
+          <p className="text-white/55 text-sm leading-relaxed mb-4">
+            SHIKEN (試験 — "exam" in Japanese) is a <span className="text-white/75 font-semibold">free, AI-powered exam preparation app</span> built exclusively for Bihar Board Class 10 students. Every feature is designed to help students prepare smarter and score higher.
+          </p>
+
+          {/* Features grid */}
+          <div className="grid grid-cols-1 gap-2 mb-4">
+            {[
+              {
+                icon: "📚",
+                title: "6 Core Subjects",
+                desc: "Maths, Science, Social Science, Hindi, English, and Sanskrit — all Bihar Board syllabus.",
+              },
+              {
+                icon: "🤖",
+                title: "AI Explanations (Gemini)",
+                desc: "Get instant step-by-step explanations for any question in Hindi or English, powered by Google Gemini.",
+              },
+              {
+                icon: "📝",
+                title: "AI-Generated Question Banks",
+                desc: "Fresh practice questions are generated on-demand by AI, aligned with the Bihar Board pattern.",
+              },
+              {
+                icon: "📊",
+                title: "Progress Tracking",
+                desc: "Track your scores, average accuracy, and subject-wise performance over time.",
+              },
+              {
+                icon: "🏆",
+                title: "Leaderboard",
+                desc: "Compete with other students and see where you rank across all subjects.",
+              },
+              {
+                icon: "🎓",
+                title: "Career Counselling",
+                desc: "Explore career paths and streams after Class 10 — Science, Commerce, Arts, and more.",
+              },
+            ].map((f) => (
+              <div key={f.title} className="flex items-start gap-3 px-3 py-2.5 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.04)" }}>
+                <span className="text-lg mt-0.5 flex-shrink-0">{f.icon}</span>
+                <div>
+                  <p className="text-white/85 text-xs font-bold">{f.title}</p>
+                  <p className="text-white/35 text-xs leading-relaxed mt-0.5">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-white/25 text-xs text-center leading-relaxed">
+            Fully bilingual · Hindi &amp; English · 100% Free · No login required
           </p>
         </motion.div>
 
