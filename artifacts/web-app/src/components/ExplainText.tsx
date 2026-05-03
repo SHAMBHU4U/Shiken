@@ -41,20 +41,24 @@ function renderExplain(raw: string): string {
     '<div class="mt-3.5 mb-1.5 text-xs font-bold tracking-widest uppercase" style="color:rgba(165,180,252,0.6)">$1</div>'
   );
 
-  // Bullet points • at line start — styled
+  // Bullet points • at line start — styled vertical block
   html = html.replace(
     /^•\s(.+)$/gm,
-    '<div class="flex gap-2 mt-1.5"><span class="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" style="margin-top:5px"></span><span>$1</span></div>'
+    '<div class="flex gap-2 mt-1.5" style="align-items:flex-start"><span class="shrink-0 w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block" style="margin-top:4px"></span><span style="flex:1;min-width:0;word-break:break-word">$1</span></div>'
   );
 
   // Arrow → sub-points
   html = html.replace(
     /^→\s(.+)$/gm,
-    '<div class="flex gap-1.5 mt-1 ml-4"><span class="text-indigo-400 shrink-0">→</span><span>$1</span></div>'
+    '<div class="flex gap-1.5 mt-1 ml-4" style="align-items:flex-start"><span class="text-indigo-400 shrink-0">→</span><span style="flex:1;min-width:0;word-break:break-word">$1</span></div>'
   );
 
-  // Newlines → line breaks
-  html = html.replace(/\n/g, "<br>");
+  // Only convert newlines that are between plain text — NOT between HTML tags.
+  // This prevents <br> being injected between </div> and <div> which breaks vertical stacking.
+  html = html.replace(/(?<!>)\n(?!<)/g, "<br>");
+
+  // Clean up any bare newlines left between block elements (no visible output needed)
+  html = html.replace(/>\n</g, "><");
 
   return html;
 }
@@ -62,7 +66,10 @@ function renderExplain(raw: string): string {
 export default function ExplainText({ text, loading = false }: { text: string; loading?: boolean }) {
   const html = useMemo(() => renderExplain(text), [text]);
   return (
-    <div className="text-xs leading-relaxed text-white/80">
+    <div
+      className="text-xs leading-relaxed text-white/80"
+      style={{ wordBreak: "break-word", overflowWrap: "break-word" }}
+    >
       <div dangerouslySetInnerHTML={{ __html: html }} />
       {loading && (
         <span
