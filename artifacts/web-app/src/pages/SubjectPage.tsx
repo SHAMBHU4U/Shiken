@@ -1298,6 +1298,11 @@ export default function SubjectPage() {
   // Question palette
   const [paletteOpen, setPaletteOpen] = useState(false);
 
+  // Language toggle: "both" | "en" | "hi"
+  const [langMode, setLangMode] = useState<"both" | "en" | "hi">("both");
+  function cycleLang() { setLangMode((m) => m === "both" ? "en" : m === "en" ? "hi" : "both"); }
+  const langLabel = langMode === "both" ? "A / अ" : langMode === "en" ? "A" : "अ";
+
   // Bookmarks
   const [bookmarks, setBookmarks] = useState<Question[]>(() => loadBookmarks(subject));
 
@@ -2067,6 +2072,23 @@ export default function SubjectPage() {
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-6 pb-28 flex flex-col min-h-screen">
 
+        {/* Language toggle */}
+        <div className="flex justify-end mb-3">
+          <motion.button
+            onClick={cycleLang}
+            whileTap={{ scale: 0.93 }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
+            style={{
+              background: langMode !== "both" ? `${meta.accent}22` : "rgba(255,255,255,0.05)",
+              borderColor: langMode !== "both" ? `${meta.accent}55` : "rgba(255,255,255,0.12)",
+              color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.45)",
+            }}
+            title="Toggle language: Both / English / Hindi"
+          >
+            <span>{langLabel}</span>
+          </motion.button>
+        </div>
+
         {/* Question + Options */}
         <div className="flex-1 flex flex-col">
           <div className="relative overflow-hidden flex-1">
@@ -2112,11 +2134,15 @@ export default function SubjectPage() {
                       }
                     </motion.svg>
                   </motion.button>
-                  <p className="text-white font-semibold text-base leading-relaxed mb-2 pr-8">
-                    {currentIndex + 1}. <MathText text={q.english} />
-                  </p>
-                  {q.hindi && (
-                    <p className="text-white/50 text-sm leading-relaxed"><MathText text={q.hindi} /></p>
+                  {langMode !== "hi" && (
+                    <p className="text-white font-semibold text-base leading-relaxed mb-1 pr-8">
+                      {currentIndex + 1}. <MathText text={q.english} />
+                    </p>
+                  )}
+                  {langMode !== "en" && q.hindi && (
+                    <p className={`leading-relaxed pr-8 ${langMode === "hi" ? "text-white font-semibold text-base mb-1" : "text-white/50 text-sm"}`}>
+                      {langMode === "hi" && <>{currentIndex + 1}. </>}<MathText text={q.hindi} />
+                    </p>
                   )}
                 </div>
 
@@ -2153,12 +2179,20 @@ export default function SubjectPage() {
                           {String.fromCharCode(65 + oi)}
                         </span>
                         <span className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
-                            <MathText text={opt} />
-                          </span>
-                          {optHindi && (
-                            <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)" }}>
+                          {langMode !== "hi" && (
+                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
+                              <MathText text={opt} />
+                            </span>
+                          )}
+                          {langMode !== "en" && optHindi && (
+                            <span className={langMode === "hi" ? "text-sm font-medium leading-snug" : "text-xs leading-snug"}
+                              style={{ color: langMode === "hi" ? (isSelected ? "#fff" : "rgba(255,255,255,0.65)") : (isSelected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)") }}>
                               <MathText text={optHindi} />
+                            </span>
+                          )}
+                          {langMode !== "en" && !optHindi && langMode === "hi" && (
+                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
+                              <MathText text={opt} />
                             </span>
                           )}
                         </span>
