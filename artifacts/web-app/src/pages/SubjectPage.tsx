@@ -1204,7 +1204,7 @@ function ResultScreen({
                     {isRight ? "✓" : isSkipped ? "–" : "✗"}
                   </span>
                   <p className="text-white/80 text-sm font-medium leading-snug flex-1">
-                    {i + 1}. <MathText text={q.english} />
+                    {i + 1}. <MathText text={q.english || q.hindi} />
                   </p>
                   <motion.button
                     onClick={() => bmkToggle(q)}
@@ -1228,7 +1228,7 @@ function ResultScreen({
                     </motion.svg>
                   </motion.button>
                 </div>
-                {q.hindi && <p className="text-white/35 text-xs mb-2 pl-1"><MathText text={q.hindi} /></p>}
+                {q.english && q.hindi && <p className="text-white/35 text-xs mb-2 pl-1"><MathText text={q.hindi} /></p>}
                 <div className="flex flex-col gap-1 pl-1 mb-3">
                   {q.options.map((opt, oi) => {
                     const isCorrect  = oi === q.answerIndex;
@@ -2236,12 +2236,17 @@ export default function SubjectPage() {
                   </motion.button>
                   {langMode !== "hi" && (
                     <p className="text-white font-semibold text-base leading-relaxed mb-1 pr-8">
-                      {currentIndex + 1}. <MathText text={q.english} />
+                      {currentIndex + 1}. <MathText text={q.english || q.hindi} />
                     </p>
                   )}
-                  {langMode !== "en" && q.hindi && (
-                    <p className={`leading-relaxed pr-8 ${langMode === "hi" ? "text-white font-semibold text-base mb-1" : "text-white/50 text-sm"}`}>
-                      {langMode === "hi" && <>{currentIndex + 1}. </>}<MathText text={q.hindi} />
+                  {langMode === "hi" && (
+                    <p className="text-white font-semibold text-base leading-relaxed mb-1 pr-8">
+                      {currentIndex + 1}. <MathText text={q.hindi || q.english} />
+                    </p>
+                  )}
+                  {langMode === "both" && q.english && q.hindi && (
+                    <p className="text-white/50 text-sm leading-relaxed pr-8">
+                      <MathText text={q.hindi} />
                     </p>
                   )}
                 </div>
