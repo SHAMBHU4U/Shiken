@@ -1344,6 +1344,374 @@ function CachePanel() {
   );
 }
 
+// ─── Questions Bank Panel ─────────────────────────────────────────────────────
+
+interface BankQuestion {
+  subjectKey: string;
+  chapterKey: string;
+  indexInArray: number;
+  english: string;
+  hindi: string;
+  options: string[];
+  optionsHindi: string[];
+  answerIndex: number;
+}
+
+type RawBankQ = {
+  english?: string;
+  hindi?: string;
+  options?: unknown[];
+  optionsHindi?: unknown[];
+  answerIndex?: number;
+};
+
+async function fetchAllBankQuestions(): Promise<BankQuestion[]> {
+  const res = await fetch(`${DB_URL}/aiQuestionsCache.json`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json() as Record<string, Record<string, { questions?: RawBankQ[] }>> | null;
+  if (!data) return [];
+  const result: BankQuestion[] = [];
+  for (const [subjectKey, chapters] of Object.entries(data)) {
+    for (const [chapterKey, val] of Object.entries(chapters ?? {})) {
+      const qs = Array.isArray(val.questions) ? val.questions : [];
+      qs.forEach((q, i) => {
+        if (!q.english) return;
+        result.push({
+          subjectKey, chapterKey, indexInArray: i,
+          english: String(q.english ?? ""),
+          hindi: String(q.hindi ?? ""),
+          options: Array.isArray(q.options) ? q.options.map(String) : [],
+          optionsHindi: Array.isArray(q.optionsHindi) ? q.optionsHindi.map(String) : [],
+          answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
+        });
+      });
+    }
+  }
+  return result;
+}
+
+async function saveBankChapter(subjectKey: string, chapterKey: string, questions: RawBankQ[]): Promise<void> {
+  await fetch(`${DB_URL}/aiQuestionsCache/${subjectKey}/${chapterKey}/questions.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(questions),
+  });
+}
+
+function EditQuestionModal({
+  q, accent, saving, onSave, onCancel,
+}: {
+  q: BankQuestion; accent: string; saving: boolean;
+  onSave: (updated: BankQuestion) => void; onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<BankQuestion>({ ...q, options: [...q.options], optionsHindi: [...q.optionsHindi] });
+  const inp = (extra?: object) => ({
+    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 8, color: "#fff" as const, fontSize: 12, padding: "7px 10px", outline: "none",
+    ...extra,
+  });
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+      className="rounded-xl border px-4 py-4"
+      style={{ background: "rgba(14,14,26,0.98)", borderColor: `${accent}45` }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-white font-bold text-xs">Edit Question</p>
+        <button onClick={onCancel} className="text-white/30 hover:text-white/60 text-sm transition-colors">✕</button>
+      </div>
+      <div className="flex flex-col gap-3">
+        <div>
+          <p className="text-white/35 text-xs mb-1">English</p>
+          <textarea value={draft.english} onChange={(e) => setDraft((d) => ({ ...d, english: e.target.value }))}
+            rows={3} style={{ ...inp({ resize: "vertical" as const, width: "100%" }) }} />
+        </div>
+        <div>
+          <p className="text-white/35 text-xs mb-1">Hindi</p>
+          <textarea value={draft.hindi} onChange={(e) => setDraft((d) => ({ ...d, hindi: e.target.value }))}
+            rows={2} style={{ ...inp({ resize: "vertical" as const, width: "100%" }) }} />
+        </div>
+        <div>
+          <p className="text-white/35 text-xs mb-2">Options — click circle to set correct answer</p>
+          {draft.options.map((opt, i) => (
+            <div key={i} className="flex items-center gap-2 mb-2">
+              <button onClick={() => setDraft((d) => ({ ...d, answerIndex: i }))}
+                className="w-5 h-5 rounded-full shrink-0 border-2 flex items-center justify-center transition-all"
+                style={{ borderColor: i === draft.answerIndex ? accent : "rgba(255,255,255,0.2)", background: i === draft.answerIndex ? `${accent}30` : "transparent" }}>
+                {i === draft.answerIndex && <span className="w-2.5 h-2.5 rounded-full" style={{ background: accent }} />}
+              </button>
+              <span className="text-white/30 text-xs w-4 shrink-0 font-bold">{String.fromCharCode(65 + i)}</span>
+              <input value={opt} onChange={(e) => {
+                const opts = [...draft.options]; opts[i] = e.target.value;
+                setDraft((d) => ({ ...d, options: opts }));
+              }} style={{ ...inp({ flex: 1 }) }} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-2 mt-4">
+        <motion.button onClick={() => onSave(draft)} disabled={saving} whileTap={{ scale: 0.97 }}
+          className="flex-1 py-2.5 rounded-lg text-xs font-black"
+          style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}50` }}>
+          {saving ? "Saving…" : "✓ Save Changes"}
+        </motion.button>
+        <motion.button onClick={onCancel} disabled={saving} whileTap={{ scale: 0.97 }}
+          className="px-4 py-2.5 rounded-lg text-xs font-semibold"
+          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.1)" }}>
+          Cancel
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+function BankQuestionCard({
+  q, flatLabel, accent, onDelete, onEdit, deleting,
+}: {
+  q: BankQuestion; flatLabel: string; accent: string;
+  onDelete: () => void; onEdit: () => void; deleting: boolean;
+}) {
+  return (
+    <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
+      className="rounded-xl border px-4 py-4"
+      style={{ background: `${accent}07`, borderColor: `${accent}22` }}>
+      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+        <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+          style={{ background: `${accent}20`, color: accent }}>{prettifySlug(q.subjectKey)}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full"
+          style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>{prettifySlug(q.chapterKey)}</span>
+        <span className="text-white/20 text-xs ml-auto">{flatLabel}</span>
+      </div>
+      <p className="text-white text-sm font-medium leading-relaxed mb-1">{q.english}</p>
+      {q.hindi && <p className="text-white/35 text-xs mb-3 leading-snug">{q.hindi}</p>}
+      <div className="flex flex-col gap-1 mb-3">
+        {q.options.map((opt, i) => (
+          <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs"
+            style={{
+              background: i === q.answerIndex ? `${accent}22` : "rgba(255,255,255,0.03)",
+              border: `1px solid ${i === q.answerIndex ? accent + "50" : "rgba(255,255,255,0.07)"}`,
+              color: i === q.answerIndex ? accent : "rgba(255,255,255,0.5)",
+              fontWeight: i === q.answerIndex ? 700 : 400,
+            }}>
+            <span className="shrink-0 font-bold w-4" style={{ color: i === q.answerIndex ? accent : "rgba(255,255,255,0.25)" }}>
+              {String.fromCharCode(65 + i)}
+            </span>
+            <span className="flex-1 truncate">{opt}</span>
+            {i === q.answerIndex && <span className="shrink-0">✓</span>}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <motion.button onClick={onEdit} whileTap={{ scale: 0.97 }}
+          className="flex-1 py-2 rounded-lg text-xs font-bold"
+          style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", border: "1px solid rgba(255,255,255,0.12)" }}>
+          ✎ Edit
+        </motion.button>
+        <motion.button onClick={onDelete} disabled={deleting} whileTap={{ scale: 0.97 }}
+          className="flex-1 py-2 rounded-lg text-xs font-bold"
+          style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+          {deleting ? "Deleting…" : "✕ Delete"}
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+function QuestionsBankPanel() {
+  const [questions, setQuestions] = useState<BankQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("all");
+  const [chapterFilter, setChapterFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [editingFlatIdx, setEditingFlatIdx] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deletingFlatIdx, setDeletingFlatIdx] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 15;
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { setQuestions(await fetchAllBankQuestions()); }
+    catch (e) { setError(String(e)); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setPage(0); }, [subjectFilter, chapterFilter, search]);
+
+  const subjects = [...new Set(questions.map((q) => q.subjectKey))].sort();
+  const filteredForChapters = subjectFilter === "all" ? questions : questions.filter((q) => q.subjectKey === subjectFilter);
+  const chapters = [...new Set(filteredForChapters.map((q) => q.chapterKey))].sort();
+
+  const filtered = questions.filter((q) => {
+    if (subjectFilter !== "all" && q.subjectKey !== subjectFilter) return false;
+    if (chapterFilter !== "all" && q.chapterKey !== chapterFilter) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      if (!q.english.toLowerCase().includes(s) && !q.hindi.toLowerCase().includes(s)) return false;
+    }
+    return true;
+  });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pageStart = page * PAGE_SIZE;
+  const paged = filtered.slice(pageStart, pageStart + PAGE_SIZE);
+
+  async function handleDelete(q: BankQuestion, flatIdx: number) {
+    setDeletingFlatIdx(flatIdx);
+    try {
+      const res = await fetch(`${DB_URL}/aiQuestionsCache/${q.subjectKey}/${q.chapterKey}/questions.json`);
+      const arr = await res.json() as RawBankQ[];
+      const updated = arr.filter((_, i) => i !== q.indexInArray);
+      await saveBankChapter(q.subjectKey, q.chapterKey, updated);
+      setQuestions((prev) =>
+        prev.filter((_, i) => i !== flatIdx)
+          .map((p) => p.subjectKey === q.subjectKey && p.chapterKey === q.chapterKey && p.indexInArray > q.indexInArray
+            ? { ...p, indexInArray: p.indexInArray - 1 } : p)
+      );
+    } catch { /* ignore */ }
+    finally { setDeletingFlatIdx(null); }
+  }
+
+  async function handleSaveEdit(updated: BankQuestion, flatIdx: number) {
+    setSaving(true);
+    try {
+      const res = await fetch(`${DB_URL}/aiQuestionsCache/${updated.subjectKey}/${updated.chapterKey}/questions.json`);
+      const arr = await res.json() as RawBankQ[];
+      arr[updated.indexInArray] = {
+        english: updated.english, hindi: updated.hindi,
+        options: updated.options, optionsHindi: updated.optionsHindi,
+        answerIndex: updated.answerIndex,
+      };
+      await saveBankChapter(updated.subjectKey, updated.chapterKey, arr);
+      setQuestions((prev) => prev.map((q, i) => i === flatIdx ? { ...updated } : q));
+      setEditingFlatIdx(null);
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  }
+
+  const selStyle = {
+    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 8, color: "rgba(255,255,255,0.7)" as const, fontSize: 12,
+    padding: "7px 10px", outline: "none", cursor: "pointer" as const,
+  };
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="w-8 h-8 rounded-full border-2 border-transparent"
+        style={{ borderTopColor: "#8b5cf6", borderRightColor: "#8b5cf620" }} />
+      <p className="text-white/30 text-sm">Loading questions bank…</p>
+    </div>
+  );
+  if (error) return (
+    <div className="text-center py-16">
+      <p className="text-red-400 text-sm mb-3">Failed: {error}</p>
+      <button onClick={load} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/50 text-xs">Retry</button>
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2 mb-5">
+        {[
+          { label: "Total Cached",  value: questions.length, color: "#8b5cf6" },
+          { label: "After Filters", value: filtered.length,  color: "#06b6d4" },
+          { label: "Subjects",      value: subjects.length,  color: "#10b981" },
+        ].map((s) => (
+          <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+            <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
+            <p className="text-lg font-black" style={{ color: s.color }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col gap-2 mb-4">
+        <div className="flex gap-2">
+          <select value={subjectFilter} onChange={(e) => { setSubjectFilter(e.target.value); setChapterFilter("all"); }}
+            style={{ ...selStyle, flex: 1 }}>
+            <option value="all">All Subjects</option>
+            {subjects.map((s) => <option key={s} value={s}>{prettifySlug(s)}</option>)}
+          </select>
+          <select value={chapterFilter} onChange={(e) => setChapterFilter(e.target.value)}
+            style={{ ...selStyle, flex: 1 }}>
+            <option value="all">All Chapters</option>
+            {chapters.map((c) => <option key={c} value={c}>{prettifySlug(c)}</option>)}
+          </select>
+        </div>
+        <input type="text" placeholder="🔍 Search questions…" value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 12px", outline: "none", width: "100%",
+          }} />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-4xl mb-3">🔍</p>
+          <p className="text-white/40 text-sm font-medium">No questions found</p>
+          <p className="text-white/20 text-xs mt-1">Try adjusting the filters above</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-white/35 text-xs">
+              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length} questions
+            </p>
+            <button onClick={load} className="text-white/25 hover:text-white/50 text-xs transition-colors">↻ Reload</button>
+          </div>
+
+          <AnimatePresence mode="popLayout">
+            <div className="flex flex-col gap-3">
+              {paged.map((q, pi) => {
+                const flatIdx = questions.indexOf(q);
+                const sm = ALL_SUBJECTS.find(
+                  (s) => s.id === q.subjectKey
+                    || s.label.toLowerCase() === q.subjectKey
+                    || s.label.toLowerCase().replace(/ /g, "_") === q.subjectKey
+                );
+                const accent = sm?.accent ?? "#8b5cf6";
+
+                if (editingFlatIdx === flatIdx) {
+                  return (
+                    <EditQuestionModal key={`edit-${flatIdx}`} q={q} accent={accent} saving={saving}
+                      onSave={(updated) => handleSaveEdit(updated, flatIdx)}
+                      onCancel={() => setEditingFlatIdx(null)} />
+                  );
+                }
+                return (
+                  <BankQuestionCard key={`${q.subjectKey}-${q.chapterKey}-${q.indexInArray}`}
+                    q={q} flatLabel={`#${pageStart + pi + 1}`} accent={accent}
+                    deleting={deletingFlatIdx === flatIdx}
+                    onDelete={() => handleDelete(q, flatIdx)}
+                    onEdit={() => setEditingFlatIdx(flatIdx)} />
+                );
+              })}
+            </div>
+          </AnimatePresence>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-5">
+              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: "rgba(255,255,255,0.05)", color: page === 0 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                ← Prev
+              </button>
+              <span className="text-white/30 text-xs">Page {page + 1} / {totalPages}</span>
+              <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{ background: "rgba(255,255,255,0.05)", color: page === totalPages - 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                Next →
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── PDF Import Panel ─────────────────────────────────────────────────────────
 
 const SUBJECT_PATHS: Record<string, string> = {
@@ -1626,9 +1994,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank">(initialTab);
   const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {
@@ -1731,6 +2099,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "ratings",   label: "⭐ Stars",    badge: 0 },
             { id: "cache",     label: "🗄️ Cache",    badge: 0 },
             { id: "pdf",       label: "📄 PDF",      badge: 0 },
+            { id: "bank",      label: "📚 Bank",     badge: 0 },
           ] as const).map(({ id, label, badge }) => (
             <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
               className="flex-1 py-2 rounded-lg text-xs font-bold transition-all relative"
@@ -1823,6 +2192,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "pdf" && (
             <motion.div key="pdf" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <PDFImportPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "bank" && (
+            <motion.div key="bank" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <QuestionsBankPanel />
             </motion.div>
           )}
         </AnimatePresence>
