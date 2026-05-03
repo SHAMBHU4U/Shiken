@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
 import { explainWithGemini, generateQuestions } from "@/lib/gemini";
+import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
@@ -1509,31 +1510,42 @@ export default function SubjectPage() {
 
     let aiQuestions: Question[] = [];
     try {
-      const fetched = await (async () => {
-        try {
-          return await generateQuestions(meta?.label ?? subject, topChapters || "General", 25);
-        } catch {
-          // fallback to API server
-          const resp = await fetch("/api/generate-questions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ subject: meta?.label ?? subject, chapter: topChapters || "General", count: 25 }),
-          });
-          const data = await resp.json() as { questions?: unknown[] };
-          if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("empty");
-          return (data.questions as Record<string, unknown>[]).map((q) => ({
-            english:      String(q.english      ?? ""),
-            hindi:        String(q.hindi        ?? ""),
-            options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
-            optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
-            answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
-          }));
-        }
-      })();
-      aiQuestions = fetched
-        .map((q) => ({ ...q, chapter: "AI Generated" }))
-        .filter((q) => q.english && q.options.length >= 2);
-      saveAIQuestionsToFirebase(aiQuestions).catch(() => {});
+      const subjectLabel = meta?.label ?? subject;
+      const chapterKey   = topChapters || "General";
+
+      // ── 1. Check shared Firebase cache first (instant, no API call) ───────────
+      const cached = await getCachedQuestions(subjectLabel, chapterKey, 25);
+      if (cached && cached.length >= 25) {
+        aiQuestions = cached.map((q) => ({ ...q, chapter: "AI Generated" }));
+      } else {
+        // ── 2. Generate via Gemini (browser-direct, server fallback) ────────────
+        const fetched = await (async () => {
+          try {
+            return await generateQuestions(subjectLabel, chapterKey, 25);
+          } catch {
+            const resp = await fetch("/api/generate-questions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ subject: subjectLabel, chapter: chapterKey, count: 25 }),
+            });
+            const data = await resp.json() as { questions?: unknown[] };
+            if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("empty");
+            return (data.questions as Record<string, unknown>[]).map((q) => ({
+              english:      String(q.english      ?? ""),
+              hindi:        String(q.hindi        ?? ""),
+              options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+              optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+              answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+            }));
+          }
+        })();
+        aiQuestions = fetched
+          .map((q) => ({ ...q, chapter: "AI Generated" }))
+          .filter((q) => q.english && q.options.length >= 2);
+        // ── 3. Merge into shared cache + subject DB (non-blocking) ───────────
+        mergeQuestionsToCache(subjectLabel, chapterKey, fetched).catch(() => {});
+        saveAIQuestionsToFirebase(aiQuestions).catch(() => {});
+      }
     } catch { /* AI generation failed — fall back to DB-only */ }
 
     // Fill up to 50 total (pad with more DB questions if AI failed)
@@ -1629,27 +1641,38 @@ export default function SubjectPage() {
     setSelectedChapter(chapter);
     setScreen("ai-generating");
     try {
-      const fetched = await (async () => {
-        try {
-          return await generateQuestions(meta?.label ?? subject, chapter, 5);
-        } catch {
-          // fallback to API server
-          const resp = await fetch("/api/generate-questions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ subject: meta?.label ?? subject, chapter, count: 5 }),
-          });
-          const data = await resp.json() as { questions?: unknown[]; error?: string };
-          if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("No questions returned");
-          return (data.questions as Record<string, unknown>[]).map((q) => ({
-            english:      String(q.english      ?? ""),
-            hindi:        String(q.hindi        ?? ""),
-            options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
-            optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
-            answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
-          }));
-        }
-      })();
+      const subjectLabel = meta?.label ?? subject;
+
+      // ── 1. Check shared Firebase cache first (instant, no API call) ───────────
+      const cached = await getCachedQuestions(subjectLabel, chapter, 5);
+      let fetched = cached ?? [];
+
+      if (fetched.length < 5) {
+        // ── 2. Generate via Gemini (browser-direct, server fallback) ────────────
+        fetched = await (async () => {
+          try {
+            return await generateQuestions(subjectLabel, chapter, 5);
+          } catch {
+            const resp = await fetch("/api/generate-questions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ subject: subjectLabel, chapter, count: 5 }),
+            });
+            const data = await resp.json() as { questions?: unknown[]; error?: string };
+            if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("No questions returned");
+            return (data.questions as Record<string, unknown>[]).map((q) => ({
+              english:      String(q.english      ?? ""),
+              hindi:        String(q.hindi        ?? ""),
+              options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+              optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+              answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+            }));
+          }
+        })();
+        // ── 3. Merge into shared cache (non-blocking) ────────────────────────────
+        mergeQuestionsToCache(subjectLabel, chapter, fetched).catch(() => {});
+      }
+
       const generated: Question[] = fetched
         .filter((q) => q.english && q.options.length >= 2)
         .map((q) => ({ ...q, chapter }));
