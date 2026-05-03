@@ -317,6 +317,155 @@ function UsersPanel() {
   );
 }
 
+// ─── Ratings Panel ────────────────────────────────────────────────────────────
+
+interface AdminRatingEntry { stars: number; feedback: string; ts: number; }
+
+function RatingsPanel() {
+  const [entries, setEntries] = useState<{ id: string; data: AdminRatingEntry }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState("");
+
+  async function load() {
+    setLoading(true); setError("");
+    try {
+      const res = await fetch(`${DB_URL}/ratings.json`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const raw = await res.json() as Record<string, AdminRatingEntry> | null;
+      if (!raw) { setEntries([]); return; }
+      setEntries(
+        Object.entries(raw)
+          .map(([id, data]) => ({ id, data }))
+          .sort((a, b) => b.data.ts - a.data.ts)
+      );
+    } catch (e) { setError(String(e)); }
+    finally { setLoading(false); }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3">
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        className="w-7 h-7 rounded-full border-2 border-transparent"
+        style={{ borderTopColor: "#f59e0b", borderRightColor: "#f59e0b50" }} />
+      <p className="text-white/30 text-xs">Loading ratings…</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="text-center py-12">
+      <p className="text-red-400 text-sm mb-3">Failed to load: {error}</p>
+      <button onClick={load} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/50 text-xs hover:text-white/80 transition-colors">Retry</button>
+    </div>
+  );
+
+  if (entries.length === 0) return (
+    <div className="text-center py-16">
+      <p className="text-4xl mb-3">⭐</p>
+      <p className="text-white/40 text-sm font-medium">No ratings yet</p>
+      <p className="text-white/20 text-xs mt-1">Ratings appear here once students submit them</p>
+    </div>
+  );
+
+  const avg = entries.reduce((s, e) => s + e.data.stars, 0) / entries.length;
+  const dist = [5,4,3,2,1].map((star) => ({
+    star,
+    count: entries.filter((e) => e.data.stars === star).length,
+    pct: Math.round((entries.filter((e) => e.data.stars === star).length / entries.length) * 100),
+  }));
+  const withFeedback = entries.filter((e) => e.data.feedback?.trim());
+
+  return (
+    <div>
+      {/* Summary */}
+      <div className="rounded-2xl p-5 mb-5"
+        style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+        <div className="flex items-center gap-5 mb-4">
+          <div className="text-center">
+            <p className="text-4xl font-black text-amber-400 leading-none">{avg.toFixed(1)}</p>
+            <div className="flex gap-0.5 justify-center mt-1">
+              {[1,2,3,4,5].map((s) => (
+                <span key={s} className="text-sm" style={{ color: s <= Math.round(avg) ? "#fbbf24" : "rgba(255,255,255,0.15)" }}>★</span>
+              ))}
+            </div>
+            <p className="text-white/35 text-xs mt-1">{entries.length} rating{entries.length !== 1 ? "s" : ""}</p>
+          </div>
+          <div className="flex-1 flex flex-col gap-1.5">
+            {dist.map(({ star, count, pct }) => (
+              <div key={star} className="flex items-center gap-2">
+                <span className="text-amber-400/70 text-xs w-3 text-right shrink-0">{star}</span>
+                <span className="text-amber-400/50 text-xs shrink-0">★</span>
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
+                  <motion.div
+                    initial={{ width: 0 }} animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                    className="h-full rounded-full" style={{ background: "#f59e0b" }} />
+                </div>
+                <span className="text-white/25 text-xs w-6 text-right shrink-0">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Feedback section */}
+      {withFeedback.length > 0 && (
+        <div className="mb-5">
+          <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">
+            Written Feedback ({withFeedback.length})
+          </p>
+          <div className="flex flex-col gap-2">
+            {withFeedback.map(({ id, data }) => (
+              <motion.div key={id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl px-4 py-3"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="flex gap-0.5">
+                    {[1,2,3,4,5].map((s) => (
+                      <span key={s} className="text-xs" style={{ color: s <= data.stars ? "#fbbf24" : "rgba(255,255,255,0.15)" }}>★</span>
+                    ))}
+                  </div>
+                  <span className="text-white/20 text-xs ml-auto">
+                    {data.ts ? new Date(data.ts).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" }) : "—"}
+                  </span>
+                </div>
+                <p className="text-white/65 text-xs leading-relaxed">"{data.feedback}"</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All ratings list */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-white/40 text-xs font-semibold uppercase tracking-widest">All Ratings</p>
+        <button onClick={load} className="text-white/25 hover:text-white/50 text-xs transition-colors">↻ Refresh</button>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {entries.map(({ id, data }, i) => (
+          <motion.div key={id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.03 }}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="flex gap-0.5 shrink-0">
+              {[1,2,3,4,5].map((s) => (
+                <span key={s} className="text-xs" style={{ color: s <= data.stars ? "#fbbf24" : "rgba(255,255,255,0.12)" }}>★</span>
+              ))}
+            </div>
+            <p className="flex-1 text-white/40 text-xs truncate">
+              {data.feedback?.trim() || <span className="italic text-white/20">no comment</span>}
+            </p>
+            <span className="text-white/20 text-xs shrink-0">
+              {data.ts ? new Date(data.ts).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—"}
+            </span>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const ALL_SUBJECTS = [
   { id: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",   border: "border-cyan-400/20" },
   { id: "english",  label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
@@ -942,9 +1091,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings">(initialTab);
   const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {
@@ -1044,6 +1193,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "ai",        label: "🤖 AI",       badge: 0 },
             { id: "users",     label: "👥 Users",    badge: 0 },
             { id: "payments",  label: "💳 Pay",      badge: pendingBadge },
+            { id: "ratings",   label: "⭐ Ratings",  badge: 0 },
           ] as const).map(({ id, label, badge }) => (
             <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
               className="flex-1 py-2 rounded-lg text-xs font-bold transition-all relative"
@@ -1118,6 +1268,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "payments" && (
             <motion.div key="payments" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <PaymentsPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "ratings" && (
+            <motion.div key="ratings" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <RatingsPanel />
             </motion.div>
           )}
         </AnimatePresence>
