@@ -24,15 +24,17 @@ function renderExplain(raw: string): string {
     }
   });
 
-  // Bold **text**
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white font-bold">$1</strong>');
+  // Strip any stray asterisks or hashes that slip through
+  html = html.replace(/\*\*(.+?)\*\*/g, "$1");
+  html = html.replace(/\*(.+?)\*/g, "$1");
+  html = html.replace(/^#+\s*/gm, "");
 
   // Arrow bullets → at line start
   html = html.replace(/^→\s(.+)$/gm, '<span class="flex gap-1.5 mt-0.5"><span class="text-indigo-400 shrink-0">→</span><span>$1</span></span>');
 
-  // Emoji section headers (lines starting with emoji + text, no colon needed)
-  html = html.replace(/^([\u{1F300}-\u{1FAFF}✅📐💡🎯⚠️🔑📝])\s(.+)$/gmu,
-    '<div class="mt-2.5 mb-0.5 font-semibold text-white/90 flex gap-1.5"><span>$1</span><span>$2</span></div>');
+  // Section header lines (e.g. "हल:", "Formula / Theory:", "Notes:") — style them
+  html = html.replace(/^(सही जवाब:.+)$/gm, '<div class="mt-1 mb-1 font-semibold text-green-400">$1</div>');
+  html = html.replace(/^(हल:|Formula \/ Theory:|Notes:|Formula:|Theory:)\s*$/gm, '<div class="mt-3 mb-1 font-semibold text-white/70 text-xs uppercase tracking-wide">$1</div>');
 
   // Newlines → line breaks
   html = html.replace(/\n/g, "<br>");

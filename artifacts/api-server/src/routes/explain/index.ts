@@ -38,11 +38,13 @@ router.post("/explain", async (req, res) => {
     : questionHindi ? `${questionEnglish}\n${questionHindi}` : questionEnglish;
 
   const writingRule =
-    lang === "en" ? "Write ENTIRELY in English. Keep it simple and direct."
-    : lang === "hi" ? "Write ENTIRELY in Hindi (Devanagari script). Keep English only for formulas, numbers, and proper nouns."
-    : "Write mainly in Hindi. Use English for technical terms, formulas, and key words. Mix is fine (Hinglish).";
+    lang === "en"
+      ? "Write ENTIRELY in simple English. Use short sentences. Explain as if the student is hearing this topic for the first time."
+      : lang === "hi"
+      ? "Write ENTIRELY in Hindi (Devanagari). Keep English ONLY for formulas, numbers, and scientific terms. Use simple everyday Hindi words."
+      : "Write mainly in Hindi (Devanagari). Use English for technical terms, formulas, and key scientific words. Simple Hinglish is fine.";
 
-  const prompt = `You are a Bihar Board Class 10 ${subject} teacher. Solve this question step by step.
+  const prompt = `You are a friendly Bihar Board Class 10 ${subject} teacher. A student who is learning this topic for the very first time needs your help understanding this question.
 
 Question: ${questionLine}
 
@@ -53,31 +55,36 @@ Correct Answer: ${correctAnswer}
 
 ${writingRule}
 
-STRICT OUTPUT RULES — follow exactly:
-- NO asterisks, NO stars, NO hash symbols, NO markdown of any kind
-- NO bold, NO italic, NO bullet symbols like -, *, #
-- Plain text only. Clean. No decorators.
-- Use numbered steps: 1. 2. 3.
-- Use arrow for sub-points: → 
-- Use $ for inline math, $$ for block math (LaTeX)
-- Total length: 10-14 lines max. Short and clear.
+STRICT FORMATTING RULES — follow every rule exactly, no exceptions:
+- Do NOT use any asterisks (*), stars, hash symbols (#), or dashes (-) as bullet points
+- Do NOT use any markdown bold, italic, or heading syntax whatsoever
+- Write plain text only — no decorators of any kind
+- Use numbers for steps: 1. 2. 3. 4.
+- Use the arrow symbol for sub-points: →
+- For math: use $formula$ for inline and $$formula$$ for block display (LaTeX syntax)
+- Keep total length between 14 and 18 lines
+- Every explanation must be simple enough for a first-time learner
 
-Write the solution in this exact structure (no extra sections, no headers other than these):
+Output the solution in this exact structure — use these exact section labels, nothing else:
 
 सही जवाब: ${correctAnswer}
-[One sentence — why this option is correct]
+[One sentence in plain words — why this option is correct]
 
 हल:
-1. [First step — set up the problem or recall the concept]
-2. [Second step — apply formula / logic]
-3. [Third step — reach the answer, show calculation if any]
+1. [What concept or topic is being tested — explain it simply in one line]
+2. [What approach or formula is needed — state it clearly]
+3. [Show the working step by step — include the calculation or logic]
+4. [State the final result and confirm the correct option]
 
 Formula / Theory:
-[Write relevant formula in LaTeX if applicable. If no formula, write the key rule or definition in 1 line.]
+[Write the formula using LaTeX ($...$) if applicable. If no formula exists, write the key definition or rule in one plain sentence.]
 
-याद रखो: [One sharp memory trick or shortcut for this type of question]`;
+Notes:
+1. [An important point about this topic every student must remember]
+2. [A common mistake students make — and how to avoid it]
+3. [A quick shortcut or memory tip for this type of question]`;
 
-  await streamGemini(res, prompt, "Explanation नहीं मिली 🙏", req.log);
+  await streamGemini(res, prompt, "Explanation नहीं मिली। Please try again.", req.log);
 });
 
 export default router;

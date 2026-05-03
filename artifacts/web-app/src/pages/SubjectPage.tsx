@@ -749,8 +749,6 @@ function ResultScreen({
   function cycleExplainLang() { setExplainLang((l) => l === "both" ? "en" : l === "en" ? "hi" : "both"); }
   const explainLangLabel = explainLang === "both" ? "A / अ" : explainLang === "en" ? "English" : "हिंदी";
 
-  // Auto-fetch ref
-  const autoExplainRef = useRef(false);
 
   // Stable Firebase key from question text (safe for Firebase paths)
   function explainCacheKey(questionEnglish: string): string {
@@ -873,16 +871,6 @@ function ResultScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-fetch ALL explanations staggered on mount (premium only)
-  useEffect(() => {
-    if (!isPremium || isDemo || autoExplainRef.current) return;
-    autoExplainRef.current = true;
-    questions.forEach((q, i) => {
-      setTimeout(() => { void fetchExplain(i, q, explainLang); }, i * 600);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
@@ -904,10 +892,10 @@ function ResultScreen({
           )}
           {isPremium && (
             <div className="flex items-center justify-center gap-2 mt-3">
-              <span className="text-white/25 text-xs">Solution language:</span>
+              <span className="text-white/25 text-xs">Explanation language:</span>
               <motion.button onClick={cycleExplainLang} whileTap={{ scale: 0.93 }}
-                className="px-3 py-1 rounded-full text-xs font-bold border transition-all"
-                style={{ background: `${accent}18`, borderColor: `${accent}45`, color: accent }}>
+                className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
+                style={{ background: `${accent}12`, borderColor: `${accent}35`, color: `${accent}cc` }}>
                 {explainLangLabel}
               </motion.button>
             </div>
@@ -1213,22 +1201,19 @@ function ResultScreen({
                   })}
                 </div>
 
-                {/* ── Per-question Solution ── */}
+                {/* ── Per-question Explanation ── */}
                 {isPremium ? (
                   <div className="mt-2 rounded-xl border overflow-hidden"
-                    style={{ background: "rgba(99,102,241,0.06)", borderColor: "rgba(99,102,241,0.18)" }}>
-                    {/* Header bar */}
+                    style={{ background: "rgba(99,102,241,0.05)", borderColor: "rgba(99,102,241,0.16)" }}>
                     <button
                       onClick={() => {
                         if (!isExOpen && !exText) { void fetchExplain(i, q, explainLang); }
                         else { setExplainOpen((o) => ({ ...o, [i]: !isExOpen })); }
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold"
+                      className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold"
                       style={{ color: isExLoading ? "#a5b4fc" : "#818cf8" }}
                     >
-                      <span>{isExLoading ? "⏳" : "🤖"}</span>
-                      <span>{isExLoading ? "Solution तैयार हो रही है..." : isExOpen ? "Solution छुपाओ ↑" : "Solution देखो ↓"}</span>
-                      {!isExLoading && <span className="ml-auto text-white/20">Gemini ✦</span>}
+                      <span>{isExLoading ? "Loading explanation..." : isExOpen ? "Hide Explanation ↑" : "Explain Question ↓"}</span>
                     </button>
 
                     <AnimatePresence>
@@ -1240,7 +1225,7 @@ function ResultScreen({
                           transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                           className="overflow-hidden"
                         >
-                          <div className="px-3 pb-3 pt-0 border-t" style={{ borderColor: "rgba(99,102,241,0.15)" }}>
+                          <div className="px-3 pb-4 pt-0 border-t" style={{ borderColor: "rgba(99,102,241,0.13)" }}>
                             {isExLoading && !exText ? (
                               <div className="flex items-center gap-2 py-3">
                                 {[0, 1, 2].map((j) => (
@@ -1248,10 +1233,10 @@ function ResultScreen({
                                     transition={{ repeat: Infinity, duration: 0.6, delay: j * 0.12 }}
                                     className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                                 ))}
-                                <span className="text-xs text-white/35 ml-1">Gemini सोच रहा है...</span>
+                                <span className="text-xs text-white/30 ml-1">समझाया जा रहा है...</span>
                               </div>
                             ) : (
-                              <div className="pt-2.5">
+                              <div className="pt-3">
                                 <ExplainText text={exText} loading={isExLoading} />
                               </div>
                             )}
@@ -1262,9 +1247,9 @@ function ResultScreen({
                   </div>
                 ) : (
                   <button onClick={() => fetchExplain(i, q, explainLang)}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold mt-2"
-                    style={{ background: "rgba(99,102,241,0.06)", borderColor: "rgba(99,102,241,0.18)", color: "#818cf8" }}>
-                    🔒 Unlock Solutions — Upgrade to Premium
+                    className="w-full flex items-center justify-center px-3 py-2.5 rounded-xl border text-xs font-semibold mt-2"
+                    style={{ background: "rgba(99,102,241,0.04)", borderColor: "rgba(99,102,241,0.16)", color: "#818cf8" }}>
+                    Explain Question — Upgrade to unlock
                   </button>
                 )}
               </motion.div>
