@@ -6,10 +6,12 @@ const router = Router();
 
 const ExplainBodySchema = z.object({
   questionEnglish: z.string().min(1),
-  questionHindi: z.string().optional(),
-  options: z.array(z.string()).min(2),
-  correctAnswer: z.string().min(1),
-  subject: z.string().min(1),
+  questionHindi:   z.string().optional(),
+  options:         z.array(z.string()).min(2),
+  optionsHindi:    z.array(z.string()).optional(),
+  correctAnswer:   z.string().min(1),
+  subject:         z.string().min(1),
+  lang:            z.enum(["both", "en", "hi"]).default("both"),
 });
 
 router.post("/explain", async (req, res) => {
@@ -19,41 +21,61 @@ router.post("/explain", async (req, res) => {
     return;
   }
 
-  const { questionEnglish, questionHindi, options, correctAnswer, subject } = parsed.data;
+  const { questionEnglish, questionHindi, options, optionsHindi, correctAnswer, subject, lang } = parsed.data;
 
-  const optionsList = options
-    .map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`)
+  const optsList = options
+    .map((opt, i) => {
+      const h = optionsHindi?.[i];
+      if (lang === "hi" && h) return `${String.fromCharCode(65 + i)}. ${h}`;
+      if (lang === "en") return `${String.fromCharCode(65 + i)}. ${opt}`;
+      return h ? `${String.fromCharCode(65 + i)}. ${opt} / ${h}` : `${String.fromCharCode(65 + i)}. ${opt}`;
+    })
     .join("\n");
 
-  const prompt = `Bihar Board ${subject} — इस question का structured explanation दो।
+  const questionLine =
+    lang === "en" ? questionEnglish
+    : lang === "hi" ? (questionHindi || questionEnglish)
+    : questionHindi ? `${questionEnglish}\n${questionHindi}` : questionEnglish;
 
-Question: ${questionEnglish}
-${questionHindi ? `(Hindi: ${questionHindi})` : ""}
+  const writingRule =
+    lang === "en" ? "Write ENTIRELY in English. Keep it simple and direct."
+    : lang === "hi" ? "Write ENTIRELY in Hindi (Devanagari script). Keep English only for formulas, numbers, and proper nouns."
+    : "Write mainly in Hindi. Use English for technical terms, formulas, and key words. Mix is fine (Hinglish).";
+
+  const prompt = `You are a Bihar Board Class 10 ${subject} teacher. Solve this question step by step.
+
+Question: ${questionLine}
+
 Options:
-${optionsList}
+${optsList}
+
 Correct Answer: ${correctAnswer}
 
-नीचे दिए format में **exactly** respond करो (यही sections, यही order):
+${writingRule}
 
-✅ **सही जवाब:** ${correctAnswer}
-[1 line में — यह option सही क्यों है, सीधे reason]
+STRICT OUTPUT RULES — follow exactly:
+- NO asterisks, NO stars, NO hash symbols, NO markdown of any kind
+- NO bold, NO italic, NO bullet symbols like -, *, #
+- Plain text only. Clean. No decorators.
+- Use numbered steps: 1. 2. 3.
+- Use arrow for sub-points: → 
+- Use $ for inline math, $$ for block math (LaTeX)
+- Total length: 10-14 lines max. Short and clear.
 
-📐 **Formula / Theory:**
-[सभी relevant formulas LaTeX में लिखो — inline math के लिए $formula$ और block display के लिए $$formula$$ use करो। अगर कोई formula न हो तो key definition/rule लिखो।]
+Write the solution in this exact structure (no extra sections, no headers other than these):
 
-💡 **Key Points:**
-→ [Point 1 — सबसे important concept]
-→ [Point 2 — दूसरा important point]
-→ [Point 3 — exam में अक्सर पूछा जाता है यह angle]
+सही जवाब: ${correctAnswer}
+[One sentence — why this option is correct]
 
-🎯 **याद रखो:**
-[एक line का memory trick / shortcut / mnemonic — जो exam में काम आए]
+हल:
+1. [First step — set up the problem or recall the concept]
+2. [Second step — apply formula / logic]
+3. [Third step — reach the answer, show calculation if any]
 
-Rules:
-- Hindi में लिखो, technical terms (formula names, English words) as-is रखो
-- LaTeX properly लिखो: $x^2 + y^2 = z^2$, $$\\frac{a}{b} = c$$
-- Emojis only section headers में
-- Short and crisp रखो — total 8-10 lines से ज्यादा नहीं`;
+Formula / Theory:
+[Write relevant formula in LaTeX if applicable. If no formula, write the key rule or definition in 1 line.]
+
+याद रखो: [One sharp memory trick or shortcut for this type of question]`;
 
   await streamGemini(res, prompt, "Explanation नहीं मिली 🙏", req.log);
 });

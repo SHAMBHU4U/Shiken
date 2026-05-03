@@ -741,47 +741,42 @@ function ResultScreen({
 
   // Per-question explanation state
   const [explainTexts,   setExplainTexts]   = useState<Record<number, string>>({});
-  const [explainLoading, setExplainLoading] = useState<number | null>(null);
+  const [explainLoading, setExplainLoading] = useState<Record<number, boolean>>({});
   const [explainOpen,    setExplainOpen]    = useState<Record<number, boolean>>({});
+
+  // Explanation language toggle
+  const [explainLang, setExplainLang] = useState<"both" | "en" | "hi">("both");
+  function cycleExplainLang() { setExplainLang((l) => l === "both" ? "en" : l === "en" ? "hi" : "both"); }
+  const explainLangLabel = explainLang === "both" ? "A / अ" : explainLang === "en" ? "English" : "हिंदी";
+
+  // Auto-fetch ref
+  const autoExplainRef = useRef(false);
 
   // Stable Firebase key from question text (safe for Firebase paths)
   function explainCacheKey(questionEnglish: string): string {
     return btoa(unescape(encodeURIComponent(questionEnglish.slice(0, 60)))).replace(/[/+=]/g, "_");
   }
 
-  async function fetchExplain(i: number, q: Question) {
+  async function fetchExplain(i: number, q: Question, lang: "both" | "en" | "hi" = "both") {
     if (!isPremium) { onUpgrade(); return; }
-    if (explainLoading !== null) return;
+    if (explainLoading[i]) return;
     setExplainOpen((o) => ({ ...o, [i]: true }));
     if (explainTexts[i]) return; // already fetched in session
-    setExplainLoading(i);
+    setExplainLoading((l) => ({ ...l, [i]: true }));
     setExplainTexts((t) => ({ ...t, [i]: "" }));
     try {
-      // ── Check Firebase cache first ──────────────────────────────────────────
-      const cacheKey = explainCacheKey(q.english);
-      const cacheRef = ref(db, `explanations/${subject}/${cacheKey}`);
-      let cached: string | null = null;
-      try {
-        const snap = await get(cacheRef);
-        if (snap.exists()) cached = String(snap.val());
-      } catch { /* ignore cache miss */ }
-
-      if (cached) {
-        setExplainTexts((t) => ({ ...t, [i]: cached as string }));
-        setExplainLoading(null);
-        return;
-      }
-
       // ── Not cached — call API and stream ────────────────────────────────────
       const resp = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           questionEnglish: q.english,
-          questionHindi: q.hindi || "",
-          options: q.options,
-          correctAnswer: q.options[q.answerIndex] ?? "",
-          subject: label,
+          questionHindi:   q.hindi || "",
+          options:         q.options,
+          optionsHindi:    q.optionsHindi,
+          correctAnswer:   q.options[q.answerIndex] ?? "",
+          subject:         label,
+          lang,
         }),
       });
       const reader = resp.body?.getReader();
@@ -806,15 +801,14 @@ function ResultScreen({
           } catch { /* skip */ }
         }
       }
-
-      // ── Save to Firebase cache (non-blocking) ────────────────────────────────
       if (fullText.length > 10) {
-        set(cacheRef, fullText).catch(() => {});
+        const cacheKey = explainCacheKey(q.english);
+        set(ref(db, `explanations/${subject}/${cacheKey}`), fullText).catch(() => {});
       }
     } catch {
       setExplainTexts((t) => ({ ...t, [i]: "Explanation नहीं मिली 🙏" }));
     } finally {
-      setExplainLoading(null);
+      setExplainLoading((l) => { const n = { ...l }; delete n[i]; return n; });
     }
   }
 
@@ -879,6 +873,16 @@ function ResultScreen({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-fetch ALL explanations staggered on mount (premium only)
+  useEffect(() => {
+    if (!isPremium || isDemo || autoExplainRef.current) return;
+    autoExplainRef.current = true;
+    questions.forEach((q, i) => {
+      setTimeout(() => { void fetchExplain(i, q, explainLang); }, i * 600);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
@@ -897,6 +901,16 @@ function ResultScreen({
             <span className="mt-2 text-xs px-3 py-1 rounded-full inline-block" style={{ background: `${accent}20`, color: accent }}>
               Demo questions — add yours to Firebase
             </span>
+          )}
+          {isPremium && (
+            <div className="flex items-center justify-center gap-2 mt-3">
+              <span className="text-white/25 text-xs">Solution language:</span>
+              <motion.button onClick={cycleExplainLang} whileTap={{ scale: 0.93 }}
+                className="px-3 py-1 rounded-full text-xs font-bold border transition-all"
+                style={{ background: `${accent}18`, borderColor: `${accent}45`, color: accent }}>
+                {explainLangLabel}
+              </motion.button>
+            </div>
           )}
         </motion.div>
 
@@ -1128,7 +1142,7 @@ function ResultScreen({
             const isRight     = userAnswer === q.answerIndex;
             const isSkipped   = userAnswer === -1;
             const isExOpen    = explainOpen[i] ?? false;
-            const isExLoading = explainLoading === i;
+            const isExLoading = explainLoading[i] === true;
             const exText      = explainTexts[i] ?? "";
             return (
               <motion.div
@@ -1199,57 +1213,60 @@ function ResultScreen({
                   })}
                 </div>
 
-                {/* ── Per-question AI Explain ── */}
-                <motion.button
-                  onClick={() => isExOpen
-                    ? setExplainOpen((o) => ({ ...o, [i]: false }))
-                    : fetchExplain(i, q)}
-                  whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
-                  disabled={explainLoading !== null && !isExLoading}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
-                  style={{
-                    background: isExOpen ? "rgba(99,102,241,0.14)" : "rgba(99,102,241,0.06)",
-                    borderColor: isExOpen ? "rgba(99,102,241,0.35)" : "rgba(99,102,241,0.18)",
-                    color: isExLoading ? "#a5b4fc" : "#818cf8",
-                    opacity: explainLoading !== null && !isExLoading ? 0.4 : 1,
-                    cursor: explainLoading !== null && !isExLoading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <span>{isExLoading ? "⏳" : "🤖"}</span>
-                  <span>
-                    {isExLoading ? "Explanation आ रही है..." : isExOpen ? "Explanation छुपाओ ↑" : "Explain करो (Hindi)"}
-                  </span>
-                  {!isExLoading && !isExOpen && <span className="ml-auto text-white/20 text-xs">Gemini ✦</span>}
-                </motion.button>
-
-                <AnimatePresence>
-                  {isExOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-                      className="overflow-hidden"
+                {/* ── Per-question Solution ── */}
+                {isPremium ? (
+                  <div className="mt-2 rounded-xl border overflow-hidden"
+                    style={{ background: "rgba(99,102,241,0.06)", borderColor: "rgba(99,102,241,0.18)" }}>
+                    {/* Header bar */}
+                    <button
+                      onClick={() => {
+                        if (!isExOpen && !exText) { void fetchExplain(i, q, explainLang); }
+                        else { setExplainOpen((o) => ({ ...o, [i]: !isExOpen })); }
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold"
+                      style={{ color: isExLoading ? "#a5b4fc" : "#818cf8" }}
                     >
-                      <div className="mt-2 px-3 py-3 rounded-lg border"
-                        style={{ background: "rgba(99,102,241,0.07)", borderColor: "rgba(99,102,241,0.2)" }}>
-                        {(exText || isExLoading) ? (
-                          <ExplainText text={exText} loading={isExLoading} />
-                        ) : null}
-                        {!exText && isExLoading && (
-                          <div className="flex items-center gap-2 py-1">
-                            {[0, 1, 2].map((j) => (
-                              <motion.div key={j} animate={{ y: [0, -4, 0] }}
-                                transition={{ repeat: Infinity, duration: 0.6, delay: j * 0.12 }}
-                                className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-                            ))}
-                            <span className="text-xs text-white/35 ml-1">समझा रहा हूँ...</span>
+                      <span>{isExLoading ? "⏳" : "🤖"}</span>
+                      <span>{isExLoading ? "Solution तैयार हो रही है..." : isExOpen ? "Solution छुपाओ ↑" : "Solution देखो ↓"}</span>
+                      {!isExLoading && <span className="ml-auto text-white/20">Gemini ✦</span>}
+                    </button>
+
+                    <AnimatePresence>
+                      {(isExOpen || isExLoading) && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-3 pb-3 pt-0 border-t" style={{ borderColor: "rgba(99,102,241,0.15)" }}>
+                            {isExLoading && !exText ? (
+                              <div className="flex items-center gap-2 py-3">
+                                {[0, 1, 2].map((j) => (
+                                  <motion.div key={j} animate={{ y: [0, -4, 0] }}
+                                    transition={{ repeat: Infinity, duration: 0.6, delay: j * 0.12 }}
+                                    className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                                ))}
+                                <span className="text-xs text-white/35 ml-1">Gemini सोच रहा है...</span>
+                              </div>
+                            ) : (
+                              <div className="pt-2.5">
+                                <ExplainText text={exText} loading={isExLoading} />
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <button onClick={() => fetchExplain(i, q, explainLang)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold mt-2"
+                    style={{ background: "rgba(99,102,241,0.06)", borderColor: "rgba(99,102,241,0.18)", color: "#818cf8" }}>
+                    🔒 Unlock Solutions — Upgrade to Premium
+                  </button>
+                )}
               </motion.div>
             );
           })}
