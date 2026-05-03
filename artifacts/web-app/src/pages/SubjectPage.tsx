@@ -750,9 +750,9 @@ function ResultScreen({
   const explainLangLabel = explainLang === "hi" ? "हिंदी" : "English";
 
 
-  // Stable Firebase key from question text (safe for Firebase paths)
-  function explainCacheKey(questionEnglish: string): string {
-    return btoa(unescape(encodeURIComponent(questionEnglish.slice(0, 60)))).replace(/[/+=]/g, "_");
+  // Stable Firebase key from question text + lang (safe for Firebase paths)
+  function explainCacheKey(questionEnglish: string, lang: string): string {
+    return btoa(unescape(encodeURIComponent(questionEnglish.slice(0, 60)))).replace(/[/+=]/g, "_") + "_" + lang;
   }
 
   async function fetchExplain(i: number, q: Question, lang: "both" | "en" | "hi" = "both") {
@@ -762,7 +762,20 @@ function ResultScreen({
     if (explainTexts[i]) return; // already fetched in session
     setExplainLoading((l) => ({ ...l, [i]: true }));
     setExplainTexts((t) => ({ ...t, [i]: "" }));
+
+    const effectiveLang: "en" | "hi" = lang === "en" ? "en" : "hi";
+
     try {
+      // ── Check Firebase cache first ────────────────────────────────────────
+      const cacheKey = explainCacheKey(q.english, effectiveLang);
+      const cached = await get(ref(db, `explanations/${subject}/${cacheKey}`));
+      if (cached.exists()) {
+        const text = cached.val() as string;
+        setExplainTexts((t) => ({ ...t, [i]: text }));
+        setExplainLoading((l) => { const n = { ...l }; delete n[i]; return n; });
+        return;
+      }
+
       // ── Not cached — call API and stream ────────────────────────────────────
       const resp = await fetch("/api/explain", {
         method: "POST",
@@ -774,7 +787,7 @@ function ResultScreen({
           optionsHindi:    q.optionsHindi,
           correctAnswer:   q.options[q.answerIndex] ?? "",
           subject:         label,
-          lang,
+          lang:            effectiveLang,
         }),
       });
       const reader = resp.body?.getReader();
@@ -800,7 +813,7 @@ function ResultScreen({
         }
       }
       if (fullText.length > 10) {
-        const cacheKey = explainCacheKey(q.english);
+        const cacheKey = explainCacheKey(q.english, effectiveLang);
         set(ref(db, `explanations/${subject}/${cacheKey}`), fullText).catch(() => {});
       }
     } catch {

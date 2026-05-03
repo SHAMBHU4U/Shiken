@@ -4,6 +4,32 @@ import { streamGemini } from "../../lib/gemini";
 
 const router = Router();
 
+// ─── Per-IP rate limiter (in-memory, resets daily) ────────────────────────────
+const DAILY_LIMIT = 30;
+const ipUsage = new Map<string, { date: string; count: number }>();
+
+function getClientIp(req: import("express").Request): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  return req.socket.remoteAddress ?? "unknown";
+}
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const entry = ipUsage.get(ip);
+  if (!entry || entry.date !== today) {
+    ipUsage.set(ip, { date: today, count: 1 });
+    return { allowed: true, remaining: DAILY_LIMIT - 1 };
+  }
+  if (entry.count >= DAILY_LIMIT) {
+    return { allowed: false, remaining: 0 };
+  }
+  entry.count++;
+  return { allowed: true, remaining: DAILY_LIMIT - entry.count };
+}
+
+// ─── Schema ───────────────────────────────────────────────────────────────────
+
 const ExplainBodySchema = z.object({
   questionEnglish: z.string().min(1),
   questionHindi:   z.string().optional(),
@@ -15,6 +41,20 @@ const ExplainBodySchema = z.object({
 });
 
 router.post("/explain", async (req, res) => {
+  // Rate limit check
+  const ip = getClientIp(req);
+  const { allowed, remaining } = checkRateLimit(ip);
+  if (!allowed) {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.write(`data: ${JSON.stringify({ error: "आज की limit पूरी हो गई (30/day)। कल फिर आओ 🙏" })}\n\n`);
+    res.end();
+    return;
+  }
+  res.setHeader("X-RateLimit-Remaining", String(remaining));
+
   const parsed = ExplainBodySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
