@@ -145,6 +145,78 @@ JSON format (return ONLY this, nothing else):
     .filter((q) => q.english && q.options.length >= 2);
 }
 
+export async function parsePDFQuestions(
+  pdfBase64: string,
+  subject:   string,
+  chapter:   string,
+): Promise<GeneratedQuestion[]> {
+  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+  const prompt = `You are an expert at extracting multiple-choice questions from Bihar Board Class 10 exam papers.
+
+Extract ALL multiple-choice questions from this PDF document.
+Subject: ${subject}
+Chapter / Topic: ${chapter}
+
+For each question:
+- Write "english" field: the full question in English
+- Write "hindi" field: the full question in Hindi (Devanagari script)
+- Write "options": exactly 4 answer choices in English (A, B, C, D)
+- Write "optionsHindi": same 4 choices translated to Hindi
+- Write "answerIndex": 0, 1, 2, or 3 (index of correct answer). If answer key is provided use it; otherwise use subject knowledge.
+
+STRICT RULES:
+- Return ONLY a valid JSON array. No markdown, no code fences, no explanation.
+- Skip incomplete questions or those with fewer than 4 options.
+- Ignore page numbers, headers, footers, instructions text.
+- If question is only in Hindi, still fill English field with a translation.
+
+JSON format (return ONLY this):
+[
+  {
+    "english": "Question text in English",
+    "hindi": "प्रश्न हिंदी में",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "optionsHindi": ["विकल्प A", "विकल्प B", "विकल्प C", "विकल्प D"],
+    "answerIndex": 0
+  }
+]`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
+        { text: prompt },
+      ],
+    }],
+    config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
+  });
+
+  const raw = response.text ?? "[]";
+  let parsed: unknown[];
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    const match = raw.match(/\[[\s\S]*\]/);
+    parsed = match ? JSON.parse(match[0]) : [];
+  }
+  if (!Array.isArray(parsed)) throw new Error("Gemini returned no questions");
+
+  return (parsed as Record<string, unknown>[])
+    .map((q) => ({
+      english:      String(q.english      ?? ""),
+      hindi:        String(q.hindi        ?? ""),
+      options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+      optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+      answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+    }))
+    .filter((q) => (q.english || q.hindi) && q.options.length >= 2);
+}
+
 export async function translateToEnglish(hindiText: string): Promise<string> {
   if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
 

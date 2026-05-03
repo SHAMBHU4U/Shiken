@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { parsePDFQuestions } from "@/lib/gemini";
+import type { GeneratedQuestion } from "@/lib/gemini";
 
 const DB_URL  = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const APP_URL = "https://shiken.replit.app";
@@ -1342,6 +1344,276 @@ function CachePanel() {
   );
 }
 
+// ─── PDF Import Panel ─────────────────────────────────────────────────────────
+
+const SUBJECT_PATHS: Record<string, string> = {
+  maths: "maths", english: "english", hindi: "hindi",
+  science: "science", social: "social science", sanskrit: "sanskrit",
+};
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => { resolve((reader.result as string).split(",")[1]); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+type ImportStep = "idle" | "reading" | "parsing" | "preview" | "saving" | "done";
+
+function PDFImportPanel() {
+  const [subjectId, setSubjectId]   = useState("english");
+  const [chapter,   setChapter]     = useState("");
+  const [file,      setFile]        = useState<File | null>(null);
+  const [step,      setStep]        = useState<ImportStep>("idle");
+  const [questions, setQuestions]   = useState<GeneratedQuestion[]>([]);
+  const [savedCount, setSavedCount] = useState(0);
+  const [error,     setError]       = useState("");
+  const [expandedQ, setExpandedQ]   = useState<number | null>(null);
+  const [dragOver,  setDragOver]    = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const accent = ALL_SUBJECTS.find((s) => s.id === subjectId)?.accent ?? "#8b5cf6";
+  const busy   = step === "reading" || step === "parsing" || step === "saving";
+
+  async function handleExtract() {
+    if (!file || !chapter.trim()) { setError("Chapter name is required."); return; }
+    setError(""); setStep("reading");
+    try {
+      const base64 = await readFileAsBase64(file);
+      setStep("parsing");
+      const label = ALL_SUBJECTS.find((s) => s.id === subjectId)?.label ?? subjectId;
+      const extracted = await parsePDFQuestions(base64, label, chapter.trim());
+      if (extracted.length === 0) throw new Error("No MCQ questions found in this PDF.");
+      setQuestions(extracted);
+      setStep("preview");
+    } catch (e) {
+      setError(String(e));
+      setStep("idle");
+    }
+  }
+
+  async function handleSave() {
+    const path = SUBJECT_PATHS[subjectId] ?? subjectId;
+    setStep("saving"); setSavedCount(0);
+    let saved = 0;
+    for (const q of questions) {
+      try {
+        await fetch(`${DB_URL}/${encodeURIComponent(path)}.json`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            english:      q.english,
+            hindi:        q.hindi,
+            options:      q.options,
+            optionsHindi: q.optionsHindi,
+            correctAnswer: q.answerIndex,
+            chapter:      chapter.trim(),
+          }),
+        });
+        saved++;
+        setSavedCount(saved);
+      } catch { /* skip failed */ }
+    }
+    setStep("done");
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault(); setDragOver(false);
+    const dropped = e.dataTransfer.files[0];
+    if (dropped?.type === "application/pdf") { setFile(dropped); setStep("idle"); setQuestions([]); setError(""); }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0];
+    if (picked) { setFile(picked); setStep("idle"); setQuestions([]); setError(""); }
+  }
+
+  return (
+    <div>
+      <div className="rounded-xl px-4 py-3 mb-5 flex items-start gap-3"
+        style={{ background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.2)" }}>
+        <span className="text-xl shrink-0 mt-0.5">📄</span>
+        <div>
+          <p className="text-indigo-400 text-xs font-bold">PDF → Firebase Importer</p>
+          <p className="text-white/30 text-xs mt-0.5 leading-relaxed">
+            Upload a question paper PDF. Gemini AI reads it and extracts all MCQ questions — both in English and Hindi — then saves them directly to Firebase.
+          </p>
+        </div>
+      </div>
+
+      {/* Step 1 — Subject + Chapter */}
+      <div className="flex flex-col gap-3 mb-4">
+        <div>
+          <p className="text-white/40 text-xs font-semibold mb-1.5">Subject</p>
+          <div className="grid grid-cols-3 gap-2">
+            {ALL_SUBJECTS.map((s) => (
+              <button key={s.id} onClick={() => setSubjectId(s.id)} disabled={busy}
+                className="flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-semibold transition-all"
+                style={{
+                  background:   subjectId === s.id ? `${s.accent}20` : "rgba(255,255,255,0.03)",
+                  borderColor:  subjectId === s.id ? `${s.accent}50` : "rgba(255,255,255,0.08)",
+                  color:        subjectId === s.id ? s.accent : "rgba(255,255,255,0.35)",
+                }}>
+                <span className="text-base">{s.icon}</span>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-white/40 text-xs font-semibold mb-1.5">Chapter / Topic Name</p>
+          <input
+            value={chapter} onChange={(e) => setChapter(e.target.value)}
+            placeholder="e.g. Grammar, Trigonometry, Light..."
+            disabled={busy}
+            className="w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none border transition-all"
+            style={{ background: "rgba(255,255,255,0.04)", borderColor: chapter ? `${accent}45` : "rgba(255,255,255,0.1)" }}
+          />
+        </div>
+      </div>
+
+      {/* Step 2 — PDF Upload */}
+      <div
+        onClick={() => !busy && fileInputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        className="relative rounded-2xl border-2 border-dashed flex flex-col items-center justify-center py-8 px-4 mb-4 cursor-pointer transition-all"
+        style={{
+          borderColor: dragOver ? accent : file ? `${accent}50` : "rgba(255,255,255,0.1)",
+          background:  dragOver ? `${accent}0a` : file ? `${accent}06` : "transparent",
+        }}>
+        <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handleFileChange} />
+        {file ? (
+          <>
+            <span className="text-3xl mb-2">📋</span>
+            <p className="text-white/70 text-sm font-semibold text-center">{file.name}</p>
+            <p className="text-white/25 text-xs mt-1">{(file.size / 1024).toFixed(0)} KB — click to change</p>
+          </>
+        ) : (
+          <>
+            <span className="text-3xl mb-2">📂</span>
+            <p className="text-white/50 text-sm font-semibold">Drop PDF here or tap to browse</p>
+            <p className="text-white/20 text-xs mt-1">Bihar Board question paper / practice set</p>
+          </>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-xl px-4 py-3 mb-4 text-red-400 text-xs"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          ⚠️ {error}
+        </div>
+      )}
+
+      {/* Step 3 — Extract / Progress */}
+      {step !== "preview" && step !== "done" && (
+        <motion.button
+          onClick={handleExtract}
+          disabled={!file || !chapter.trim() || busy}
+          whileTap={{ scale: 0.97 }}
+          className="w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+          style={{
+            background:   (!file || !chapter.trim()) ? "rgba(255,255,255,0.05)" : `${accent}22`,
+            borderColor:  (!file || !chapter.trim()) ? "rgba(255,255,255,0.1)"  : `${accent}45`,
+            border:       "1px solid",
+            color:        (!file || !chapter.trim()) ? "rgba(255,255,255,0.2)"  : accent,
+          }}>
+          {step === "reading" ? (
+            <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>⏳</motion.span> Reading PDF…</>
+          ) : step === "parsing" ? (
+            <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}>🤖</motion.span> Gemini is extracting questions…</>
+          ) : (
+            <>🔍 Extract Questions with AI</>
+          )}
+        </motion.button>
+      )}
+
+      {/* Step 4 — Preview */}
+      {step === "preview" && questions.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <div className="rounded-xl px-4 py-3 mb-4 flex items-center gap-3"
+            style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+            <span className="text-lg">✅</span>
+            <div>
+              <p className="text-emerald-400 text-xs font-bold">{questions.length} questions extracted!</p>
+              <p className="text-white/30 text-xs">Review below, then save to Firebase.</p>
+            </div>
+            <button onClick={() => { setStep("idle"); setQuestions([]); }}
+              className="ml-auto text-white/25 hover:text-white/50 text-xs transition-colors">Reset</button>
+          </div>
+
+          <div className="flex flex-col gap-2 mb-4 max-h-72 overflow-y-auto pr-1">
+            {questions.map((q, i) => (
+              <div key={i} className="rounded-xl border overflow-hidden"
+                style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
+                <button onClick={() => setExpandedQ(expandedQ === i ? null : i)}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0"
+                    style={{ background: `${accent}20`, color: accent }}>Q{i + 1}</span>
+                  <p className="text-white/70 text-xs flex-1 line-clamp-1">{q.english || q.hindi}</p>
+                  <span className="text-white/25 text-xs">{expandedQ === i ? "▲" : "▼"}</span>
+                </button>
+                {expandedQ === i && (
+                  <div className="px-3 pb-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                    {q.hindi && <p className="text-white/35 text-xs mt-2 mb-2">{q.hindi}</p>}
+                    <div className="flex flex-col gap-1">
+                      {q.options.map((opt, oi) => (
+                        <p key={oi} className="text-xs px-2 py-1 rounded-lg"
+                          style={{
+                            background: oi === q.answerIndex ? `${accent}20` : "rgba(255,255,255,0.04)",
+                            color:      oi === q.answerIndex ? accent : "rgba(255,255,255,0.4)",
+                          }}>
+                          {String.fromCharCode(65 + oi)}. {opt} {oi === q.answerIndex ? "✓" : ""}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <motion.button onClick={handleSave} whileTap={{ scale: 0.97 }}
+            className="w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 border"
+            style={{ background: `${accent}20`, borderColor: `${accent}45`, color: accent }}>
+            💾 Save {questions.length} questions to Firebase
+          </motion.button>
+        </motion.div>
+      )}
+
+      {/* Step 5 — Saving progress */}
+      {step === "saving" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-6">
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-10 h-10 rounded-full border-2 border-transparent mx-auto mb-3"
+            style={{ borderTopColor: accent, borderRightColor: `${accent}40` }} />
+          <p className="text-white/60 text-sm font-semibold">Saving to Firebase…</p>
+          <p className="text-white/30 text-xs mt-1">{savedCount} / {questions.length} saved</p>
+        </motion.div>
+      )}
+
+      {/* Step 6 — Done */}
+      {step === "done" && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-8">
+          <p className="text-4xl mb-3">🎉</p>
+          <p className="text-white font-bold text-base mb-1">{savedCount} questions saved!</p>
+          <p className="text-white/30 text-xs mb-5">Now live in Firebase under "{SUBJECT_PATHS[subjectId]}" → chapter "{chapter}"</p>
+          <button onClick={() => { setStep("idle"); setFile(null); setQuestions([]); setChapter(""); setSavedCount(0); setError(""); }}
+            className="px-5 py-2 rounded-xl text-sm font-semibold border transition-all"
+            style={{ background: `${accent}15`, borderColor: `${accent}40`, color: accent }}>
+            Import another PDF
+          </button>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
 export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
@@ -1354,9 +1626,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf">(initialTab);
   const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {
@@ -1458,6 +1730,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "payments",  label: "💳 Pay",      badge: pendingBadge },
             { id: "ratings",   label: "⭐ Stars",    badge: 0 },
             { id: "cache",     label: "🗄️ Cache",    badge: 0 },
+            { id: "pdf",       label: "📄 PDF",      badge: 0 },
           ] as const).map(({ id, label, badge }) => (
             <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
               className="flex-1 py-2 rounded-lg text-xs font-bold transition-all relative"
@@ -1544,6 +1817,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "cache" && (
             <motion.div key="cache" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <CachePanel />
+            </motion.div>
+          )}
+
+          {activeTab === "pdf" && (
+            <motion.div key="pdf" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <PDFImportPanel />
             </motion.div>
           )}
         </AnimatePresence>
