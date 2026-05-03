@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Router, type IRouter } from "express";
+import { Router, type IRouter } from "express.js";
 import healthRouter from "./health.js";
 import explainRouter from "./explain/index.js";
 import generateRouter from "./explain/generate.js";
