@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithGemini } from "@/lib/gemini";
+import { explainWithGemini, generateQuestions } from "@/lib/gemini";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
@@ -1509,30 +1509,31 @@ export default function SubjectPage() {
 
     let aiQuestions: Question[] = [];
     try {
-      const resp = await fetch("/api/generate-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subject: meta?.label ?? subject,
-          chapter: topChapters || "General",
-          count: 25,
-        }),
-      });
-      const data = await resp.json() as { questions?: unknown[]; error?: string };
-      if (Array.isArray(data.questions) && data.questions.length > 0) {
-        aiQuestions = (data.questions as Record<string, unknown>[])
-          .map((q) => ({
-            english: String(q.english ?? ""),
-            hindi: String(q.hindi ?? ""),
-            options: Array.isArray(q.options) ? (q.options as unknown[]).map(String) : [],
-            optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : undefined,
-            answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
-            chapter: "AI Generated",
-          }))
-          .filter((q) => q.english && q.options.length >= 2);
-        // Save to Firebase in background (non-blocking)
-        saveAIQuestionsToFirebase(aiQuestions).catch(() => {});
-      }
+      const fetched = await (async () => {
+        try {
+          return await generateQuestions(meta?.label ?? subject, topChapters || "General", 25);
+        } catch {
+          // fallback to API server
+          const resp = await fetch("/api/generate-questions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subject: meta?.label ?? subject, chapter: topChapters || "General", count: 25 }),
+          });
+          const data = await resp.json() as { questions?: unknown[] };
+          if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("empty");
+          return (data.questions as Record<string, unknown>[]).map((q) => ({
+            english:      String(q.english      ?? ""),
+            hindi:        String(q.hindi        ?? ""),
+            options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+            optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+            answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+          }));
+        }
+      })();
+      aiQuestions = fetched
+        .map((q) => ({ ...q, chapter: "AI Generated" }))
+        .filter((q) => q.english && q.options.length >= 2);
+      saveAIQuestionsToFirebase(aiQuestions).catch(() => {});
     } catch { /* AI generation failed — fall back to DB-only */ }
 
     // Fill up to 50 total (pad with more DB questions if AI failed)
@@ -1628,21 +1629,31 @@ export default function SubjectPage() {
     setSelectedChapter(chapter);
     setScreen("ai-generating");
     try {
-      const resp = await fetch("/api/generate-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject: meta?.label ?? subject, chapter, count: 5 }),
-      });
-      const data = await resp.json() as { questions?: Question[]; error?: string };
-      if (!data.questions?.length) throw new Error("No questions returned");
-      const generated: Question[] = (data.questions as Record<string, unknown>[]).map((q) => ({
-        english: String(q.english ?? ""),
-        hindi: String(q.hindi ?? ""),
-        options: Array.isArray(q.options) ? (q.options as unknown[]).map(String) : [],
-        optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : undefined,
-        answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
-        chapter,
-      }));
+      const fetched = await (async () => {
+        try {
+          return await generateQuestions(meta?.label ?? subject, chapter, 5);
+        } catch {
+          // fallback to API server
+          const resp = await fetch("/api/generate-questions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ subject: meta?.label ?? subject, chapter, count: 5 }),
+          });
+          const data = await resp.json() as { questions?: unknown[]; error?: string };
+          if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("No questions returned");
+          return (data.questions as Record<string, unknown>[]).map((q) => ({
+            english:      String(q.english      ?? ""),
+            hindi:        String(q.hindi        ?? ""),
+            options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+            optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+            answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+          }));
+        }
+      })();
+      const generated: Question[] = fetched
+        .filter((q) => q.english && q.options.length >= 2)
+        .map((q) => ({ ...q, chapter }));
+      if (generated.length === 0) throw new Error("No valid questions");
       setQuestions(generated);
       setCurrentIndex(0);
       setAnswers({});

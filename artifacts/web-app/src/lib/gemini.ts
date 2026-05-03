@@ -73,6 +73,78 @@ ${sectionLabels.notes}
 • [एक sharp memory trick या quick shortcut इस type के questions के लिए]`;
 }
 
+export interface GeneratedQuestion {
+  english:      string;
+  hindi:        string;
+  options:      string[];
+  optionsHindi: string[];
+  answerIndex:  number;
+}
+
+export async function generateQuestions(
+  subject: string,
+  chapter: string,
+  count: number,
+): Promise<GeneratedQuestion[]> {
+  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+  const prompt = `You are an expert Bihar Board exam question creator for ${subject}.
+
+Generate exactly ${count} multiple-choice questions on the topic: "${chapter}" for Bihar Board Class 10 level.
+
+STRICT RULES:
+- Return ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- Each question must have exactly 4 options.
+- answerIndex must be 0, 1, 2, or 3 (index of correct option).
+- "hindi" field: Hindi translation of the question text (simple, clear Hindi).
+- "options": answer choices written in English.
+- "optionsHindi": the same 4 answer choices translated into Hindi (same order, same index).
+- Questions must be factual, syllabus-appropriate, and varied in difficulty.
+- Both the question AND all options must make sense in both languages.
+
+JSON format (return ONLY this, nothing else):
+[
+  {
+    "english": "Question text in English",
+    "hindi": "प्रश्न का Hindi अनुवाद",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "optionsHindi": ["विकल्प A का हिंदी", "विकल्प B का हिंदी", "विकल्प C का हिंदी", "विकल्प D का हिंदी"],
+    "answerIndex": 0
+  }
+]`;
+
+  const response = await ai.models.generateContent({
+    model: FREE_MODEL,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { maxOutputTokens: 4096, responseMimeType: "application/json" },
+  });
+
+  const raw = response.text ?? "[]";
+  let questions: unknown[];
+  try {
+    questions = JSON.parse(raw);
+  } catch {
+    const match = raw.match(/\[[\s\S]*\]/);
+    questions = match ? JSON.parse(match[0]) : [];
+  }
+
+  if (!Array.isArray(questions) || questions.length === 0) {
+    throw new Error("No questions returned from Gemini");
+  }
+
+  return (questions as Record<string, unknown>[])
+    .map((q) => ({
+      english:      String(q.english      ?? ""),
+      hindi:        String(q.hindi        ?? ""),
+      options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+      optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+      answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+    }))
+    .filter((q) => q.english && q.options.length >= 2);
+}
+
 export async function explainWithGemini(
   params: {
     questionEnglish: string;
