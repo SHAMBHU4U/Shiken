@@ -744,33 +744,21 @@ function Dashboard() {
               className="relative"
             >
               <div
-                className="absolute inset-0 rounded-[24px] blur-2xl scale-125 opacity-50"
+                className="absolute inset-0 rounded-[32px] blur-3xl scale-125 opacity-60"
                 style={{ background: "linear-gradient(135deg, #8b5cf6, #06b6d4)" }}
               />
               <div
-                className="relative w-[68px] h-[68px] rounded-[20px] flex items-center justify-center"
+                className="relative w-[120px] h-[120px] rounded-[28px] flex items-center justify-center overflow-hidden"
                 style={{
                   background: "linear-gradient(145deg, #5b21b6 0%, #312e81 50%, #0c4a6e 100%)",
-                  boxShadow: "0 12px 36px rgba(139,92,246,0.55), 0 4px 12px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
+                  boxShadow: "0 16px 48px rgba(139,92,246,0.6), 0 4px 12px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.18)",
                 }}
               >
-                <svg viewBox="0 0 48 48" className="w-9 h-9" fill="none">
-                {/* Brain outline */}
-                <circle cx="12" cy="14" r="4.5" stroke="white" strokeWidth="2.2" strokeOpacity="0.88" />
-                <path d="M16.5 14c0-2.5 1.5-4.8 3.5-5.5M19.5 8.5c2 0.7 3.5 3 3.5 5.5m0 0c0-2.5 1.5-4.8 3.5-5.5" stroke="white" strokeWidth="2" strokeOpacity="0.88" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M36 14c0-2.5-1.5-4.8-3.5-5.5M32.5 8.5c-2 0.7-3.5 3-3.5 5.5m0 0c0-2.5-1.5-4.8-3.5-5.5" stroke="white" strokeWidth="2" strokeOpacity="0.88" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M12 18.5c0 4 2 8 6 10m12 0c4-2 6-6 6-10" stroke="white" strokeWidth="2" strokeOpacity="0.88" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M18 28.5c1 1.5 2 2.5 6 2.5s5-1 6-2.5" stroke="white" strokeWidth="2" strokeOpacity="0.75" strokeLinecap="round" />
-                
-                {/* Checkmark */}
-                <g transform="translate(8, 6)">
-                  <path d="M8 12l3 3 6-8" stroke="#14b8a6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                </g>
-                
-                {/* Glow spark */}
-                <circle cx="38" cy="8" r="1.8" fill="#14b8a6" opacity="0.9" />
-                <circle cx="41" cy="6" r="0.9" fill="#7dd3fc" opacity="0.7" />
-              </svg>
+                <img
+                  src="/shiken-logo.png"
+                  alt="SHIKEN"
+                  className="w-[85px] h-[85px] object-contain drop-shadow-lg"
+                />
               </div>
             </motion.div>
           </div>
