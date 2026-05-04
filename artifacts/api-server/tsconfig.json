@@ -8,16 +8,5 @@
     "skipLibCheck": true,
     "noEmit": false
   },
-  "include": ["src"],
-  "references": [
-    {
-      "path": "../../lib/db"
-    },
-    {
-      "path": "../../lib/api-zod"
-    },
-    {
-      "path": "../../lib/integrations-gemini-ai"
-    }
-  ]
+  "include": ["src"]
 }
