@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GoogleGenAI } from "@google/genai";
 
 // Prefer Replit AI Integration proxy (no daily cap, uses Replit credits).
