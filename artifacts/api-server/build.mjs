@@ -100,6 +100,15 @@ async function buildAll() {
       "puppeteer-core",
       "electron",
     ],
+    // ... baaki saare external packages
+    ],
+    // Ye line add karein:
+    alias: {
+      "@workspace/api-zod": path.resolve(artifactDir, "../../lib/api-zod/src/index.ts"),
+      "@workspace/db": path.resolve(artifactDir, "../../lib/db/src/index.ts"),
+      "@workspace/integrations-gemini-ai": path.resolve(artifactDir, "../../lib/integrations-gemini-ai/src/index.ts")
+    },
+    sourcemap: "linked",
     sourcemap: "linked",
     plugins: [
       // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
