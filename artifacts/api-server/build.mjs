@@ -100,9 +100,6 @@ async function buildAll() {
       "puppeteer-core",
       "electron",
     ],
-    // ... baaki saare external packages
-    ],
-    // Ye line add karein:
     alias: {
       "@workspace/api-zod": path.resolve(artifactDir, "../../lib/api-zod/src/index.ts"),
       "@workspace/db": path.resolve(artifactDir, "../../lib/db/src/index.ts"),
