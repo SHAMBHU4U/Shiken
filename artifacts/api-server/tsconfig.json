@@ -6,7 +6,9 @@
     "types": ["node"],
     "noImplicitAny": false,
     "skipLibCheck": true,
-    "noEmit": false
+    "noEmit": true,         // <-- Ise TRUE kar dein
+    "emitDeclarationOnly": false,
+    "composite": false
   },
   "include": ["src"]
 }
