@@ -20,6 +20,10 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start API server"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -31,6 +35,18 @@ outputType = "webview"
 task = "shell.exec"
 args = "PORT=22965 BASE_PATH=/ pnpm --filter @workspace/web-app run dev"
 waitForPort = 22965
+
+[[workflows.workflow]]
+name = "Start API server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
+waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -59,3 +75,9 @@ externalPort = 3003
 [[ports]]
 localPort = 22965
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+RAZORPAY_KEY_ID = "rzp_live_SmHIAPIgMMiDhq"
+RAZORPAY_KEY_SECRET = "tU5SKsOe9RV85GoHOxyJP4lH"

@@ -5,9 +5,8 @@ import { auth } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
 
-const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const API_BASE = import.meta.env.BASE_URL;
-const RAZORPAY_KEY = "rzp_live_SmHIAPIgMMiDhq";
+const RAZORPAY_KEY = "rzp_live_SmHIAPIgMMiDhq"; // public key — safe in frontend
 
 declare global {
   interface Window {
@@ -107,7 +106,6 @@ function PaymentSheet({
   async function handleActivate() {
     if (!auth.currentUser) return;
     const uid = auth.currentUser.uid;
-    const safeId = uid.replace(/[.#$/[\]]/g, "_");
 
     if (!window.Razorpay) {
       setError("Razorpay failed to load. Please refresh and try again.");
@@ -117,76 +115,102 @@ function PaymentSheet({
     setPaying(true);
     setError("");
 
-    const options: RazorpayOptions = {
-      key: RAZORPAY_KEY,
-      amount: plan.amount * 100,
-      currency: "INR",
-      name: "SHIKEN",
-      description: `${plan.name} — ${plan.period}`,
-      prefill: {
-        email: auth.currentUser.email ?? undefined,
-        name: auth.currentUser.displayName ?? undefined,
-      },
-      theme: { color: plan.accent },
-      modal: {
-        ondismiss: () => {
-          setPaying(false);
+    try {
+      // ── Step 1: Create a verified Razorpay order on the backend ──────────────
+      const orderRes = await fetch(`${API_BASE}api/razorpay/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount:    plan.amount,
+          planId:    plan.id,
+          uid,
+          // couponCode: "SHIKEN10",  // pass when coupon UI is added
+        }),
+      });
+      const orderData = await orderRes.json();
+      if (!orderRes.ok || !orderData.ok) {
+        setError(orderData.error ?? "Could not create order. Please try again.");
+        setPaying(false);
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────────
+
+      // ── Step 2: Open Razorpay checkout with the real order_id ───────────────
+      const options: RazorpayOptions = {
+        key:         RAZORPAY_KEY,
+        amount:      orderData.amount * 100,   // paise — matches backend order
+        currency:    "INR",
+        name:        "SHIKEN",
+        description: `${plan.name} — ${plan.period}`,
+        order_id:    orderData.orderId,        // ← secure order_id from backend
+        prefill: {
+          email: auth.currentUser.email   ?? undefined,
+          name:  auth.currentUser.displayName ?? undefined,
         },
-      },
-      handler: async (response: RazorpayResponse) => {
-        try {
-          const paymentId = response.razorpay_payment_id;
+        theme: { color: plan.accent },
+        modal: {
+          ondismiss: () => setPaying(false),
+        },
 
-          await fetch(`${DB_URL}/users/${safeId}.json`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              subscriptionType: "premium",
-              premiumUntil: Date.now() + plan.days * 86400000,
-              plan: plan.id,
-              activatedAt: Date.now(),
-              paymentVerified: true,
-              razorpayPaymentId: paymentId,
-            }),
-          });
+        // ── Step 3: After Razorpay confirms payment, verify on backend ─────────
+        handler: async (response: RazorpayResponse) => {
+          try {
+            const verifyRes = await fetch(`${API_BASE}api/razorpay/verify-payment`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id:   response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature:  response.razorpay_signature,
+                uid,
+                planId: plan.id,
+                days:   plan.days,
+              }),
+            });
+            const verifyData = await verifyRes.json();
 
-          const phoneRes = await fetch(`${DB_URL}/users/${safeId}/phone.json`);
-          const phone: string | null = await phoneRes.json();
-          const verifyLink = `${window.location.origin}/admin?tab=payments`;
+            if (!verifyRes.ok || !verifyData.ok) {
+              setError(verifyData.error ?? "Verification failed. Contact support with Payment ID: " + response.razorpay_payment_id);
+              setPaying(false);
+              return;
+            }
+            // ── Firebase is already updated by backend — just notify admin ─────
+            await fetch(`${API_BASE}api/notify-whatsapp`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                message: [
+                  `✅ Payment Verified (Razorpay)`,
+                  ``,
+                  `👤 UID: ${uid}`,
+                  `📦 Plan: ${plan.name}`,
+                  `💰 Amount: ₹${orderData.amount}`,
+                  `🔑 Payment ID: ${response.razorpay_payment_id}`,
+                  `📋 Order ID: ${response.razorpay_order_id}`,
+                ].join("\n"),
+              }),
+            }).catch(() => {}); // non-critical — don't block success
 
-          const lines = [
-            `💳 New Premium Payment (Razorpay)!`,
-            ``,
-            `👤 UID: ${uid}`,
-            `📱 Phone: ${phone ?? "not saved"}`,
-            `📦 Plan: ${plan.name}`,
-            `💰 Amount: ${plan.price}`,
-            `🔑 Payment ID: ${paymentId}`,
-            ``,
-            `✅ Verify now: ${verifyLink}`,
-          ];
+            onSuccess(uid, response.razorpay_payment_id);
+          } catch {
+            setError("Payment captured but activation failed. Contact support with Payment ID: " + response.razorpay_payment_id);
+            setPaying(false);
+          }
+        },
+      };
+      // ─────────────────────────────────────────────────────────────────────────
 
-          await fetch(`${API_BASE}api/notify-whatsapp`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: lines.join("\n") }),
-          });
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", () => {
+        setError("Payment failed. Please try again.");
+        setPaying(false);
+      });
+      rzp.open();
 
-          onSuccess(uid, paymentId);
-        } catch {
-          setError("Payment succeeded but activation failed. Contact support with your payment ID.");
-        } finally {
-          setPaying(false);
-        }
-      },
-    };
-
-    const rzp = new window.Razorpay(options);
-    rzp.on("payment.failed", () => {
-      setError("Payment failed. Please try again.");
+    } catch (err) {
+      setError("Network error. Please check your connection and try again.");
       setPaying(false);
-    });
-    rzp.open();
+    }
   }
 
   return (

@@ -3,20 +3,31 @@ import { GoogleGenAI } from "@google/genai";
 
 // Prefer Replit AI Integration proxy (no daily cap, uses Replit credits).
 // Falls back to direct GEMINI_API_KEY if proxy is not configured.
-const useProxy  = !!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
-const apiKey    = useProxy
-  ? process.env.AI_INTEGRATIONS_GEMINI_API_KEY!
-  : process.env.GEMINI_API_KEY!;
+// Lazy initialisation — does NOT throw at import time so the server can start
+// even if Gemini is not configured. Routes that need Gemini call getGenai().
+function getGenai(): GoogleGenAI {
+  const useProxy = !!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
+  const apiKey   = useProxy
+    ? process.env.AI_INTEGRATIONS_GEMINI_API_KEY
+    : process.env.GEMINI_API_KEY;
 
-if (!apiKey) {
-  throw new Error("No Gemini API key found. Set GEMINI_API_KEY or provision the AI integration.");
+  if (!apiKey) {
+    throw new Error("No Gemini API key found. Set GEMINI_API_KEY or provision the AI integration.");
+  }
+
+  return new GoogleGenAI(
+    useProxy
+      ? { apiKey, httpOptions: { apiVersion: "", baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL } }
+      : { apiKey }
+  );
 }
 
-export const genai = new GoogleGenAI(
-  useProxy
-    ? { apiKey, httpOptions: { apiVersion: "", baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL } }
-    : { apiKey }
-);
+// Keep a module-level accessor that callers can import as before
+export const genai = new Proxy({} as GoogleGenAI, {
+  get(_target, prop) {
+    return (getGenai() as any)[prop];
+  },
+});
 
 const MODEL = "gemini-2.5-flash";
 
