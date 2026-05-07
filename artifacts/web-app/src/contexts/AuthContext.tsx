@@ -24,43 +24,56 @@ function isInIframe() {
   try { return window.self !== window.top; } catch { return true; }
 }
 
-function isMobile() {
+function isMobileBrowser() {
   return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]       = useState<User | null>(null);
+  const [user, setUser]   = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Process pending redirect result FIRST, before attaching auth state listener.
-    // This ensures redirect sign-in (used on mobile) is captured correctly.
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) setUser(result.user);
-      })
-      .catch(() => {})
-      .finally(() => {
-        const unsub = onAuthStateChanged(auth, (u) => {
-          setUser(u);
-          setLoading(false);
-        });
-        return unsub;
-      });
+    // 1. Set up auth state listener immediately — this is the source of truth.
+    //    It fires right away with the current user (or null) and on every change.
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setLoading(false);
+    });
+
+    // 2. Also consume any pending redirect result (from a previous signInWithRedirect call).
+    //    onAuthStateChanged will automatically fire when the redirect completes,
+    //    so we just need to call getRedirectResult to clear the pending state.
+    //    Errors here (e.g. auth/unauthorized-domain) are surfaced in the catch.
+    getRedirectResult(auth).catch(() => {});
+
+    // 3. Return the cleanup function — this is what React uses on unmount.
+    return unsub;
   }, []);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
-    // Mobile browsers block popups — use redirect.
-    // Inside Replit iframe (dev preview) — use popup (redirect can't complete in iframe).
-    // Desktop browsers outside iframe — use popup for instant UX.
-    if (isMobile() && !isInIframe()) {
-      await signInWithRedirect(auth, provider);
-      // Page will reload; getRedirectResult above handles the result.
-    } else {
+    // Inside Replit's dev iframe: only popup can work
+    // Mobile browsers: redirect works reliably; popups are blocked
+    // Desktop production: popup gives instant UX
+    if (isMobileBrowser() && !isInIframe()) {
+      // Redirect flow: page navigates to Google and back.
+      // getRedirectResult (in useEffect above) will handle the result.
+      return signInWithRedirect(auth, provider);
+    }
+
+    // Try popup. If blocked by browser, fall back to redirect automatically.
+    try {
       await signInWithPopup(auth, provider);
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code ?? "";
+      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
+        // Fall back to redirect when popup is blocked
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw err;
+      }
     }
   };
 

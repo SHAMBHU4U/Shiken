@@ -152,6 +152,11 @@ function AuthForm() {
     if (code.includes("weak-password")) return "Password must be at least 6 characters";
     if (code.includes("invalid-email")) return "Enter a valid email address";
     if (code.includes("too-many-requests")) return "Too many attempts — try again later";
+    if (code.includes("unauthorized-domain")) return "Domain not authorized in Firebase Console. Add this site's domain under Authentication → Authorized Domains.";
+    if (code.includes("popup-blocked")) return "Popup was blocked by your browser. Trying redirect…";
+    if (code.includes("cancelled-popup-request") || code.includes("popup-closed-by-user")) return "Sign-in cancelled. Please try again.";
+    if (code.includes("network-request-failed")) return "Network error. Check your internet connection.";
+    if (code) return `Sign-in error: ${code}`;
     return "Something went wrong. Please try again.";
   }
 
