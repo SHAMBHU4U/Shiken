@@ -32,6 +32,15 @@ pnpm workspace monorepo. The main product is **SHIKEN**, a student quiz app for 
 - Google Sign-In: `signInWithRedirect` in iframe, popup otherwise
 - `src/hooks/useSubscription.ts` — reads `/users/{uid}/subscriptionType` from Firebase DB; returns `{ subscription, isPremium, subLoading }`
 
+## Payment
+
+- **Razorpay** integrated in `src/pages/PricingPage.tsx`
+- Key: `rzp_live_SmHIAPIgMMiDhq` (public key, hardcoded in PricingPage)
+- Supports: UPI, Card, Net Banking via Razorpay checkout popup
+- On success: user record patched at `/users/{safeUid}` with `subscriptionType: "premium"`, `razorpayPaymentId`, `paymentVerified: true`
+- Admin notified via WhatsApp API (`/api/notify-whatsapp`) with payment ID
+- Razorpay JS loaded via `<script>` in `index.html`
+
 ## Freemium System
 
 ### Free Users

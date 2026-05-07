@@ -7,17 +7,37 @@ import { useSubscription } from "../hooks/useSubscription";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const API_BASE = import.meta.env.BASE_URL;
+const RAZORPAY_KEY = "rzp_live_SmHIAPIgMMiDhq";
 
-// UPI deep-link — ID is never rendered in the DOM
-function buildUpiLink(amount: number, note: string) {
-  const p = new URLSearchParams({
-    pa: atob("ODM0MDQ3MjAxM0BwdHllcw=="),
-    pn: "SHIKEN",
-    am: String(amount),
-    cu: "INR",
-    tn: note,
-  });
-  return `upi://pay?${p.toString()}`;
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  image?: string;
+  order_id?: string;
+  prefill?: { name?: string; email?: string; contact?: string };
+  theme?: { color?: string };
+  modal?: { ondismiss?: () => void };
+  handler: (response: RazorpayResponse) => void;
+}
+
+interface RazorpayResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id?: string;
+  razorpay_signature?: string;
+}
+
+interface RazorpayInstance {
+  open(): void;
+  on(event: string, handler: () => void): void;
 }
 
 const PLANS = [
@@ -62,16 +82,15 @@ const PLANS = [
   },
 ];
 
-type Plan = typeof PLANS[0];
+type Plan = (typeof PLANS)[0];
 
 const ADMIN_WA = "918340472013";
 
-function buildAdminWaLink(uid: string, plan: Plan) {
-  const msg = `Namaste! 🙏 Maine SHIKEN ${plan.name} (${plan.price}) ke liye UPI payment kar diya hai.\n\nMera User ID: ${uid}\n\nPlease verify karke premium activate kar dijiye. Dhanyawad! 🙏`;
+function buildAdminWaLink(uid: string, plan: Plan, paymentId: string) {
+  const msg = `Namaste! 🙏 Maine SHIKEN ${plan.name} (${plan.price}) ke liye Razorpay payment kar diya hai.\n\nMera User ID: ${uid}\nPayment ID: ${paymentId}\n\nPlease verify karke premium activate kar dijiye. Dhanyawad! 🙏`;
   return `https://wa.me/${ADMIN_WA}?text=${encodeURIComponent(msg)}`;
 }
 
-// ─── Payment bottom-sheet modal ────────────────────────────────────────────────
 function PaymentSheet({
   plan,
   onClose,
@@ -79,65 +98,99 @@ function PaymentSheet({
 }: {
   plan: Plan;
   onClose: () => void;
-  onSuccess: (uid: string) => void;
+  onSuccess: (uid: string, paymentId: string) => void;
 }) {
   const { user } = useAuth();
-  const [step, setStep] = useState<"pay" | "confirm" | "activating">("pay");
-  const [activating, setActivating] = useState(false);
-  const upiLink = buildUpiLink(plan.amount, `SHIKEN ${plan.name}`);
+  const [paying, setPaying] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleActivate() {
     if (!auth.currentUser) return;
-    setStep("activating");
-    setActivating(true);
-    try {
-      const uid = auth.currentUser.uid;
+    const uid = auth.currentUser.uid;
+    const safeId = uid.replace(/[.#$/[\]]/g, "_");
 
-      const [, phoneRes] = await Promise.all([
-        fetch(`${DB_URL}/users/${uid}.json`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            subscriptionType: "premium",
-            premiumUntil: Date.now() + plan.days * 86400000,
-            plan: plan.id,
-            activatedAt: Date.now(),
-            requestedAt: Date.now(),
-            paymentVerified: false,
-          }),
-        }),
-        fetch(`${DB_URL}/users/${uid}/phone.json`),
-      ]);
+    if (!window.Razorpay) {
+      setError("Razorpay failed to load. Please refresh and try again.");
+      return;
+    }
 
-      const phone: string | null = await phoneRes.json();
-      const verifyLink = `${window.location.origin}/admin?tab=payments`;
+    setPaying(true);
+    setError("");
 
-      const lines = [
-        `💳 New Premium Request!`,
-        ``,
-        `👤 UID: ${uid}`,
-        `📱 Phone: ${phone ?? "not saved"}`,
-        `📦 Plan: ${plan.name}`,
-        `💰 Amount: ${plan.price}`,
-        ``,
-        `✅ Verify now: ${verifyLink}`,
-      ];
-      const message = lines.join("\n");
+    const options: RazorpayOptions = {
+      key: RAZORPAY_KEY,
+      amount: plan.amount * 100,
+      currency: "INR",
+      name: "SHIKEN",
+      description: `${plan.name} — ${plan.period}`,
+      prefill: {
+        email: auth.currentUser.email ?? undefined,
+        name: auth.currentUser.displayName ?? undefined,
+      },
+      theme: { color: plan.accent },
+      modal: {
+        ondismiss: () => {
+          setPaying(false);
+        },
+      },
+      handler: async (response: RazorpayResponse) => {
+        try {
+          const paymentId = response.razorpay_payment_id;
 
-      await fetch(`${API_BASE}api/notify-whatsapp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
-      });
+          await fetch(`${DB_URL}/users/${safeId}.json`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              subscriptionType: "premium",
+              premiumUntil: Date.now() + plan.days * 86400000,
+              plan: plan.id,
+              activatedAt: Date.now(),
+              paymentVerified: true,
+              razorpayPaymentId: paymentId,
+            }),
+          });
 
-      onSuccess(uid);
-    } catch { /* ignore */ }
-    finally { setActivating(false); }
+          const phoneRes = await fetch(`${DB_URL}/users/${safeId}/phone.json`);
+          const phone: string | null = await phoneRes.json();
+          const verifyLink = `${window.location.origin}/admin?tab=payments`;
+
+          const lines = [
+            `💳 New Premium Payment (Razorpay)!`,
+            ``,
+            `👤 UID: ${uid}`,
+            `📱 Phone: ${phone ?? "not saved"}`,
+            `📦 Plan: ${plan.name}`,
+            `💰 Amount: ${plan.price}`,
+            `🔑 Payment ID: ${paymentId}`,
+            ``,
+            `✅ Verify now: ${verifyLink}`,
+          ];
+
+          await fetch(`${API_BASE}api/notify-whatsapp`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: lines.join("\n") }),
+          });
+
+          onSuccess(uid, paymentId);
+        } catch {
+          setError("Payment succeeded but activation failed. Contact support with your payment ID.");
+        } finally {
+          setPaying(false);
+        }
+      },
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.on("payment.failed", () => {
+      setError("Payment failed. Please try again.");
+      setPaying(false);
+    });
+    rzp.open();
   }
 
   return (
     <>
-      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -146,7 +199,6 @@ function PaymentSheet({
         className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm"
       />
 
-      {/* Sheet */}
       <motion.div
         initial={{ y: "100%", opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -160,12 +212,12 @@ function PaymentSheet({
           boxShadow: `0 -16px 64px ${plan.accent}25`,
         }}
       >
-        {/* Pull handle */}
         <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-5" />
 
-        {/* Plan summary */}
-        <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-2xl"
-          style={{ background: `${plan.accent}12`, border: `1px solid ${plan.accent}30` }}>
+        <div
+          className="flex items-center gap-3 mb-5 px-4 py-3 rounded-2xl"
+          style={{ background: `${plan.accent}12`, border: `1px solid ${plan.accent}30` }}
+        >
           <span className="text-3xl">{plan.emoji}</span>
           <div className="flex-1 min-w-0">
             <p className="text-white font-black text-base leading-tight">{plan.name}</p>
@@ -174,120 +226,96 @@ function PaymentSheet({
           <p className="font-black text-2xl shrink-0" style={{ color: plan.accent }}>{plan.price}</p>
         </div>
 
-        <AnimatePresence mode="wait">
-          {step === "pay" && (
-            <motion.div key="pay" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <p className="text-white/40 text-xs text-center mb-4">
-                नीचे button दबाओ — आपका UPI app खुलेगा (PhonePe / GPay / Paytm)
-              </p>
+        <p className="text-white/40 text-xs text-center mb-5">
+          Secure payment powered by Razorpay · UPI, Card, Net Banking supported
+        </p>
 
-              {/* UPI apps row */}
-              <div className="flex justify-center gap-4 mb-5">
-                {["📱 PhonePe", "🟡 GPay", "📲 Paytm"].map(app => (
-                  <div key={app} className="text-xs text-white/25 flex flex-col items-center gap-1">
-                    <span className="text-xl">{app.split(" ")[0]}</span>
-                    <span>{app.split(" ")[1]}</span>
-                  </div>
-                ))}
-              </div>
+        <div className="flex justify-center gap-5 mb-6">
+          {["💳 Card", "📱 UPI", "🏦 Net Banking"].map((m) => (
+            <div key={m} className="text-xs text-white/30 flex flex-col items-center gap-1">
+              <span className="text-lg">{m.split(" ")[0]}</span>
+              <span>{m.split(" ").slice(1).join(" ")}</span>
+            </div>
+          ))}
+        </div>
 
-              <motion.a
-                href={upiLink}
-                onClick={() => setTimeout(() => setStep("confirm"), 1800)}
-                whileTap={{ scale: 0.97 }}
-                className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-black text-base mb-3"
-                style={{
-                  background: `linear-gradient(135deg, ${plan.accent}, ${plan.id === "monthly" ? "#6366f1" : "#d97706"})`,
-                  color: "#000",
-                  boxShadow: `0 6px 32px ${plan.accent}50`,
-                }}
-              >
-                <span className="text-xl">💳</span>
-                Pay {plan.price} via UPI →
-              </motion.a>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 px-4 py-3 rounded-xl text-sm text-red-400 text-center"
+            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}
+          >
+            {error}
+          </motion.div>
+        )}
 
-              <button
-                onClick={() => setStep("confirm")}
-                className="w-full py-2 text-white/25 text-xs hover:text-white/50 transition-colors"
-              >
-                Already paid? Confirm here
-              </button>
-            </motion.div>
-          )}
-
-          {step === "confirm" && (
-            <motion.div key="confirm" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <div className="text-center mb-5">
+        {!user ? (
+          <a
+            href="/profile"
+            className="flex items-center justify-center w-full py-4 rounded-2xl font-black text-sm text-black"
+            style={{
+              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              boxShadow: "0 6px 28px rgba(251,191,36,0.4)",
+            }}
+          >
+            Sign in to Pay →
+          </a>
+        ) : (
+          <motion.button
+            onClick={handleActivate}
+            disabled={paying}
+            whileTap={{ scale: paying ? 1 : 0.97 }}
+            className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-black text-base mb-3"
+            style={{
+              background: paying
+                ? "rgba(139,92,246,0.3)"
+                : `linear-gradient(135deg, ${plan.accent}, ${plan.id === "monthly" ? "#6366f1" : "#d97706"})`,
+              color: paying ? "#fff" : "#000",
+              boxShadow: paying ? "none" : `0 6px 32px ${plan.accent}50`,
+              opacity: paying ? 0.8 : 1,
+            }}
+          >
+            {paying ? (
+              <>
                 <motion.div
-                  animate={{ scale: [1, 1.15, 1] }}
-                  transition={{ duration: 0.6, repeat: 2 }}
-                  className="text-4xl mb-2"
-                >✅</motion.div>
-                <p className="text-white font-bold text-sm">Payment हो गई?</p>
-                <p className="text-white/35 text-xs mt-1">
-                  Confirm करो — premium तुरंत activate होगा।
-                </p>
-              </div>
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                  className="w-4 h-4 rounded-full border-2 border-white/30"
+                  style={{ borderTopColor: "#fff" }}
+                />
+                Opening Payment…
+              </>
+            ) : (
+              <>
+                <span className="text-lg">💳</span>
+                Pay {plan.price} Securely
+              </>
+            )}
+          </motion.button>
+        )}
 
-              {!user ? (
-                <a href="/profile"
-                  className="flex items-center justify-center w-full py-4 rounded-2xl font-black text-sm text-black"
-                  style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 6px 28px rgba(251,191,36,0.4)" }}>
-                  Sign in to Activate →
-                </a>
-              ) : (
-                <motion.button
-                  onClick={handleActivate}
-                  disabled={activating}
-                  whileTap={{ scale: 0.97 }}
-                  className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black text-sm text-black"
-                  style={{
-                    background: "linear-gradient(135deg, #10b981, #059669)",
-                    boxShadow: "0 6px 28px rgba(16,185,129,0.4)",
-                    opacity: activating ? 0.7 : 1,
-                  }}
-                >
-                  {activating
-                    ? <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                        className="w-4 h-4 rounded-full border-2 border-black/30" style={{ borderTopColor: "#000" }} />
-                    : <>👑 हाँ, payment हो गई — Activate करो</>}
-                </motion.button>
-              )}
-
-              <button
-                onClick={() => setStep("pay")}
-                className="mt-3 w-full py-2 text-white/25 text-xs hover:text-white/50 transition-colors"
-              >
-                ← वापस जाओ
-              </button>
-            </motion.div>
-          )}
-
-          {step === "activating" && (
-            <motion.div key="activating" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-4">
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
-                className="w-10 h-10 rounded-full border-3 mx-auto mb-3"
-                style={{ border: `3px solid ${plan.accent}30`, borderTopColor: plan.accent }} />
-              <p className="text-white/50 text-sm">Submitting payment request…</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <p className="text-center text-white/20 text-xs mt-3">
+          🔒 100% secure · Razorpay PCI-DSS certified
+        </p>
       </motion.div>
     </>
   );
 }
 
-// ─── Main Pricing Page ─────────────────────────────────────────────────────────
 export default function PricingPage() {
   const [, navigate] = useLocation();
   const { isPremium } = useSubscription();
   const [payPlan, setPayPlan] = useState<Plan | null>(null);
-  const [success, setSuccess] = useState<{ plan: Plan; uid: string } | null>(null);
+  const [success, setSuccess] = useState<{ plan: Plan; uid: string; paymentId: string } | null>(null);
 
   if (success) {
-    const waLink = buildAdminWaLink(success.uid, success.plan);
+    const waLink = buildAdminWaLink(success.uid, success.plan, success.paymentId);
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-28" style={{ background: "#07080f" }}>
+      <div
+        className="min-h-screen flex flex-col items-center justify-center px-6 pb-28"
+        style={{ background: "#07080f" }}
+      >
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -298,19 +326,26 @@ export default function PricingPage() {
             animate={{ rotate: [0, -10, 10, -5, 5, 0], scale: [1, 1.2, 1.2, 1] }}
             transition={{ duration: 1.2, delay: 0.2 }}
             className="text-7xl mb-4 block"
-          >👑</motion.div>
+          >
+            👑
+          </motion.div>
           <h2 className="text-white font-black text-3xl mb-2">Premium Active!</h2>
-          <p className="text-white/50 text-sm mb-6 leading-relaxed">
-            {success.plan.period} का Premium अब activate हो गया।<br/>
+          <p className="text-white/50 text-sm mb-2 leading-relaxed">
+            {success.plan.period} का Premium अब activate हो गया।
+            <br />
             <span className="text-white/30 text-xs">All premium features unlocked 🎉</span>
           </p>
+          <p className="text-white/25 text-xs mb-6 font-mono">
+            Payment ID: {success.paymentId}
+          </p>
 
-          {/* Optional: notify admin */}
-          <div className="rounded-2xl p-4 mb-5 text-left"
-            style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}>
+          <div
+            className="rounded-2xl p-4 mb-5 text-left"
+            style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.2)" }}
+          >
             <p className="text-emerald-400 font-black text-xs mb-1.5">📩 Admin को Payment बताओ</p>
             <p className="text-white/40 text-xs mb-3 leading-relaxed">
-              Admin को UPI screenshot / reference भेजो ताकि वो payment confirm कर सकें।
+              Payment ID के साथ WhatsApp पर admin को message करो।
             </p>
             <motion.a
               href={waLink}
@@ -318,7 +353,11 @@ export default function PricingPage() {
               rel="noreferrer"
               whileTap={{ scale: 0.97 }}
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-bold text-sm"
-              style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.3)" }}
+              style={{
+                background: "rgba(34,197,94,0.15)",
+                color: "#22c55e",
+                border: "1px solid rgba(34,197,94,0.3)",
+              }}
             >
               💬 WhatsApp Admin
             </motion.a>
@@ -328,7 +367,10 @@ export default function PricingPage() {
             onClick={() => navigate("/")}
             whileTap={{ scale: 0.96 }}
             className="w-full py-4 rounded-2xl font-black text-base text-black"
-            style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 6px 32px rgba(251,191,36,0.4)" }}
+            style={{
+              background: "linear-gradient(135deg, #f59e0b, #d97706)",
+              boxShadow: "0 6px 32px rgba(251,191,36,0.4)",
+            }}
           >
             Start Learning 🚀
           </motion.button>
@@ -338,46 +380,57 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "#07080f" }}>
-      {/* Background glows */}
+    <div
+      className="min-h-screen w-full pb-32 relative overflow-hidden"
+      style={{ background: "#07080f" }}
+    >
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
-          style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
-        <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-8"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
+        <div
+          className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
+          style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }}
+        />
+        <div
+          className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-8"
+          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }}
+        />
       </div>
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-14">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="text-center mb-8"
         >
-          <button onClick={() => navigate(-1 as never)}
+          <button
+            onClick={() => navigate(-1 as never)}
             className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
-            style={{ background: "rgba(255,255,255,0.06)" }}>
+            style={{ background: "rgba(255,255,255,0.06)" }}
+          >
             ←
           </button>
           <motion.div
             animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
             transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
             className="text-4xl mb-3"
-          >👑</motion.div>
+          >
+            👑
+          </motion.div>
           <h1 className="text-white font-black text-2xl mb-1">SHIKEN Premium</h1>
           <p className="text-white/40 text-sm">Board exams तक unlimited access चाहिए?</p>
         </motion.div>
 
         {isPremium && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="mb-6 rounded-2xl p-4 text-center"
-            style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)" }}>
+            style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)" }}
+          >
             <p className="text-emerald-400 font-bold text-sm">✓ आप पहले से Premium Member हैं!</p>
           </motion.div>
         )}
 
-        {/* Plan cards */}
         <div className="flex flex-col gap-4 mb-8">
           {PLANS.map((plan, i) => (
             <motion.div
@@ -385,7 +438,7 @@ export default function PricingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.08 }}
-              className="rounded-2xl p-5 cursor-pointer"
+              className="rounded-2xl p-5"
               style={{
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
@@ -396,22 +449,33 @@ export default function PricingPage() {
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="text-white font-black text-base">{plan.name}</p>
                     {plan.tag && (
-                      <span className="text-xs font-black px-2 py-0.5 rounded-full"
-                        style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#000" }}>
+                      <span
+                        className="text-xs font-black px-2 py-0.5 rounded-full"
+                        style={{
+                          background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                          color: "#000",
+                        }}
+                      >
                         {plan.tag}
                       </span>
                     )}
                   </div>
                   <p className="text-white/40 text-xs">{plan.period} · {plan.perMonth}</p>
                 </div>
-                <p className="font-black text-2xl shrink-0" style={{ color: plan.accent }}>{plan.price}</p>
+                <p className="font-black text-2xl shrink-0" style={{ color: plan.accent }}>
+                  {plan.price}
+                </p>
               </div>
 
               <ul className="flex flex-col gap-1.5 mb-4">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-xs text-white/60">
-                    <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
-                      style={{ background: `${plan.accent}20`, color: plan.accent }}>✓</span>
+                    <span
+                      className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
+                      style={{ background: `${plan.accent}20`, color: plan.accent }}
+                    >
+                      ✓
+                    </span>
                     {f}
                   </li>
                 ))}
@@ -437,19 +501,31 @@ export default function PricingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="text-center text-white/20 text-xs pb-4"
+          className="text-center space-y-2 pb-4"
         >
-          Questions? <a href="https://wa.me/918340472013" className="text-white/40 underline">WhatsApp करो</a>
+          <div className="flex items-center justify-center gap-3 text-white/20 text-xs">
+            <span>🔒 Razorpay Secured</span>
+            <span>·</span>
+            <span>💳 Card / UPI / Net Banking</span>
+          </div>
+          <p className="text-white/20 text-xs">
+            Questions?{" "}
+            <a href="https://wa.me/918340472013" className="text-white/40 underline">
+              WhatsApp करो
+            </a>
+          </p>
         </motion.div>
       </div>
 
-      {/* Payment sheet portal */}
       <AnimatePresence>
         {payPlan && (
           <PaymentSheet
             plan={payPlan}
             onClose={() => setPayPlan(null)}
-            onSuccess={(uid) => { setSuccess({ plan: payPlan, uid }); setPayPlan(null); }}
+            onSuccess={(uid, paymentId) => {
+              setSuccess({ plan: payPlan, uid, paymentId });
+              setPayPlan(null);
+            }}
           />
         )}
       </AnimatePresence>
