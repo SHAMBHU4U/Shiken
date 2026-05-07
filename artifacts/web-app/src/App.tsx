@@ -15,6 +15,7 @@ import LeaderboardPage from "@/pages/LeaderboardPage";
 import PricingPage from "@/pages/PricingPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
+import QuestionAdminPage from "@/pages/QuestionAdminPage";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
@@ -880,6 +881,7 @@ function AppRoutes() {
         <Route path="/pricing" component={PricingPage} />
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/terms" component={TermsPage} />
+        <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
         <Route path="/:subject" component={SubjectPage} />
       </Switch>
       <BottomNav />
