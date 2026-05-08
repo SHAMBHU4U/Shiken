@@ -718,6 +718,8 @@ function Dashboard() {
   const [, navigate] = useLocation();
   const [username, setUsername] = useState(getStoredUsername);
   const hasName = username !== "";
+  const [selectedClass, setSelectedClass] = useState(() => localStorage.getItem(CLASS_KEY) ?? "10");
+  const activeSubjects = selectedClass === "12" ? class12Subjects : subjects;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
@@ -793,7 +795,7 @@ function Dashboard() {
               style={{ background: "#a78bfa" }}
             />
             <span className="text-violet-300 text-[11px] font-bold tracking-[0.18em] uppercase">
-              Bihar Board Class 10 · AI Powered
+              Bihar Board Class {selectedClass} · AI Powered
             </span>
           </motion.div>
 
@@ -829,10 +831,35 @@ function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="text-white/35 text-sm font-medium mb-5"
+            className="text-white/35 text-sm font-medium mb-4"
           >
-            Choose your subject and start learning
+            Choose your class and subject
           </motion.p>
+
+          {/* Class toggle */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="flex items-center gap-3 justify-center"
+          >
+            {(["10", "12"] as const).map((cls) => (
+              <button
+                key={cls}
+                onClick={() => { setSelectedClass(cls); localStorage.setItem(CLASS_KEY, cls); }}
+                className="px-7 py-2.5 rounded-xl text-sm font-black transition-all"
+                style={{
+                  background: selectedClass === cls
+                    ? "linear-gradient(135deg, #8b5cf6, #6366f1)"
+                    : "rgba(255,255,255,0.06)",
+                  color: selectedClass === cls ? "#fff" : "rgba(255,255,255,0.4)",
+                  border: `1px solid ${selectedClass === cls ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.08)"}`,
+                  boxShadow: selectedClass === cls ? "0 4px 20px rgba(139,92,246,0.35)" : "none",
+                }}
+              >
+                Class {cls}
+              </button>
+            ))}
+          </motion.div>
 
         </motion.div>
 
@@ -841,12 +868,13 @@ function Dashboard() {
         }} />
 
         <div id="subject-cards" className="flex flex-col gap-4">
-          {subjects.map((subject, index) => (
+          {activeSubjects.map((subject, index) => (
             <SubjectCard
               key={subject.id}
               subject={subject}
               index={index}
-              onClick={() => navigate(`/${subject.id}`)}
+              classId={selectedClass}
+              onClick={() => navigate(`/c${selectedClass}/${subject.id}`)}
             />
           ))}
         </div>
@@ -896,6 +924,8 @@ function AppRoutes() {
         <Route path="/privacy" component={PrivacyPage} />
         <Route path="/terms" component={TermsPage} />
         <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
+        <Route path="/c10/:subject" component={SubjectPage} />
+        <Route path="/c12/:subject" component={SubjectPage} />
         <Route path="/:subject" component={SubjectPage} />
       </Switch>
       <BottomNav />

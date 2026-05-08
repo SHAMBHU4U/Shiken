@@ -481,7 +481,7 @@ function ProgressChart({ records, accent }: { records: TestRecord[]; accent: str
 
 function ModeSelect({
   meta, subject, totalCount, savedProgress, onFull, onChapterWise, onAI, onSaved, onResume, savedCount, history,
-  isPremium, onMiniTest, onUpgrade,
+  isPremium, onMiniTest, onUpgrade, hasUsedFreeFull,
 }: {
   meta: { label: string; labelHindi?: string; icon: string; accent: string };
   subject: string;
@@ -497,6 +497,7 @@ function ModeSelect({
   isPremium: boolean;
   onMiniTest: () => void;
   onUpgrade: () => void;
+  hasUsedFreeFull: boolean;
 }) {
   const modes = [
     {
@@ -512,14 +513,20 @@ function ModeSelect({
     {
       id: "full",
       title: "Full Length Test",
-      subtitle: isPremium ? `25 DB + 25 AI questions (50 total)` : "50 questions — Premium only",
+      subtitle: isPremium
+        ? `25 DB + 25 AI questions (50 total)`
+        : !hasUsedFreeFull
+          ? "1 Free Test Available! · 50 questions"
+          : "Upgrade for unlimited tests",
       icon: "🎯",
       desc: isPremium
         ? "Covers entire syllabus with AI-generated questions. ⏱ 60 min"
-        : "Upgrade to Premium to unlock full AI-powered 50-question tests.",
-      onClick: isPremium ? onFull : onUpgrade,
-      glowColor: isPremium ? meta.accent : "#fbbf24",
-      locked: !isPremium,
+        : !hasUsedFreeFull
+          ? "Try your first Full Length Test free! Includes AI-generated questions. ⏱ 60 min"
+          : "You've used your 1 free test. Upgrade to Premium for unlimited AI-powered tests.",
+      onClick: (isPremium || !hasUsedFreeFull) ? onFull : onUpgrade,
+      glowColor: (isPremium || !hasUsedFreeFull) ? meta.accent : "#fbbf24",
+      locked: !isPremium && hasUsedFreeFull,
     },
     {
       id: "chapter",
@@ -1801,6 +1808,11 @@ export default function SubjectPage() {
     setTimerLeft(FULL_TIMER);
     setTimerHidden(false);
     saveProgress(subject, { mode: "full", chapter: "All Chapters", questions: combined, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: FULL_TIMER });
+    // Mark free full test as used (1 free test per class+subject)
+    if (!isSubjectPrem) {
+      localStorage.setItem(fullTestKey, "used");
+      setHasUsedFreeFull(true);
+    }
     setScreen("quiz");
   }
 
@@ -2085,9 +2097,10 @@ export default function SubjectPage() {
           onResume={handleResume}
           savedCount={bookmarks.length}
           history={subjectHistory}
-          isPremium={isPremium}
+          isPremium={isSubjectPrem}
           onMiniTest={() => setScreen("mini-chapter-select")}
           onUpgrade={() => setUpgradeOpen(true)}
+          hasUsedFreeFull={hasUsedFreeFull}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
       </>

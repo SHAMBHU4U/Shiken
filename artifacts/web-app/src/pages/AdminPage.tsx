@@ -1982,6 +1982,207 @@ function PDFImportPanel() {
   );
 }
 
+// ─── Upload Panel ─────────────────────────────────────────────────────────────
+
+const UPLOAD_SUBJECTS: Record<string, { label: string; path: string; accent: string }> = {
+  // Class 10
+  maths:    { label: "Maths (C10)",          path: "maths",            accent: "#06b6d4" },
+  english:  { label: "English (C10)",        path: "english",          accent: "#8b5cf6" },
+  hindi:    { label: "Hindi (C10)",           path: "hindi",            accent: "#f97316" },
+  science:  { label: "Science (C10)",        path: "science",          accent: "#10b981" },
+  social:   { label: "Social Science (C10)", path: "social science",   accent: "#f59e0b" },
+  sanskrit: { label: "Sanskrit (C10)",       path: "sanskrit",         accent: "#ec4899" },
+  // Class 12
+  physics:   { label: "Physics (C12)",       path: "class12/physics",   accent: "#3b82f6" },
+  chemistry: { label: "Chemistry (C12)",     path: "class12/chemistry", accent: "#10b981" },
+  biology:   { label: "Biology (C12)",       path: "class12/biology",   accent: "#22c55e" },
+  maths12:   { label: "Maths (C12)",         path: "class12/maths",     accent: "#06b6d4" },
+  social12:  { label: "Social (C12)",        path: "class12/social",    accent: "#f59e0b" },
+  hindi12:   { label: "Hindi (C12)",         path: "class12/hindi",     accent: "#f97316" },
+  english12: { label: "English (C12)",       path: "class12/english",   accent: "#8b5cf6" },
+};
+
+function UploadPanel() {
+  const [subjectId, setSubjectId] = useState("maths");
+  const [mode, setMode]   = useState<"single" | "bulk">("single");
+  const [chapter, setChapter] = useState("");
+  const [qEn, setQEn] = useState("");
+  const [qHi, setQHi] = useState("");
+  const [opts, setOpts] = useState(["", "", "", ""]);
+  const [correct, setCorrect] = useState(0);
+  const [bulkJson, setBulkJson] = useState("");
+  const [status, setStatus] = useState<{ type: "idle" | "ok" | "err"; msg: string }>({ type: "idle", msg: "" });
+  const [saving, setSaving] = useState(false);
+
+  const subject = UPLOAD_SUBJECTS[subjectId];
+  const accent  = subject?.accent ?? "#8b5cf6";
+
+  async function uploadQuestions(questions: Array<{ english: string; hindi: string; options: string[]; answerIndex: number; chapter: string }>) {
+    setSaving(true);
+    setStatus({ type: "idle", msg: "" });
+    const dbPath = subject.path.toLowerCase();
+    const encoded = dbPath.split("/").map(encodeURIComponent).join("/");
+    const url = `${DB_URL}/${encoded}.json`;
+    let successCount = 0;
+    for (const q of questions) {
+      const payload = {
+        question_english: q.english,
+        question_hindi:   q.hindi,
+        options: { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] },
+        correct_answer: ["A","B","C","D"][q.answerIndex] ?? "A",
+        chapter_name: q.chapter || "General",
+      };
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) successCount++;
+    }
+    setSaving(false);
+    if (successCount === questions.length) {
+      setStatus({ type: "ok", msg: `✅ ${successCount} question${successCount !== 1 ? "s" : ""} uploaded to "${subject.path}"!` });
+    } else {
+      setStatus({ type: "err", msg: `⚠️ ${successCount}/${questions.length} uploaded. Check your Firebase rules.` });
+    }
+  }
+
+  async function handleSingleUpload() {
+    if (!qEn.trim() || opts.some(o => !o.trim()) || !chapter.trim()) {
+      setStatus({ type: "err", msg: "Please fill in all fields (Question, all 4 options, chapter)." });
+      return;
+    }
+    await uploadQuestions([{ english: qEn.trim(), hindi: qHi.trim(), options: opts.map(o => o.trim()), answerIndex: correct, chapter: chapter.trim() }]);
+    setQEn(""); setQHi(""); setOpts(["","","",""]); setCorrect(0);
+  }
+
+  async function handleBulkUpload() {
+    let parsed: Array<{ english: string; hindi?: string; options: string[]; answerIndex?: number; correct_answer?: string; chapter?: string }>;
+    try {
+      parsed = JSON.parse(bulkJson);
+      if (!Array.isArray(parsed)) throw new Error("Not an array");
+    } catch {
+      setStatus({ type: "err", msg: "Invalid JSON. Must be an array of question objects." });
+      return;
+    }
+    const qs = parsed.map(q => ({
+      english:    String(q.english ?? ""),
+      hindi:      String(q.hindi ?? ""),
+      options:    (Array.isArray(q.options) ? q.options : []).map(String).slice(0, 4),
+      answerIndex: typeof q.answerIndex === "number" ? q.answerIndex
+        : (typeof q.correct_answer === "string" ? "ABCD".indexOf(q.correct_answer.toUpperCase()) : 0),
+      chapter:    String(q.chapter ?? "General"),
+    })).filter(q => q.english && q.options.length === 4);
+    if (qs.length === 0) {
+      setStatus({ type: "err", msg: "No valid questions found. Each must have english, options (4 items)." });
+      return;
+    }
+    await uploadQuestions(qs);
+    setBulkJson("");
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <p className="text-white/40 text-xs mb-2">Select subject:</p>
+        <div className="grid grid-cols-2 gap-2">
+          {Object.entries(UPLOAD_SUBJECTS).map(([id, s]) => (
+            <button key={id} onClick={() => setSubjectId(id)}
+              className="py-2 px-3 rounded-xl text-xs font-semibold text-left transition-all"
+              style={{
+                background: subjectId === id ? `${s.accent}25` : "rgba(255,255,255,0.04)",
+                border: `1px solid ${subjectId === id ? s.accent : "rgba(255,255,255,0.08)"}`,
+                color: subjectId === id ? s.accent : "rgba(255,255,255,0.5)",
+              }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        {(["single", "bulk"] as const).map((m) => (
+          <button key={m} onClick={() => setMode(m)}
+            className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+            style={{
+              background: mode === m ? `${accent}25` : "rgba(255,255,255,0.05)",
+              border: `1px solid ${mode === m ? accent : "rgba(255,255,255,0.08)"}`,
+              color: mode === m ? accent : "rgba(255,255,255,0.4)",
+            }}>
+            {m === "single" ? "✏️ One-by-One" : "📋 Bulk JSON"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "single" && (
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-white/40 text-xs mb-1">Chapter name</p>
+            <input value={chapter} onChange={e => setChapter(e.target.value)} placeholder="e.g. Trigonometry"
+              className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none" />
+          </div>
+          <div>
+            <p className="text-white/40 text-xs mb-1">Question (English)</p>
+            <textarea value={qEn} onChange={e => setQEn(e.target.value)} rows={2} placeholder="Question in English..."
+              className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none resize-none" />
+          </div>
+          <div>
+            <p className="text-white/40 text-xs mb-1">Question (Hindi) — optional</p>
+            <textarea value={qHi} onChange={e => setQHi(e.target.value)} rows={2} placeholder="प्रश्न हिंदी में..."
+              className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none resize-none" />
+          </div>
+          {["A","B","C","D"].map((ltr, i) => (
+            <div key={ltr} className="flex items-center gap-2">
+              <button onClick={() => setCorrect(i)}
+                className="w-7 h-7 rounded-lg text-xs font-black shrink-0 transition-all"
+                style={{ background: correct === i ? `${accent}30` : "rgba(255,255,255,0.06)", color: correct === i ? accent : "rgba(255,255,255,0.35)", border: `1px solid ${correct === i ? accent : "rgba(255,255,255,0.1)"}` }}>
+                {ltr}
+              </button>
+              <input value={opts[i]} onChange={e => setOpts(opts.map((o, j) => j === i ? e.target.value : o))}
+                placeholder={`Option ${ltr}`}
+                className="flex-1 px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none" />
+            </div>
+          ))}
+          <p className="text-white/30 text-xs">Tap A/B/C/D button to mark correct answer. Currently: <span style={{ color: accent }}>{["A","B","C","D"][correct]}</span></p>
+          <motion.button onClick={handleSingleUpload} disabled={saving} whileTap={{ scale: 0.97 }}
+            className="w-full py-3 rounded-xl font-bold text-sm"
+            style={{ background: saving ? "rgba(255,255,255,0.06)" : `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>
+            {saving ? "Uploading…" : `📤 Upload Question to ${subject.label}`}
+          </motion.button>
+        </div>
+      )}
+
+      {mode === "bulk" && (
+        <div className="flex flex-col gap-3">
+          <p className="text-white/40 text-xs leading-relaxed">
+            Paste a JSON array. Each item: <span className="text-white/60 font-mono text-xs">{"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter"{"}"}</span>
+          </p>
+          <textarea value={bulkJson} onChange={e => setBulkJson(e.target.value)} rows={10}
+            placeholder={`[\n  {\n    "english": "What is 2+2?",\n    "hindi": "2+2 क्या है?",\n    "options": ["3","4","5","6"],\n    "answerIndex": 1,\n    "chapter": "Numbers"\n  }\n]`}
+            className="w-full px-3 py-2 rounded-xl text-xs text-white/80 font-mono bg-white/5 border border-white/10 outline-none resize-none" />
+          <motion.button onClick={handleBulkUpload} disabled={saving} whileTap={{ scale: 0.97 }}
+            className="w-full py-3 rounded-xl font-bold text-sm"
+            style={{ background: saving ? "rgba(255,255,255,0.06)" : `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>
+            {saving ? "Uploading…" : `📤 Validate & Upload to ${subject.label}`}
+          </motion.button>
+        </div>
+      )}
+
+      {status.type !== "idle" && (
+        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-3 rounded-xl text-sm text-center font-semibold"
+          style={{
+            background: status.type === "ok" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.1)",
+            border: `1px solid ${status.type === "ok" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.25)"}`,
+            color: status.type === "ok" ? "#10b981" : "#ef4444",
+          }}>
+          {status.msg}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
 export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
@@ -1994,9 +2195,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload">(initialTab);
   const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {
@@ -2199,6 +2400,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "bank" && (
             <motion.div key="bank" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <QuestionsBankPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "upload" && (
+            <motion.div key="upload" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <UploadPanel />
             </motion.div>
           )}
         </AnimatePresence>

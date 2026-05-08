@@ -21,8 +21,10 @@ pnpm workspace monorepo. The main product is **SHIKEN**, a student quiz app for 
 - DB URL: `https://shiken-d8789-default-rtdb.firebaseio.com`
 - Storage Bucket: `shiken-d8789.firebasestorage.app`
 - Exports from `src/firebase.ts`: `db`, `auth`, `storage`
-- Subject paths: `maths`, `english`, `hindi`, `science`, `social%20science`, `sanskrit`
+- Class 10 subject paths: `maths`, `english`, `hindi`, `science`, `social%20science`, `sanskrit`
+- Class 12 subject paths: `class12/physics`, `class12/chemistry`, `class12/biology`, `class12/maths`, `class12/social`, `class12/hindi`, `class12/english`
 - Subscription type stored at: `/users/{uid}/subscriptionType` = "free" | "premium"
+- Premium subjects stored at: `/users/{uid}/premiumSubjects` = [] (all) | ["physics"] (single-subject)
 - Explanations cached at: `/explanations/{subject}/{cacheKey}`
 - AI questions pushed to: `/{subject}` with `chapter: "AI Generated"`
 
@@ -41,10 +43,20 @@ pnpm workspace monorepo. The main product is **SHIKEN**, a student quiz app for 
 - Admin notified via WhatsApp API (`/api/notify-whatsapp`) with payment ID
 - Razorpay JS loaded via `<script>` in `index.html`
 
+## Class Selector
+
+- Dashboard has Class 10 / Class 12 toggle (persisted in `localStorage.shiken_class`)
+- Class 10 routes: `/c10/:subject` (also backward-compat `/:subject`)
+- Class 12 routes: `/c12/:subject`
+- Class 12 subjects: physics, chemistry, biology, maths, social, hindi, english
+- SubjectPage derives `classId` from `location.startsWith("/c12/")`, uses `class12SubjectMeta`
+- Firebase path encoding: `dbPath.split("/").map(encodeURIComponent).join("/")` — handles spaces and slashes
+
 ## Freemium System
 
 ### Free Users
-- Can only access **Mini Test** (10 random questions from DB, 10 min)
+- **Mini Test**: unlimited (10 random questions, 10 min)
+- **1 Free Full Test** per subject (tracked in `localStorage.shiken_free_full_used_${classId}_${subject}`)
 
 ### Premium Users
 - **Full Length Test**: 25 DB questions + 25 Gemini AI-generated = 50 questions (60 min)
