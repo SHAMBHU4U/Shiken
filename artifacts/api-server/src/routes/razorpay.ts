@@ -18,7 +18,6 @@ function getRazorpayClient(): Razorpay {
 }
 
 // ─── POST /api/razorpay/create-order ─────────────────────────────────────────
-// Creates a Razorpay order. Coupon discount logic is plugged in here.
 router.post("/razorpay/create-order", async (req, res) => {
   try {
     const { amount, planId, uid, couponCode } = req.body;
@@ -27,42 +26,36 @@ router.post("/razorpay/create-order", async (req, res) => {
       return res.status(400).json({ ok: false, error: "amount, planId, and uid are required" });
     }
 
-    // ── Coupon discount logic (extend this block later) ───────────────────────
     let finalAmount = Number(amount);
     let discount    = 0;
     let couponApplied = false;
 
     if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
       const code = couponCode.trim().toUpperCase();
-
-      // Example coupons — replace or extend with DB lookup as needed
       const COUPONS: Record<string, { type: "flat" | "percent"; value: number }> = {
         // "SHIKEN10": { type: "percent", value: 10 },
-        // "FLAT20":   { type: "flat",    value: 20  },
       };
-
       const coupon = COUPONS[code];
       if (coupon) {
         discount = coupon.type === "percent"
           ? Math.round((finalAmount * coupon.value) / 100)
           : coupon.value;
-        finalAmount = Math.max(1, finalAmount - discount); // minimum ₹1
+        finalAmount = Math.max(1, finalAmount - discount);
         couponApplied = true;
       }
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
     const razorpay = getRazorpayClient();
 
     const order = await razorpay.orders.create({
-      amount:   finalAmount * 100,   // Razorpay expects paise
+      amount:   finalAmount * 100,
       currency: "INR",
       receipt:  `shiken_${planId}_${Date.now()}`,
       notes: {
         uid,
         planId,
-        couponCode:   couponCode ?? "",
-        discount:     String(discount),
+        couponCode:    couponCode ?? "",
+        discount:      String(discount),
         couponApplied: String(couponApplied),
       },
     });
@@ -84,7 +77,7 @@ router.post("/razorpay/create-order", async (req, res) => {
 });
 
 // ─── POST /api/razorpay/verify-payment ────────────────────────────────────────
-// Verifies the Razorpay signature, then updates Firebase on success.
+// planSubject: if present, sets per-subject premium instead of all-subjects
 router.post("/razorpay/verify-payment", async (req, res) => {
   try {
     const {
@@ -94,19 +87,19 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       uid,
       planId,
       days,
+      planSubject,  // optional — set for single-subject plans
     } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !uid || !planId || !days) {
       return res.status(400).json({ ok: false, error: "Missing required fields" });
     }
 
-    // ── Signature verification ────────────────────────────────────────────────
     const secret = process.env["RAZORPAY_KEY_SECRET"];
     if (!secret) {
       return res.status(500).json({ ok: false, error: "Server misconfigured: missing key secret" });
     }
 
-    const body             = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const body              = `${razorpay_order_id}|${razorpay_payment_id}`;
     const expectedSignature = crypto
       .createHmac("sha256", secret)
       .update(body)
@@ -116,41 +109,61 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       logger.warn({ uid, razorpay_payment_id }, "Razorpay signature mismatch — possible fraud attempt");
       return res.status(400).json({ ok: false, error: "Payment verification failed: invalid signature" });
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
-    // ── Firebase update ───────────────────────────────────────────────────────
     const safeId = String(uid).replace(/[.#$/[\]]/g, "_");
+
+    // ── Fetch existing premiumSubjects so we can append ───────────────────────
+    let existingSubjects: string[] = [];
+    if (planSubject) {
+      try {
+        const existing = await fetch(`${DB_URL}/users/${safeId}/premiumSubjects.json`);
+        const data = await existing.json();
+        if (Array.isArray(data)) existingSubjects = data;
+        else if (data && typeof data === "object") existingSubjects = Object.values(data);
+      } catch { /* ignore — just use empty */ }
+    }
+
+    // Build the Firebase update payload
+    const firebasePayload: Record<string, unknown> = {
+      subscriptionType:  "premium",
+      premiumUntil:      Date.now() + Number(days) * 86_400_000,
+      plan:              planId,
+      activatedAt:       Date.now(),
+      paymentVerified:   true,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpayOrderId:   razorpay_order_id,
+      purchased_tests: {
+        [planId]: {
+          active:      true,
+          activatedAt: Date.now(),
+          expiresAt:   Date.now() + Number(days) * 86_400_000,
+          paymentId:   razorpay_payment_id,
+        },
+      },
+    };
+
+    // For single-subject plans: accumulate premiumSubjects array
+    // For all-subjects plans: clear premiumSubjects so isSubjectPremium returns true for all
+    if (planSubject && typeof planSubject === "string") {
+      const merged = Array.from(new Set([...existingSubjects, planSubject]));
+      firebasePayload.premiumSubjects = merged;
+    } else {
+      // all-subjects plan — clear any subject restrictions
+      firebasePayload.premiumSubjects = [];
+    }
 
     const firebaseRes = await fetch(`${DB_URL}/users/${safeId}.json`, {
       method:  "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        subscriptionType:   "premium",
-        premiumUntil:       Date.now() + Number(days) * 86_400_000,
-        plan:               planId,
-        activatedAt:        Date.now(),
-        paymentVerified:    true,
-        razorpayPaymentId:  razorpay_payment_id,
-        razorpayOrderId:    razorpay_order_id,
-        // purchased_tests field — access gate for test content
-        purchased_tests: {
-          [planId]: {
-            active:     true,
-            activatedAt: Date.now(),
-            expiresAt:  Date.now() + Number(days) * 86_400_000,
-            paymentId:  razorpay_payment_id,
-          },
-        },
-      }),
+      body:    JSON.stringify(firebasePayload),
     });
 
     if (!firebaseRes.ok) {
       logger.error({ uid, status: firebaseRes.status }, "Firebase update failed after verified payment");
       return res.status(502).json({ ok: false, error: "Payment verified but Firebase update failed — contact support" });
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
-    logger.info({ uid, planId, razorpay_payment_id }, "Payment verified and Firebase updated");
+    logger.info({ uid, planId, planSubject, razorpay_payment_id }, "Payment verified and Firebase updated");
 
     return res.json({ ok: true, paymentId: razorpay_payment_id });
   } catch (err: unknown) {

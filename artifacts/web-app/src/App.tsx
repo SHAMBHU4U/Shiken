@@ -488,16 +488,30 @@ const subjects = [
   { id: "sanskrit", label: "Sanskrit",        labelHindi: "संस्कृत",             gradient: "from-pink-500/30 to-rose-600/30",    border: "border-pink-400/30",    accent: "#ec4899" },
 ];
 
+const class12Subjects = [
+  { id: "physics",   label: "Physics",        labelHindi: "भौतिकी",          gradient: "from-blue-500/30 to-indigo-600/30",   border: "border-blue-400/30",    accent: "#3b82f6" },
+  { id: "chemistry", label: "Chemistry",      labelHindi: "रसायन विज्ञान",   gradient: "from-emerald-500/30 to-teal-600/30", border: "border-emerald-400/30", accent: "#10b981" },
+  { id: "biology",   label: "Biology",        labelHindi: "जीव विज्ञान",     gradient: "from-green-500/30 to-lime-600/30",   border: "border-green-400/30",   accent: "#22c55e" },
+  { id: "maths",     label: "Maths",          labelHindi: "गणित",            gradient: "from-cyan-500/30 to-blue-600/30",    border: "border-cyan-400/30",    accent: "#06b6d4" },
+  { id: "social",    label: "Social Science", labelHindi: "सामाजिक विज्ञान", gradient: "from-amber-500/30 to-yellow-600/30", border: "border-amber-400/30",   accent: "#f59e0b" },
+  { id: "hindi",     label: "Hindi",          labelHindi: "हिंदी",            gradient: "from-orange-500/30 to-red-600/30",   border: "border-orange-400/30",  accent: "#f97316" },
+  { id: "english",   label: "English",        labelHindi: "अंग्रेज़ी",        gradient: "from-violet-500/30 to-purple-700/30",border: "border-violet-400/30",  accent: "#8b5cf6" },
+];
+
+const CLASS_KEY = "shiken_class";
+
 type Ripple = { id: number; x: number; y: number; color: string };
 
 function SubjectCard({
   subject,
   index,
   onClick,
+  classId,
 }: {
   subject: (typeof subjects)[0];
   index: number;
   onClick: () => void;
+  classId?: string;
 }) {
   const [ripples, setRipples] = useState<Ripple[]>([]);
 
@@ -560,7 +574,7 @@ function SubjectCard({
           <SubjectIcon id={subject.id} color={subject.accent} />
         </motion.div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">Bihar Board Class 10</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">Bihar Board Class {classId ?? "10"}</p>
           <h3 className="text-xl font-black text-white leading-tight">{subject.label}</h3>
           <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}cc` }}>{subject.labelHindi}</p>
         </div>
@@ -631,7 +645,7 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
 function BottomNav() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
-  const isQuiz  = QUIZ_SLUGS.some((s) => location === `/${s}`);
+  const isQuiz  = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/");
   const isAdmin = location === "/admin";
   if (isQuiz || isAdmin) return null;
 

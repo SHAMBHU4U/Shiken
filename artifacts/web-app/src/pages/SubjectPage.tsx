@@ -68,6 +68,16 @@ const subjectMeta: Record<string, { label: string; labelHindi: string; icon: str
   sanskrit:{ label: "Sanskrit",       labelHindi: "संस्कृत",           icon: "📜", accent: "#ec4899", path: "sanskrit"       },
 };
 
+const class12SubjectMeta: Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }> = {
+  physics:   { label: "Physics",        labelHindi: "भौतिकी",          icon: "⚡", accent: "#3b82f6", path: "class12/physics"   },
+  chemistry: { label: "Chemistry",      labelHindi: "रसायन विज्ञान",   icon: "⚗️", accent: "#10b981", path: "class12/chemistry" },
+  biology:   { label: "Biology",        labelHindi: "जीव विज्ञान",     icon: "🌿", accent: "#22c55e", path: "class12/biology"   },
+  maths:     { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "class12/maths"     },
+  social:    { label: "Social Science", labelHindi: "सामाजिक विज्ञान", icon: "🌍", accent: "#f59e0b", path: "class12/social"    },
+  hindi:     { label: "Hindi",          labelHindi: "हिंदी",            icon: "🔤", accent: "#f97316", path: "class12/hindi"     },
+  english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "📖", accent: "#8b5cf6", path: "class12/english"   },
+};
+
 interface Question {
   english: string;
   hindi: string;
@@ -1477,9 +1487,13 @@ type Screen = "loading" | "mode-select" | "mini-chapter-select" | "chapter-selec
 
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const classId = location.startsWith("/c12/") ? "12" : "10";
   const subject = params.subject ?? "";
-  const meta    = subjectMeta[subject];
+  const meta    = classId === "12"
+    ? (class12SubjectMeta[subject] ?? subjectMeta[subject])
+    : subjectMeta[subject];
+  const fullTestKey = `shiken_free_full_used_${classId}_${subject}`;
 
   // All questions fetched from Firebase (or demo)
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
@@ -1523,8 +1537,10 @@ export default function SubjectPage() {
   const refreshHistory = () => setSubjectHistory(loadHistory(subject));
 
   // Subscription & upgrade modal
-  const { isPremium, isTopper } = useSubscription();
+  const { isPremium, isTopper, isSubjectPremium } = useSubscription();
+  const isSubjectPrem = isSubjectPremium(subject);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [hasUsedFreeFull, setHasUsedFreeFull] = useState(() => localStorage.getItem(fullTestKey) === "used");
 
   // Comprehension passage state
   const [passageTitle,       setPassageTitle]       = useState("");
@@ -1610,7 +1626,9 @@ export default function SubjectPage() {
     setScreen("loading");
     const controller = new AbortController();
     const dbPath = meta.path.toLowerCase(); // always lowercase; "social science" keeps its space
-    const dbUrl  = `https://shiken-d8789-default-rtdb.firebaseio.com/${encodeURIComponent(dbPath)}.json`;
+    // Encode each path segment so "social science" → "social%20science"
+    // and "class12/physics" keeps its slash as a real path separator
+    const dbUrl  = `https://shiken-d8789-default-rtdb.firebaseio.com/${dbPath.split("/").map(encodeURIComponent).join("/")}.json`;
 
     fetch(dbUrl, { signal: controller.signal })
       .then((r) => r.json())

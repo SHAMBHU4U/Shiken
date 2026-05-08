@@ -2100,6 +2100,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "cache",     label: "🗄️ Cache",    badge: 0 },
             { id: "pdf",       label: "📄 PDF",      badge: 0 },
             { id: "bank",      label: "📚 Bank",     badge: 0 },
+            { id: "upload",    label: "📤 Upload",   badge: 0 },
           ] as const).map(({ id, label, badge }) => (
             <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
               className="flex-1 py-2 rounded-lg text-xs font-bold transition-all relative"
