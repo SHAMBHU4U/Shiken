@@ -33,8 +33,9 @@ args = "PORT=22965 BASE_PATH=/ pnpm --filter @workspace/web-app run dev"
 waitForPort = 22965
 
 [agent]
-stack = "PNPM_WORKSPACE"
+stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
+integrations = ["javascript_gemini_ai_integrations:2.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -63,5 +64,6 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-RAZORPAY_KEY_ID = "rzp_live_SmHIAPIgMMiDhq"
-RAZORPAY_KEY_SECRET = "tU5SKsOe9RV85GoHOxyJP4lH"
+
+[nix]
+channel = "stable-25_05"
