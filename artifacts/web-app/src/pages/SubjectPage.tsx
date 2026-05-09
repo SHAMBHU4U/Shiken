@@ -11,8 +11,10 @@ import ExplainText from "@/components/ExplainText";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
+import { normalizeChapter, getCanonicalChapters } from "@/lib/chapterMap";
 
 const CHAPTER_ICONS: Record<string, string> = {
+  // Language / Generic
   "Grammar":         "📝",
   "Prose":           "📖",
   "Poetry":          "🎭",
@@ -22,16 +24,131 @@ const CHAPTER_ICONS: Record<string, string> = {
   "Writing Skills":  "✍️",
   "General":         "📚",
   "AI Generated":    "🤖",
-  "Numbers":         "🔢",
-  "Geometry":        "📐",
-  "Finance":         "💰",
-  "Biology":         "🌿",
-  "Chemistry":       "⚗️",
-  "Physics":         "⚡",
-  "Astronomy":       "🌌",
-  "History":         "🏛️",
-  "Geography":       "🗺️",
-  "Polity":          "🏛️",
+  // Class 10 Maths
+  "Numbers":                                        "🔢",
+  "Real Numbers":                                   "🔢",
+  "Polynomials":                                    "📈",
+  "Pair of Linear Equations in Two Variables":      "⚖️",
+  "Quadratic Equations":                            "🔄",
+  "Arithmetic Progressions":                        "📊",
+  "Triangles":                                      "🔺",
+  "Coordinate Geometry":                            "📍",
+  "Introduction to Trigonometry":                   "📐",
+  "Some Applications of Trigonometry":              "🏗️",
+  "Circles":                                        "⭕",
+  "Areas Related to Circles":                       "🔵",
+  "Surface Areas and Volumes":                      "📦",
+  "Statistics":                                     "📊",
+  "Probability":                                    "🎲",
+  "Geometry":                                       "📐",
+  "Finance":                                        "💰",
+  // Class 10 Science
+  "Chemical Reactions and Equations":               "⚗️",
+  "Acids, Bases and Salts":                         "🧪",
+  "Metals and Non-metals":                          "⚙️",
+  "Carbon and its Compounds":                       "💎",
+  "Life Processes":                                 "🌱",
+  "Control and Coordination":                       "🧠",
+  "How do Organisms Reproduce":                     "🧬",
+  "Heredity":                                       "🧬",
+  "Light – Reflection and Refraction":              "💡",
+  "Human Eye and Colourful World":                  "👁️",
+  "Electricity":                                    "⚡",
+  "Magnetic Effects of Electric Current":           "🔋",
+  "Our Environment":                                "🌍",
+  "Biology":                                        "🌿",
+  "Chemistry":                                      "⚗️",
+  "Physics":                                        "⚡",
+  "Astronomy":                                      "🌌",
+  // Class 10 Social Science
+  "The Rise of Nationalism in Europe":              "🗺️",
+  "Nationalism in India":                           "🇮🇳",
+  "The Making of a Global World":                   "🌐",
+  "The Age of Industrialisation":                   "🏭",
+  "Print Culture and the Modern World":             "📰",
+  "Resources and Development":                      "⛏️",
+  "Forest and Wildlife Resources":                  "🌲",
+  "Water Resources":                                "💧",
+  "Agriculture":                                    "🌾",
+  "Minerals and Energy Resources":                  "⛽",
+  "Manufacturing Industries":                       "🏭",
+  "Lifelines of National Economy":                  "🚂",
+  "Power Sharing":                                  "🤝",
+  "Federalism":                                     "🏛️",
+  "Democracy and Diversity":                        "🌈",
+  "Gender, Religion and Caste":                     "⚖️",
+  "Popular Struggles and Movements":                "✊",
+  "Political Parties":                              "🗳️",
+  "Outcomes of Democracy":                          "🏅",
+  "Challenges to Democracy":                        "⚠️",
+  "Development":                                    "📈",
+  "Sectors of the Indian Economy":                  "🏗️",
+  "Money and Credit":                               "💳",
+  "Globalisation and the Indian Economy":           "🌐",
+  "Consumer Rights":                                "🛒",
+  "History":                                        "🏛️",
+  "Geography":                                      "🗺️",
+  "Polity":                                         "🏛️",
+  // Class 12 Physics
+  "Electric Charges and Fields":                    "⚡",
+  "Electrostatic Potential and Capacitance":        "🔋",
+  "Current Electricity":                            "🔌",
+  "Moving Charges and Magnetism":                   "🧲",
+  "Magnetism and Matter":                           "🧲",
+  "Electromagnetic Induction":                      "🌀",
+  "Alternating Current":                            "〰️",
+  "Electromagnetic Waves":                          "📡",
+  "Ray Optics and Optical Instruments":             "🔭",
+  "Wave Optics":                                    "🌊",
+  "Dual Nature of Radiation and Matter":            "☢️",
+  "Atoms":                                          "⚛️",
+  "Nuclei":                                         "⚛️",
+  "Semiconductor Electronics":                      "💻",
+  // Class 12 Chemistry
+  "The Solid State":                                "💎",
+  "Solutions":                                      "🧪",
+  "Electrochemistry":                               "🔋",
+  "Chemical Kinetics":                              "⏱️",
+  "Surface Chemistry":                              "🔬",
+  "General Principles and Processes of Isolation of Elements": "⚙️",
+  "The p-Block Elements":                           "🧬",
+  "The d and f Block Elements":                     "⚗️",
+  "Coordination Compounds":                         "🔗",
+  "Haloalkanes and Haloarenes":                     "🧪",
+  "Alcohols, Phenols and Ethers":                   "⚗️",
+  "Aldehydes, Ketones and Carboxylic Acids":        "⚗️",
+  "Amines":                                         "🧬",
+  "Biomolecules":                                   "🌿",
+  // Class 12 Biology
+  "Reproduction in Organisms":                      "🌱",
+  "Sexual Reproduction in Flowering Plants":        "🌸",
+  "Human Reproduction":                             "👶",
+  "Reproductive Health":                            "❤️",
+  "Principles of Inheritance and Variation":        "🧬",
+  "Molecular Basis of Inheritance":                 "🔬",
+  "Evolution":                                      "🦕",
+  "Human Health and Disease":                       "🏥",
+  "Strategies for Enhancement in Food Production":  "🌾",
+  "Microbes in Human Welfare":                      "🦠",
+  "Biotechnology: Principles and Processes":        "⚗️",
+  "Biotechnology and its Applications":             "💉",
+  "Organisms and Populations":                      "🌍",
+  "Ecosystem":                                      "🌲",
+  "Biodiversity and Conservation":                  "🐾",
+  "Environmental Issues":                           "♻️",
+  // Class 12 Maths
+  "Relations and Functions":                        "🔗",
+  "Inverse Trigonometric Functions":                "📐",
+  "Matrices":                                       "📊",
+  "Determinants":                                   "🔢",
+  "Continuity and Differentiability":               "📈",
+  "Application of Derivatives":                     "📉",
+  "Integrals":                                      "∫",
+  "Application of Integrals":                       "📐",
+  "Differential Equations":                         "🔄",
+  "Vector Algebra":                                 "➡️",
+  "Three Dimensional Geometry":                     "📦",
+  "Linear Programming":                             "🎯",
   "व्याकरण":              "📝",
   "शब्द-भंडार":           "🔤",
   "साहित्य":              "📖",
@@ -287,7 +404,7 @@ function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number 
   return textIdx >= 0 ? textIdx : 0;
 }
 
-function parseQuestions(data: unknown): Question[] {
+function parseQuestions(data: unknown, subject = "", classId = "10"): Question[] {
   const raw =
     typeof data === "object" && data !== null && !Array.isArray(data)
       ? Object.values(data as Record<string, unknown>)
@@ -342,7 +459,8 @@ function parseQuestions(data: unknown): Question[] {
     }
 
     // ── Chapter ───────────────────────────────────────────────────────────────
-    const chapter = String(q.chapter ?? q.chapter_name ?? "General");
+    const rawChapter = String(q.chapter ?? q.chapter_name ?? "General");
+    const chapter = normalizeChapter(subject, classId, rawChapter);
 
     return { english, hindi, options: opts, answerIndex, chapter };
   }).filter((q) => (q.english || q.hindi) && q.options.length >= 2);
@@ -1641,7 +1759,7 @@ export default function SubjectPage() {
       .then((r) => r.json())
       .then((data: unknown) => {
         if (!mountedRef.current) return;
-        const parsed = data ? parseQuestions(data) : [];
+        const parsed = data ? parseQuestions(data, subject, classId) : [];
         if (parsed.length > 0) {
           setAllQuestions(parsed);
           setIsDemo(false);
@@ -1667,9 +1785,23 @@ export default function SubjectPage() {
   const chapters = (() => {
     const map = new Map<string, number>();
     allQuestions.forEach((q) => map.set(q.chapter, (map.get(q.chapter) ?? 0) + 1));
+
+    // Sort chapters in NCERT textbook order; unknowns go alphabetically at the end
+    const canonOrder = getCanonicalChapters(subject, classId);
+    const canonIndex = (name: string) => {
+      const i = canonOrder.indexOf(name);
+      return i === -1 ? canonOrder.length : i;
+    };
+
     const list = Array.from(map.entries())
       .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => {
+        const ia = canonIndex(a.name);
+        const ib = canonIndex(b.name);
+        if (ia !== ib) return ia - ib;
+        return a.name.localeCompare(b.name);
+      });
+
     // Inject virtual Comprehension chapter for Hindi and Sanskrit (AI-generated passages)
     if ((subject === "hindi" || subject === "sanskrit") && !map.has("Comprehension")) {
       list.push({ name: "Comprehension", count: 7 });
@@ -1701,7 +1833,7 @@ export default function SubjectPage() {
     try {
       const subjectRef = ref(db, dbPath);
       const snap = await get(subjectRef);
-      const existing = parseQuestions(snap.val());
+      const existing = parseQuestions(snap.val(), subject, classId);
       const existingSet = new Set(existing.map((q) => q.english.toLowerCase().trim().slice(0, 80)));
       const newOnes = generated.filter(
         (q) => q.english && !existingSet.has(q.english.toLowerCase().trim().slice(0, 80))
