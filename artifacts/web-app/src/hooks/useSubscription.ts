@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { saveSubscriptionToCache, loadSubscriptionFromCache } from "@/lib/questionCache";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
@@ -24,21 +25,30 @@ export function useSubscription() {
     fetch(`${DB_URL}/users/${safeId}.json`)
       .then((r) => r.json())
       .then((data: Record<string, unknown> | null) => {
-        setSubscription(data?.subscriptionType === "premium" ? "premium" : "free");
-        setPlan(typeof data?.plan === "string" ? data.plan : null);
-        // premiumSubjects: empty/absent = all subjects; non-empty = only those subjects
+        const subType = data?.subscriptionType === "premium" ? "premium" : "free";
+        const planVal = typeof data?.plan === "string" ? data.plan : null;
+        let subjects: string[] = [];
         if (Array.isArray(data?.premiumSubjects)) {
-          setPremiumSubjects(data.premiumSubjects as string[]);
+          subjects = data.premiumSubjects as string[];
         } else if (data?.premiumSubjects && typeof data.premiumSubjects === "object") {
-          setPremiumSubjects(Object.values(data.premiumSubjects as Record<string, string>));
-        } else {
-          setPremiumSubjects([]);
+          subjects = Object.values(data.premiumSubjects as Record<string, string>);
         }
+        setSubscription(subType);
+        setPlan(planVal);
+        setPremiumSubjects(subjects);
+        saveSubscriptionToCache(user.uid, { subscriptionType: subType, plan: planVal, premiumSubjects: subjects });
       })
       .catch(() => {
-        setSubscription("free");
-        setPlan(null);
-        setPremiumSubjects([]);
+        const cached = loadSubscriptionFromCache(user.uid);
+        if (cached) {
+          setSubscription(cached.subscriptionType === "premium" ? "premium" : "free");
+          setPlan(cached.plan);
+          setPremiumSubjects(cached.premiumSubjects);
+        } else {
+          setSubscription("free");
+          setPlan(null);
+          setPremiumSubjects([]);
+        }
       })
       .finally(() => setSubLoading(false));
   }, [user?.uid]);
@@ -46,9 +56,6 @@ export function useSubscription() {
   const isPremium = subscription === "premium";
   const isTopper  = isPremium && plan === "biannual";
 
-  // Returns true if user has premium access for the given subject.
-  // If premiumSubjects is empty → all subjects are premium (backward compat / all-subjects plan).
-  // If premiumSubjects is non-empty → only those specific subjects.
   function isSubjectPremium(subjectId: string): boolean {
     if (!isPremium) return false;
     if (premiumSubjects.length === 0) return true;

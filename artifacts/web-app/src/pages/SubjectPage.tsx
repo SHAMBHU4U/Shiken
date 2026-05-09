@@ -12,6 +12,7 @@ import { SubjectIcon } from "@/components/SubjectIcon";
 import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
 import { normalizeChapter, getCanonicalChapters } from "@/lib/chapterMap";
+import { saveQuestionsToCache, loadQuestionsFromCache } from "@/lib/questionCache";
 
 const CHAPTER_ICONS: Record<string, string> = {
   // Language / Generic
@@ -957,12 +958,12 @@ function ChapterSelect({
 // ─── Result Screen ─────────────────────────────────────────────────────────────
 
 function ResultScreen({
-  questions, answers, accent, label, icon, isDemo, mode, chapter, subject, onHome, onRetry,
+  questions, answers, accent, label, icon, isDemo, isOfflineCached, mode, chapter, subject, onHome, onRetry,
   isPremium, onUpgrade,
 }: {
   questions: Question[];
   answers: Record<number, number>;
-  accent: string; label: string; icon: string; isDemo: boolean;
+  accent: string; label: string; icon: string; isDemo: boolean; isOfflineCached: boolean;
   mode: "full" | "chapter" | "ai" | "mini"; chapter: string; subject: string;
   onHome: () => void; onRetry: () => void;
   isPremium: boolean; onUpgrade: () => void;
@@ -1200,6 +1201,11 @@ function ResultScreen({
           {isDemo && (
             <span className="mt-2 text-xs px-3 py-1 rounded-full inline-block" style={{ background: `${accent}20`, color: accent }}>
               Demo questions — add yours to Firebase
+            </span>
+          )}
+          {isOfflineCached && (
+            <span className="mt-2 text-xs px-3 py-1 rounded-full inline-block" style={{ background: "rgba(251,146,60,0.15)", color: "#fb923c", border: "1px solid rgba(251,146,60,0.3)" }}>
+              📶 Offline — using cached questions
             </span>
           )}
           {isPremium && (
@@ -1621,9 +1627,10 @@ export default function SubjectPage() {
   const fullTestKey = `shiken_free_full_used_${classId}_${subject}`;
 
   // All questions fetched from Firebase (or demo)
-  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
-  const [isDemo, setIsDemo]             = useState(false);
-  const [screen, setScreen]             = useState<Screen>("loading");
+  const [allQuestions, setAllQuestions]     = useState<Question[]>([]);
+  const [isDemo, setIsDemo]                 = useState(false);
+  const [isOfflineCached, setIsOfflineCached] = useState(false);
+  const [screen, setScreen]                 = useState<Screen>("loading");
 
   // Saved progress (from localStorage)
   const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null);
@@ -1763,17 +1770,28 @@ export default function SubjectPage() {
         if (parsed.length > 0) {
           setAllQuestions(parsed);
           setIsDemo(false);
+          setIsOfflineCached(false);
+          saveQuestionsToCache(classId, subject, parsed);
         } else {
           setAllQuestions(demoQuestions[subject] ?? demoQuestions.maths);
           setIsDemo(true);
+          setIsOfflineCached(false);
         }
         setSavedProgress(loadProgress(subject));
         setScreen("mode-select");
       })
       .catch((err: Error) => {
         if (err.name === "AbortError" || !mountedRef.current) return;
-        setAllQuestions(demoQuestions[subject] ?? demoQuestions.maths);
-        setIsDemo(true);
+        const cached = loadQuestionsFromCache(classId, subject);
+        if (cached && (cached as Question[]).length > 0) {
+          setAllQuestions(cached as Question[]);
+          setIsDemo(false);
+          setIsOfflineCached(true);
+        } else {
+          setAllQuestions(demoQuestions[subject] ?? demoQuestions.maths);
+          setIsDemo(true);
+          setIsOfflineCached(false);
+        }
         setSavedProgress(loadProgress(subject));
         setScreen("mode-select");
       });
@@ -2501,7 +2519,7 @@ export default function SubjectPage() {
         <ResultScreen
           questions={questions} answers={answers}
           accent={meta.accent} label={meta.label} icon={meta.icon}
-          isDemo={isDemo} mode={mode} chapter={selectedChapter}
+          isDemo={isDemo} isOfflineCached={isOfflineCached} mode={mode} chapter={selectedChapter}
           onHome={() => { refreshHistory(); setScreen("mode-select"); }} onRetry={retryTest} subject={subject}
           isPremium={isPremium} onUpgrade={() => setUpgradeOpen(true)}
         />
