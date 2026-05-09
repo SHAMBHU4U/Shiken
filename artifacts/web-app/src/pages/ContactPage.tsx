@@ -66,8 +66,8 @@ export default function ContactPage() {
 
   async function handleShare() {
     const shareData = {
-      title: "SHIKEN — Bihar Board Class 10 Prep",
-      text: "🎓 Free AI-powered exam prep for Bihar Board Class 10! Practice questions in Hindi & English with instant AI explanations.",
+      title: "SHIKEN — Bihar Board Class 10 & 12 Prep",
+      text: "🎓 Free AI-powered exam prep for Bihar Board Class 10 & 12! Practice questions in Hindi & English with instant AI explanations.",
       url: APP_URL,
     };
     if (navigator.share) {
@@ -88,14 +88,14 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "#f8f9ff" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />
         <div className="absolute bottom-0 -left-24 w-72 h-72 rounded-full blur-3xl opacity-8"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
         <div className="absolute inset-0 opacity-[0.02]"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+          style={{ backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
       </div>
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-12 pb-4">
@@ -115,7 +115,7 @@ export default function ContactPage() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.5 }}
           className="rounded-2xl p-5 mb-6"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
 
           {/* Brand row */}
           <div className="flex items-center gap-3 mb-4">
@@ -169,7 +169,7 @@ export default function ContactPage() {
               },
             ].map((f) => (
               <div key={f.title} className="flex items-start gap-3 px-3 py-2.5 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.04)" }}>
+                style={{ background: "rgba(0,0,0,0.05)" }}>
                 <span className="text-lg mt-0.5 flex-shrink-0">{f.icon}</span>
                 <div>
                   <p className="text-white/85 text-xs font-bold">{f.title}</p>
@@ -247,7 +247,7 @@ export default function ContactPage() {
 
           {/* Quick share row */}
           <div className="relative z-10 flex items-center gap-2 mt-4 pt-4"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
             <span className="text-white/25 text-[11px] font-semibold uppercase tracking-wider flex-shrink-0">Share via</span>
             {[
               {
@@ -286,21 +286,21 @@ export default function ContactPage() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
           className="rounded-2xl p-5 mb-6"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
           <p className="text-white font-bold text-sm mb-4">Send a Message</p>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="Your name" required
               className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.10)" }} />
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="Your email" required
               className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.10)" }} />
             <textarea value={message} onChange={(e) => setMessage(e.target.value)}
               placeholder="Your message…" required rows={4}
               className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none resize-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.10)" }} />
             <motion.button type="submit" whileTap={{ scale: 0.98 }}
               className="w-full py-3.5 rounded-xl text-sm font-bold text-white"
               style={{ background: "linear-gradient(135deg,#06b6d4,#3b82f6)", boxShadow: "0 4px 16px rgba(6,182,212,0.3)" }}>
@@ -314,7 +314,7 @@ export default function ContactPage() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.28, duration: 0.5 }}
           className="rounded-2xl p-5 mb-6"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
 
           {/* Header row with aggregate */}
           <div className="flex items-center justify-between mb-4">
@@ -341,7 +341,7 @@ export default function ContactPage() {
                 <div className="flex gap-1">
                   {[1,2,3,4,5].map((s) => (
                     <span key={s} className="text-2xl transition-all"
-                      style={{ color: s <= selected ? "#fbbf24" : "rgba(255,255,255,0.15)" }}>★</span>
+                      style={{ color: s <= selected ? "#fbbf24" : "rgba(0,0,0,0.12)" }}>★</span>
                   ))}
                 </div>
                 <p className="text-white font-bold text-sm">Thanks for rating! 🎉</p>
@@ -363,7 +363,7 @@ export default function ContactPage() {
                       onClick={() => setSelected(s)}
                       className="text-3xl transition-all duration-150 select-none"
                       style={{
-                        color: s <= (hovered || selected) ? "#fbbf24" : "rgba(255,255,255,0.18)",
+                        color: s <= (hovered || selected) ? "#fbbf24" : "rgba(0,0,0,0.14)",
                         filter: s <= (hovered || selected) ? "drop-shadow(0 0 6px rgba(251,191,36,0.6))" : "none",
                         transform: s <= (hovered || selected) ? "scale(1.15)" : "scale(1)",
                       }}>
@@ -392,7 +392,7 @@ export default function ContactPage() {
                   rows={2}
                   maxLength={200}
                   className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none resize-none mb-3"
-                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                  style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.10)" }}
                 />
 
                 <motion.button
@@ -403,8 +403,8 @@ export default function ContactPage() {
                   style={{
                     background: selected
                       ? "linear-gradient(135deg, #f59e0b, #f97316)"
-                      : "rgba(255,255,255,0.06)",
-                    color: selected ? "white" : "rgba(255,255,255,0.25)",
+                      : "rgba(0,0,0,0.06)",
+                    color: selected ? "white" : "rgba(0,0,0,0.20)",
                     boxShadow: selected ? "0 4px 16px rgba(245,158,11,0.35)" : "none",
                     cursor: selected ? "pointer" : "not-allowed",
                   }}>
@@ -420,7 +420,7 @@ export default function ContactPage() {
           transition={{ delay: 0.3, duration: 0.5 }} className="mb-6">
           <a href={`mailto:${CONTACT_EMAIL}`}
             className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
             <span className="text-xl">✉️</span>
             <div>
               <p className="text-white text-sm font-semibold">Email</p>
@@ -441,7 +441,7 @@ export default function ContactPage() {
                 transition={{ delay: 0.45 + i * 0.04 }}
                 whileTap={{ scale: 0.97 }}
                 className="flex items-center gap-2 px-4 py-3 rounded-xl transition-colors"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
                 <span className="text-xl">{s.icon}</span>
                 <span className="text-white/60 text-sm font-medium">{s.label}</span>
               </motion.a>

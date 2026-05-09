@@ -110,7 +110,7 @@ export default function LeaderboardPage() {
   const myEntry = entries.find((e) => e.uid === myUid);
 
   return (
-    <div className="min-h-screen w-full pb-28" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full pb-28" style={{ background: "#f8f9ff" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
@@ -197,13 +197,13 @@ export default function LeaderboardPage() {
                   ? f === "premium"
                     ? "linear-gradient(135deg, rgba(245,158,11,0.25), rgba(217,119,6,0.15))"
                     : "rgba(139,92,246,0.2)"
-                  : "rgba(255,255,255,0.04)",
+                  : "rgba(0,0,0,0.05)",
                 border: filter === f
                   ? f === "premium" ? "1px solid rgba(245,158,11,0.4)" : "1px solid rgba(139,92,246,0.35)"
-                  : "1px solid rgba(255,255,255,0.07)",
+                  : "1px solid rgba(0,0,0,0.06)",
                 color: filter === f
                   ? f === "premium" ? "#fbbf24" : "#a78bfa"
-                  : "rgba(255,255,255,0.3)",
+                  : "rgba(0,0,0,0.22)",
               }}
             >
               {f === "all" ? "🌟 All Students" : "👑 Premium Only"}
@@ -224,7 +224,7 @@ export default function LeaderboardPage() {
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 className="w-8 h-8 rounded-full"
-                style={{ border: "2px solid rgba(255,255,255,0.08)", borderTopColor: "#f59e0b" }}
+                style={{ border: "2px solid rgba(0,0,0,0.08)", borderTopColor: "#f59e0b" }}
               />
               <p className="text-xs">Loading rankings…</p>
             </motion.div>
@@ -248,10 +248,10 @@ export default function LeaderboardPage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
               className="rounded-2xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}
+              style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(0,0,0,0.06)" }}
             >
               <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                style={{ borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
                 <span className="text-white/40 text-xs font-semibold uppercase tracking-widest">
                   {filtered.length} students ranked
                 </span>
@@ -276,7 +276,7 @@ export default function LeaderboardPage() {
                     style={{
                       background: isMe
                         ? "rgba(139,92,246,0.1)"
-                        : i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.012)",
+                        : i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.03)",
                       borderLeft: isMe ? "2px solid #8b5cf6" : "2px solid transparent",
                     }}
                   >
@@ -293,7 +293,7 @@ export default function LeaderboardPage() {
                       style={
                         e.isPremium
                           ? { background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#000", boxShadow: "0 2px 10px rgba(245,158,11,0.35)" }
-                          : { background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.4)" }
+                          : { background: "rgba(0,0,0,0.06)", color: "rgba(0,0,0,0.32)" }
                       }
                     >
                       {e.isPremium ? "👑" : e.username.charAt(0).toUpperCase()}

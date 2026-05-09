@@ -133,7 +133,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#07080f" }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#f8f9ff" }}>
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -164,8 +164,8 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
             required
             className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
             style={{
-              background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
-              border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.12)"}`,
+              background: error ? "rgba(239,68,68,0.08)" : "rgba(0,0,0,0.06)",
+              border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(0,0,0,0.10)"}`,
             }}
           />
           {error && (
@@ -240,8 +240,8 @@ function QuestionForm() {
   }
 
   const inputStyle = {
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.1)",
+    background: "rgba(0,0,0,0.05)",
+    border: "1px solid rgba(0,0,0,0.10)",
     color: "#fff",
     borderRadius: "12px",
     padding: "10px 14px",
@@ -251,7 +251,7 @@ function QuestionForm() {
   } as React.CSSProperties;
 
   const labelStyle: React.CSSProperties = {
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(0,0,0,0.40)",
     fontSize: "11px",
     fontWeight: 700,
     letterSpacing: "0.05em",
@@ -261,7 +261,7 @@ function QuestionForm() {
   };
 
   return (
-    <div className="min-h-screen pb-16 px-4 pt-8" style={{ background: "#07080f" }}>
+    <div className="min-h-screen pb-16 px-4 pt-8" style={{ background: "#f8f9ff" }}>
       <div className="max-w-xl mx-auto">
 
         {/* Header */}
@@ -278,7 +278,7 @@ function QuestionForm() {
 
           {/* Subject + Chapter */}
           <div className="rounded-2xl p-4 flex flex-col gap-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
             <div>
               <label style={labelStyle}>Subject</label>
               <select
@@ -309,7 +309,7 @@ function QuestionForm() {
 
           {/* Question */}
           <div className="rounded-2xl p-4 flex flex-col gap-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
             <div>
               <label style={labelStyle}>Question Text (English) *</label>
               <textarea
@@ -322,7 +322,7 @@ function QuestionForm() {
               />
             </div>
             <div>
-              <label style={labelStyle}>Question Text (Hindi) <span style={{ color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>optional</span></label>
+              <label style={labelStyle}>Question Text (Hindi) <span style={{ color: "rgba(0,0,0,0.20)", fontWeight: 400 }}>optional</span></label>
               <textarea
                 value={form.questionHi}
                 onChange={(e) => setField("questionHi", e.target.value)}
@@ -335,14 +335,14 @@ function QuestionForm() {
 
           {/* Options */}
           <div className="rounded-2xl p-4 flex flex-col gap-3"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
             <div className="flex items-center justify-between mb-1">
               <span style={{ ...labelStyle, marginBottom: 0 }}>Options</span>
               <button
                 type="button"
                 onClick={() => setShowHindi((v) => !v)}
                 className="text-xs font-semibold transition-colors"
-                style={{ color: showHindi ? "#a78bfa" : "rgba(255,255,255,0.3)" }}
+                style={{ color: showHindi ? "#a78bfa" : "rgba(0,0,0,0.22)" }}
               >
                 {showHindi ? "✓ Hindi options on" : "+ Add Hindi options"}
               </button>
@@ -353,9 +353,9 @@ function QuestionForm() {
                 <div className="flex items-center gap-2">
                   <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
                     style={{
-                      background: form.correctAnswer === letter ? `${currentSubject.accent}25` : "rgba(255,255,255,0.06)",
-                      color: form.correctAnswer === letter ? currentSubject.accent : "rgba(255,255,255,0.4)",
-                      border: form.correctAnswer === letter ? `1px solid ${currentSubject.accent}50` : "1px solid rgba(255,255,255,0.08)",
+                      background: form.correctAnswer === letter ? `${currentSubject.accent}25` : "rgba(0,0,0,0.06)",
+                      color: form.correctAnswer === letter ? currentSubject.accent : "rgba(0,0,0,0.32)",
+                      border: form.correctAnswer === letter ? `1px solid ${currentSubject.accent}50` : "1px solid rgba(0,0,0,0.08)",
                     }}>
                     {letter}
                   </span>
@@ -385,7 +385,7 @@ function QuestionForm() {
 
           {/* Correct Answer */}
           <div className="rounded-2xl p-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
             <label style={labelStyle}>Correct Answer *</label>
             <div className="flex gap-2">
               {OPTIONS.map((letter) => (
@@ -397,9 +397,9 @@ function QuestionForm() {
                   style={{
                     background: form.correctAnswer === letter
                       ? `linear-gradient(135deg, ${currentSubject.accent}, ${currentSubject.accent}bb)`
-                      : "rgba(255,255,255,0.05)",
-                    color: form.correctAnswer === letter ? "#000" : "rgba(255,255,255,0.4)",
-                    border: form.correctAnswer === letter ? "none" : "1px solid rgba(255,255,255,0.08)",
+                      : "rgba(0,0,0,0.05)",
+                    color: form.correctAnswer === letter ? "#000" : "rgba(0,0,0,0.32)",
+                    border: form.correctAnswer === letter ? "none" : "1px solid rgba(0,0,0,0.08)",
                     boxShadow: form.correctAnswer === letter ? `0 4px 16px ${currentSubject.accent}40` : "none",
                   }}
                 >
@@ -416,8 +416,8 @@ function QuestionForm() {
 
           {/* Explanation */}
           <div className="rounded-2xl p-4"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-            <label style={labelStyle}>Explanation <span style={{ color: "rgba(255,255,255,0.25)", fontWeight: 400 }}>optional</span></label>
+            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
+            <label style={labelStyle}>Explanation <span style={{ color: "rgba(0,0,0,0.20)", fontWeight: 400 }}>optional</span></label>
             <textarea
               value={form.explanation}
               onChange={(e) => setField("explanation", e.target.value)}

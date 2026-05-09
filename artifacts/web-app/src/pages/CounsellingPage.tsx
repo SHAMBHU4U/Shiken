@@ -17,14 +17,14 @@ export default function CounsellingPage() {
   const [, navigate] = useLocation();
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "#f8f9ff" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #10b981, transparent)" }} />
         <div className="absolute top-1/2 -right-32 w-80 h-80 rounded-full blur-3xl opacity-8"
           style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
         <div className="absolute inset-0 opacity-[0.02]"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+          style={{ backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
       </div>
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-12 pb-4">
@@ -133,7 +133,7 @@ export default function CounsellingPage() {
               <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.35 + i * 0.04 }}
                 className="flex items-center gap-2 p-3 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
                 <span className="text-base">{item.icon}</span>
                 <span className="text-white/60 text-xs leading-tight">{item.text}</span>
               </motion.div>
@@ -148,7 +148,7 @@ export default function CounsellingPage() {
           <div className="flex flex-col gap-3">
             {faqs.map((faq, i) => (
               <div key={i} className="rounded-xl p-4"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
                 <p className="text-white text-sm font-semibold mb-1.5">❓ {faq.q}</p>
                 <p className="text-white/45 text-xs leading-relaxed">{faq.a}</p>
               </div>

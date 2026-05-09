@@ -575,7 +575,7 @@ function ProgressChart({ records, accent }: { records: TestRecord[]; accent: str
         const y = PY + (1 - pct / 100) * iH;
         return (
           <line key={pct} x1={PX} y1={y} x2={W - PX} y2={y}
-            stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3" />
+            stroke="rgba(0,0,0,0.06)" strokeWidth="1" strokeDasharray="3 3" />
         );
       })}
       <path d={fillPath} fill={`url(#${gradId})`} />
@@ -588,7 +588,7 @@ function ProgressChart({ records, accent }: { records: TestRecord[]; accent: str
           <g key={i}>
             {last && <circle cx={xs[i]} cy={ys[i]} r={7} fill={dc} opacity={0.22} />}
             <circle cx={xs[i]} cy={ys[i]} r={last ? 3.5 : 2.5}
-              fill={last ? dc : accent} stroke={last ? "#07080f" : "none"} strokeWidth={1} />
+              fill={last ? dc : accent} stroke={last ? "#f8f9ff" : "none"} strokeWidth={1} />
           </g>
         );
       })}
@@ -689,7 +689,7 @@ function ModeSelect({
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10" style={{ background: "#07080f" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10" style={{ background: "#f8f9ff" }}>
       <div
         className="absolute inset-0 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}18 0%, transparent 60%)` }}
@@ -742,7 +742,7 @@ function ModeSelect({
           <motion.div
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
             className="rounded-2xl border p-4"
-            style={{ background: `linear-gradient(135deg, ${meta.accent}10, rgba(255,255,255,0.02))`, borderColor: `${meta.accent}25` }}
+            style={{ background: `linear-gradient(135deg, ${meta.accent}10, rgba(0,0,0,0.03))`, borderColor: `${meta.accent}25` }}
           >
             <div className="flex items-center justify-between mb-3">
               <p className="text-white/70 text-xs font-semibold">📈 Your Progress</p>
@@ -802,7 +802,7 @@ function ModeSelect({
             onClick={m.onClick}
             className="relative overflow-hidden text-left rounded-2xl border p-5 group"
             style={{
-              background: `linear-gradient(135deg, ${m.glowColor}18, rgba(255,255,255,0.03))`,
+              background: `linear-gradient(135deg, ${m.glowColor}18, rgba(0,0,0,0.05))`,
               borderColor: `${m.glowColor}30`,
               boxShadow: `0 4px 32px ${m.glowColor}12`,
             }}
@@ -867,7 +867,7 @@ function ChapterSelect({
   const allTotalCount = chapters.reduce((s, c) => s + c.count, 0);
 
   return (
-    <div className="min-h-screen px-4 py-6" style={{ background: "#07080f" }}>
+    <div className="min-h-screen px-4 py-6" style={{ background: "#f8f9ff" }}>
       <div
         className="absolute inset-0 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}15 0%, transparent 50%)` }}
@@ -920,8 +920,8 @@ function ChapterSelect({
                 onClick={() => isLocked ? onUpgrade?.() : onSelect(ch.name)}
                 className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
                 style={{
-                  background: isTopper ? "rgba(245,158,11,0.06)" : isLocked ? "rgba(251,191,36,0.05)" : "rgba(255,255,255,0.04)",
-                  borderColor: isTopper ? "rgba(245,158,11,0.25)" : isLocked ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.08)",
+                  background: isTopper ? "rgba(245,158,11,0.06)" : isLocked ? "rgba(251,191,36,0.05)" : "rgba(0,0,0,0.05)",
+                  borderColor: isTopper ? "rgba(245,158,11,0.25)" : isLocked ? "rgba(251,191,36,0.2)" : "rgba(0,0,0,0.08)",
                 }}
               >
                 <div
@@ -1185,7 +1185,7 @@ function ResultScreen({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-      className="min-h-screen w-full px-4 py-8" style={{ background: "#07080f" }}
+      className="min-h-screen w-full px-4 py-8" style={{ background: "#f8f9ff" }}
     >
       <div className="max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center mb-6">
@@ -1240,7 +1240,7 @@ function ResultScreen({
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
             className="rounded-2xl border p-4 mb-4"
-            style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.07)" }}
+            style={{ background: "rgba(0,0,0,0.05)", borderColor: "rgba(0,0,0,0.06)" }}
           >
             <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">📊 Progress Snapshot</p>
             <div className="grid grid-cols-3 gap-2 mb-3">
@@ -1253,7 +1253,7 @@ function ResultScreen({
                 },
                 { label: "Best", value: `${Math.max(...history.map(r => r.pct))}%`, color: "#10b981" },
               ].map((s) => (
-                <div key={s.label} className="text-center rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.04)" }}>
+                <div key={s.label} className="text-center rounded-xl p-2.5" style={{ background: "rgba(0,0,0,0.05)" }}>
                   <p className="font-black text-base" style={{ color: s.color }}>{s.value}</p>
                   <p className="text-white/25 text-xs mt-0.5">{s.label}</p>
                 </div>
@@ -1263,9 +1263,9 @@ function ResultScreen({
               const trend = history[history.length - 1].pct - history[history.length - 2].pct;
               return (
                 <div className="flex items-center justify-center gap-1.5 pt-3"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                   <span className="text-sm">{trend > 0 ? "📈" : trend < 0 ? "📉" : "➡️"}</span>
-                  <span className="text-xs font-bold" style={{ color: trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "rgba(255,255,255,0.35)" }}>
+                  <span className="text-xs font-bold" style={{ color: trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "rgba(0,0,0,0.28)" }}>
                     {trend > 0 ? `+${trend}%` : trend === 0 ? "Same as last test" : `${trend}%`}
                     <span className="font-normal text-white/30"> vs last test</span>
                   </span>
@@ -1320,7 +1320,7 @@ function ResultScreen({
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="rounded-2xl border p-4 mb-4"
-            style={{ background: `linear-gradient(135deg, ${accent}10, rgba(255,255,255,0.02))`, borderColor: `${accent}25` }}
+            style={{ background: `linear-gradient(135deg, ${accent}10, rgba(0,0,0,0.03))`, borderColor: `${accent}25` }}
           >
             <div className="flex items-center justify-between mb-3">
               <p className="text-white/70 text-xs font-semibold">📈 Your Progress ({history.length} tests)</p>
@@ -1375,7 +1375,7 @@ function ResultScreen({
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={onHome}
             className="flex-1 py-3 rounded-xl text-sm font-bold border"
-            style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)" }}
+            style={{ background: "rgba(0,0,0,0.05)", borderColor: "rgba(0,0,0,0.10)", color: "rgba(0,0,0,0.58)" }}
           >
             ← Dashboard
           </motion.button>
@@ -1453,15 +1453,15 @@ function ResultScreen({
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.04 }}
                 className="rounded-xl border p-4"
                 style={{
-                  background: isRight ? `${accent}12` : isSkipped ? "rgba(255,255,255,0.03)" : "rgba(255,80,80,0.06)",
-                  borderColor: isRight ? `${accent}40` : isSkipped ? "rgba(255,255,255,0.07)" : "rgba(255,80,80,0.18)",
+                  background: isRight ? `${accent}12` : isSkipped ? "rgba(0,0,0,0.05)" : "rgba(255,80,80,0.06)",
+                  borderColor: isRight ? `${accent}40` : isSkipped ? "rgba(0,0,0,0.06)" : "rgba(255,80,80,0.18)",
                 }}
               >
                 <div className="flex items-start gap-2 mb-2">
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full mt-0.5 shrink-0"
                     style={{
-                      background: isRight ? `${accent}30` : isSkipped ? "rgba(255,255,255,0.1)" : "rgba(255,80,80,0.2)",
-                      color: isRight ? accent : isSkipped ? "rgba(255,255,255,0.4)" : "#f87171",
+                      background: isRight ? `${accent}30` : isSkipped ? "rgba(0,0,0,0.10)" : "rgba(255,80,80,0.2)",
+                      color: isRight ? accent : isSkipped ? "rgba(0,0,0,0.32)" : "#f87171",
                     }}>
                     {isRight ? "✓" : isSkipped ? "–" : "✗"}
                   </span>
@@ -1497,8 +1497,8 @@ function ResultScreen({
                     whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
                     className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0 ml-1"
                     style={{
-                      background: isBookmarked(bmks, q) ? "rgba(251,191,36,0.18)" : "rgba(255,255,255,0.07)",
-                      border: isBookmarked(bmks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                      background: isBookmarked(bmks, q) ? "rgba(251,191,36,0.18)" : "rgba(0,0,0,0.06)",
+                      border: isBookmarked(bmks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(0,0,0,0.10)",
                     }}
                     title={isBookmarked(bmks, q) ? "Remove bookmark" : "Bookmark"}
                   >
@@ -1509,7 +1509,7 @@ function ResultScreen({
                     >
                       {isBookmarked(bmks, q)
                         ? <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="#fbbf24" />
-                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                       }
                     </motion.svg>
                   </motion.button>
@@ -1524,7 +1524,7 @@ function ResultScreen({
                       <div key={oi} className="flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg"
                         style={{
                           background: isCorrect ? `${accent}25` : isUser && !isRight ? "rgba(255,80,80,0.12)" : "transparent",
-                          color:      isCorrect ? accent : isUser && !isRight ? "#f87171" : "rgba(255,255,255,0.28)",
+                          color:      isCorrect ? accent : isUser && !isRight ? "#f87171" : "rgba(0,0,0,0.22)",
                         }}>
                         <span className="font-bold w-4 shrink-0 mt-0.5">{String.fromCharCode(65 + oi)}.</span>
                         <span className="flex flex-col gap-0.5 flex-1 min-w-0">
@@ -2215,7 +2215,7 @@ export default function SubjectPage() {
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (!meta) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#f8f9ff" }}>
         <p className="text-white/50">Subject not found.</p>
       </div>
     );
@@ -2223,7 +2223,7 @@ export default function SubjectPage() {
 
   if (screen === "loading") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#f8f9ff" }}>
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-10 h-10 rounded-full border-2 border-transparent"
           style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }} />
@@ -2300,7 +2300,7 @@ export default function SubjectPage() {
 
   if (screen === "saved-questions") {
     return (
-      <div className="min-h-screen px-4 py-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen px-4 py-6" style={{ background: "#f8f9ff" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.12) 0%, transparent 55%)" }} />
         <div className="max-w-lg mx-auto relative z-10">
@@ -2309,7 +2309,7 @@ export default function SubjectPage() {
             <motion.button whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }}
               onClick={() => setScreen("mode-select")}
               className="w-9 h-9 rounded-xl flex items-center justify-center border text-sm"
-              style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.6)" }}>
+              style={{ background: "rgba(0,0,0,0.05)", borderColor: "rgba(0,0,0,0.10)", color: "rgba(0,0,0,0.50)" }}>
               ←
             </motion.button>
             <div>
@@ -2374,7 +2374,7 @@ export default function SubjectPage() {
 
   if (screen === "ai-generating") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#f8f9ff" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(99,102,241,0.18) 0%, transparent 60%)" }} />
         <motion.div className="relative z-10 text-center">
@@ -2394,7 +2394,7 @@ export default function SubjectPage() {
 
   if (screen === "smart-generating") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#f8f9ff" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}22 0%, transparent 60%)` }} />
         <motion.div className="relative z-10 text-center px-4">
@@ -2438,7 +2438,7 @@ export default function SubjectPage() {
 
   if (screen === "comprehension-generating") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#f8f9ff" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}20 0%, transparent 60%)` }} />
         <motion.div className="relative z-10 text-center">
@@ -2457,7 +2457,7 @@ export default function SubjectPage() {
 
   if (screen === "comprehension-passage") {
     return (
-      <div className="min-h-screen w-full overflow-auto relative" style={{ background: "#07080f" }}>
+      <div className="min-h-screen w-full overflow-auto relative" style={{ background: "#f8f9ff" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 15%, ${meta.accent}18 0%, transparent 55%)` }} />
 
@@ -2489,7 +2489,7 @@ export default function SubjectPage() {
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.1 }}
             className="rounded-2xl border p-5 mb-6 flex-1"
-            style={{ background: `linear-gradient(145deg, ${meta.accent}10, rgba(255,255,255,0.02))`, borderColor: `${meta.accent}28` }}
+            style={{ background: `linear-gradient(145deg, ${meta.accent}10, rgba(0,0,0,0.03))`, borderColor: `${meta.accent}28` }}
           >
             <div className="flex items-center gap-2 mb-4 pb-3 border-b" style={{ borderColor: `${meta.accent}20` }}>
               <span className="text-lg">📄</span>
@@ -2532,7 +2532,7 @@ export default function SubjectPage() {
   // Safety guard — should never happen, but prevents crash if state is stale
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#f8f9ff" }}>
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-10 h-10 rounded-full border-2 border-transparent"
           style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }} />
@@ -2552,13 +2552,13 @@ export default function SubjectPage() {
   const timerSS  = String(Math.max(0, timerLeft) % 60).padStart(2, "0");
   const timerDanger  = timerLeft >= 0 && timerLeft <= 60;
   const timerWarning = timerLeft >= 0 && timerLeft <= 300 && !timerDanger;
-  const timerColor   = timerDanger ? "#ef4444" : timerWarning ? "#f59e0b" : "rgba(255,255,255,0.85)";
-  const timerBg      = timerDanger ? "rgba(239,68,68,0.15)"  : timerWarning ? "rgba(245,158,11,0.14)" : "rgba(255,255,255,0.07)";
-  const timerBorder  = timerDanger ? "#ef444445"             : timerWarning ? "#f59e0b45"             : "rgba(255,255,255,0.13)";
+  const timerColor   = timerDanger ? "#ef4444" : timerWarning ? "#f59e0b" : "rgba(0,0,0,0.68)";
+  const timerBg      = timerDanger ? "rgba(239,68,68,0.15)"  : timerWarning ? "rgba(245,158,11,0.14)" : "rgba(0,0,0,0.06)";
+  const timerBorder  = timerDanger ? "#ef444445"             : timerWarning ? "#f59e0b45"             : "rgba(0,0,0,0.10)";
   const timerGlow    = timerDanger ? "0 0 22px rgba(239,68,68,0.35)" : timerWarning ? "0 0 18px rgba(245,158,11,0.25)" : "none";
 
   return (
-    <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "#f8f9ff" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: `radial-gradient(circle, ${meta.accent}, transparent)` }} />
@@ -2661,7 +2661,7 @@ export default function SubjectPage() {
                   onClick={() => setPaletteOpen(false)}
                   whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                  style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
+                  style={{ background: "rgba(0,0,0,0.08)", color: "rgba(0,0,0,0.40)" }}
                 >
                   ✕
                 </motion.button>
@@ -2672,7 +2672,7 @@ export default function SubjectPage() {
                 {[
                   { label: "Current",    bg: meta.accent,           border: meta.accent },
                   { label: "Answered",   bg: `${meta.accent}40`,    border: `${meta.accent}60` },
-                  { label: "Unanswered", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.14)" },
+                  { label: "Unanswered", bg: "rgba(0,0,0,0.06)", border: "rgba(0,0,0,0.10)" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-1.5">
                     <div className="w-4 h-4 rounded-md border" style={{ background: item.bg, borderColor: item.border }} />
@@ -2692,13 +2692,13 @@ export default function SubjectPage() {
                     const isAnswered = idx in answers;
                     const bg     = isCurrent  ? meta.accent
                                  : isAnswered ? `${meta.accent}38`
-                                 : "rgba(255,255,255,0.06)";
+                                 : "rgba(0,0,0,0.06)";
                     const border = isCurrent  ? meta.accent
                                  : isAnswered ? `${meta.accent}55`
-                                 : "rgba(255,255,255,0.12)";
+                                 : "rgba(0,0,0,0.10)";
                     const color  = isCurrent  ? "#000"
                                  : isAnswered ? meta.accent
-                                 : "rgba(255,255,255,0.4)";
+                                 : "rgba(0,0,0,0.32)";
                     const glow   = isCurrent  ? `0 0 14px ${meta.accent}70` : "none";
 
                     return (
@@ -2730,9 +2730,9 @@ export default function SubjectPage() {
             whileTap={{ scale: 0.93 }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
             style={{
-              background: langMode !== "both" ? `${meta.accent}22` : "rgba(255,255,255,0.05)",
-              borderColor: langMode !== "both" ? `${meta.accent}55` : "rgba(255,255,255,0.12)",
-              color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.45)",
+              background: langMode !== "both" ? `${meta.accent}22` : "rgba(0,0,0,0.05)",
+              borderColor: langMode !== "both" ? `${meta.accent}55` : "rgba(0,0,0,0.10)",
+              color: langMode !== "both" ? meta.accent : "rgba(0,0,0,0.35)",
             }}
             title="Toggle language: Both / English / Hindi"
           >
@@ -2748,9 +2748,9 @@ export default function SubjectPage() {
               whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border w-full transition-all"
               style={{
-                background:   showPassageInQuiz ? `${meta.accent}18` : "rgba(255,255,255,0.05)",
-                borderColor:  showPassageInQuiz ? `${meta.accent}45` : "rgba(255,255,255,0.12)",
-                color:        showPassageInQuiz ? meta.accent : "rgba(255,255,255,0.4)",
+                background:   showPassageInQuiz ? `${meta.accent}18` : "rgba(0,0,0,0.05)",
+                borderColor:  showPassageInQuiz ? `${meta.accent}45` : "rgba(0,0,0,0.10)",
+                color:        showPassageInQuiz ? meta.accent : "rgba(0,0,0,0.32)",
               }}
             >
               <span>📖</span>
@@ -2798,15 +2798,15 @@ export default function SubjectPage() {
 
                 {/* Question card */}
                 <div className="rounded-2xl p-5 mb-4 border relative"
-                  style={{ background: `linear-gradient(135deg, ${meta.accent}18, rgba(255,255,255,0.03))`, borderColor: `${meta.accent}30`, boxShadow: `0 4px 32px ${meta.accent}15` }}>
+                  style={{ background: `linear-gradient(135deg, ${meta.accent}18, rgba(0,0,0,0.05))`, borderColor: `${meta.accent}30`, boxShadow: `0 4px 32px ${meta.accent}15` }}>
                   {/* Bookmark button */}
                   <motion.button
                     onClick={() => setBookmarks(toggleBookmark(subject, bookmarks, q))}
                     whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
                     className="absolute top-2.5 right-2.5 w-8 h-8 flex items-center justify-center rounded-xl"
                     style={{
-                      background: isBookmarked(bookmarks, q) ? "rgba(251,191,36,0.18)" : "rgba(255,255,255,0.08)",
-                      border: isBookmarked(bookmarks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(255,255,255,0.12)",
+                      background: isBookmarked(bookmarks, q) ? "rgba(251,191,36,0.18)" : "rgba(0,0,0,0.08)",
+                      border: isBookmarked(bookmarks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(0,0,0,0.10)",
                     }}
                     title={isBookmarked(bookmarks, q) ? "Remove bookmark" : "Bookmark this question"}
                   >
@@ -2817,7 +2817,7 @@ export default function SubjectPage() {
                     >
                       {isBookmarked(bookmarks, q)
                         ? <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="#fbbf24" />
-                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(0,0,0,0.40)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                       }
                     </motion.svg>
                   </motion.button>
@@ -2880,8 +2880,8 @@ export default function SubjectPage() {
                         whileTap={selectedOption === null ? { scale: 0.98 } : {}}
                         className="relative w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 overflow-hidden transition-colors duration-200"
                         style={{
-                          background:   isSelected ? `linear-gradient(135deg, ${magicColor}28, ${magicColor}10)` : "rgba(255,255,255,0.04)",
-                          borderColor:  isSelected ? `${magicColor}60` : "rgba(255,255,255,0.08)",
+                          background:   isSelected ? `linear-gradient(135deg, ${magicColor}28, ${magicColor}10)` : "rgba(0,0,0,0.05)",
+                          borderColor:  isSelected ? `${magicColor}60` : "rgba(0,0,0,0.08)",
                           cursor:       selectedOption !== null ? "default" : "pointer",
                           boxShadow:    isSelected ? `0 0 20px ${magicColor}25` : "none",
                         }}
@@ -2893,23 +2893,23 @@ export default function SubjectPage() {
                             style={{ background: `radial-gradient(ellipse at 50% 50%, ${magicColor}18, transparent 70%)` }} />
                         )}
                         <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                          style={{ background: isSelected ? `${magicColor}40` : "rgba(255,255,255,0.08)", color: isSelected ? magicColor : "rgba(255,255,255,0.4)" }}>
+                          style={{ background: isSelected ? `${magicColor}40` : "rgba(0,0,0,0.08)", color: isSelected ? magicColor : "rgba(0,0,0,0.32)" }}>
                           {String.fromCharCode(65 + oi)}
                         </span>
                         <span className="flex flex-col gap-0.5 min-w-0">
                           {langMode !== "hi" && (
-                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
+                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(0,0,0,0.55)" }}>
                               <MathText text={opt} />
                             </span>
                           )}
                           {langMode !== "en" && optHindi && (
                             <span className={langMode === "hi" ? "text-sm font-medium leading-snug" : "text-xs leading-snug"}
-                              style={{ color: langMode === "hi" ? (isSelected ? "#fff" : "rgba(255,255,255,0.65)") : (isSelected ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.28)") }}>
+                              style={{ color: langMode === "hi" ? (isSelected ? "#fff" : "rgba(0,0,0,0.55)") : (isSelected ? "rgba(0,0,0,0.45)" : "rgba(0,0,0,0.22)") }}>
                               <MathText text={optHindi} />
                             </span>
                           )}
                           {langMode !== "en" && !optHindi && langMode === "hi" && (
-                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.65)" }}>
+                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(0,0,0,0.55)" }}>
                               <MathText text={opt} />
                             </span>
                           )}
@@ -2930,9 +2930,9 @@ export default function SubjectPage() {
               onClick={handlePrev} disabled={currentIndex === 0}
               className="w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 text-base"
               style={{
-                background: "rgba(255,255,255,0.04)",
-                borderColor: "rgba(255,255,255,0.09)",
-                color: currentIndex === 0 ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.55)",
+                background: "rgba(0,0,0,0.05)",
+                borderColor: "rgba(0,0,0,0.08)",
+                color: currentIndex === 0 ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.45)",
                 cursor: currentIndex === 0 ? "not-allowed" : "pointer",
               }}>
               ←
@@ -2944,7 +2944,7 @@ export default function SubjectPage() {
                 whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={handleNext}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold border"
-                style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.09)", color: "rgba(255,255,255,0.45)" }}>
+                style={{ background: "rgba(0,0,0,0.05)", borderColor: "rgba(0,0,0,0.08)", color: "rgba(0,0,0,0.35)" }}>
                 Skip ↷
               </motion.button>
             )}
@@ -2956,8 +2956,8 @@ export default function SubjectPage() {
               disabled={selectedOption === null}
               className="flex-[2] py-3 rounded-xl text-sm font-bold transition-all duration-300"
               style={{
-                background: selectedOption !== null ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)` : "rgba(255,255,255,0.06)",
-                color:      selectedOption !== null ? "#fff" : "rgba(255,255,255,0.22)",
+                background: selectedOption !== null ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)` : "rgba(0,0,0,0.06)",
+                color:      selectedOption !== null ? "#fff" : "rgba(0,0,0,0.18)",
                 boxShadow:  selectedOption !== null ? `0 4px 20px ${meta.accent}40` : "none",
                 cursor:     selectedOption === null ? "not-allowed" : "pointer",
               }}>
@@ -2997,15 +2997,15 @@ export default function SubjectPage() {
               backdropFilter: "blur(24px)",
               WebkitBackdropFilter: "blur(24px)",
               border: `1px solid ${meta.accent}28`,
-              boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04), 0 4px 24px ${meta.accent}1a`,
+              boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.05), 0 4px 24px ${meta.accent}1a`,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 onClick={() => setScreen("mode-select")}
-                style={{ color: "rgba(255,255,255,0.4)", fontSize: 18, padding: 4, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.75)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
+                style={{ color: "rgba(0,0,0,0.32)", fontSize: 18, padding: 4, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(0,0,0,0.62)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(0,0,0,0.32)")}
               >
                 ←
               </button>
@@ -3028,7 +3028,7 @@ export default function SubjectPage() {
                     {currentIndex + 1}/{questions.length}
                   </motion.button>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                <div style={{ height: 6, borderRadius: 999, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
                   <motion.div
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.4, ease: "easeOut" }}
