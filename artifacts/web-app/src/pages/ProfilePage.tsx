@@ -273,15 +273,19 @@ function AuthForm() {
 
         {tab !== "reset" && (<>
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center font-black text-white text-xl"
-            style={{ background: "conic-gradient(from 0deg, #8b5cf6, #06b6d4, #10b981, #f97316, #8b5cf6)" }}>
-            S
-          </div>
+          <img
+            src="/shiken-logo.png"
+            alt="SHIKEN"
+            className="w-16 h-16 rounded-2xl mx-auto mb-4 object-cover"
+            style={{ boxShadow: "0 0 32px rgba(139,92,246,0.35)" }}
+          />
           <h1 className="text-white font-black text-2xl tracking-tight mb-1">
             {tab === "in" ? "Welcome Back" : "Join SHIKEN"}
           </h1>
-          <p className="text-white/30 text-sm">
-            {tab === "in" ? "Sign in to view your profile & stats" : "Create an account to save your progress"}
+          <p className="text-white/40 text-sm">
+            {tab === "in"
+              ? "Bihar Board परीक्षा की तैयारी करो · AI Powered"
+              : "Class 10 & 12 · Bihar Board · AI Powered"}
           </p>
         </div>
 
