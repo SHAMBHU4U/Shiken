@@ -215,7 +215,7 @@ function Leaderboard() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
       className="mb-8 rounded-2xl overflow-hidden"
-      style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}
+      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}
     >
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
@@ -236,7 +236,7 @@ function Leaderboard() {
               transition={{ delay: 0.35 + i * 0.04 }}
               className="flex items-center gap-3 px-4 py-2.5 transition-colors"
               style={{
-                background: isMe ? "rgba(139,92,246,0.1)" : i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.03)",
+                background: isMe ? "rgba(139,92,246,0.1)" : i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)",
                 borderLeft: isMe ? "2px solid #8b5cf6" : "2px solid transparent",
               }}
             >
@@ -295,7 +295,7 @@ function UsernameSetup({ onDone }: { onDone: (name: string) => void }) {
           placeholder="Your name…"
           maxLength={20}
           className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-          style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(0,0,0,0.10)" }}
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
         />
         <motion.button type="submit" whileTap={{ scale: 0.96 }}
           className="px-4 py-2.5 rounded-xl text-sm font-bold text-white shrink-0"
@@ -357,7 +357,7 @@ function AdminGuard() {
 
   if (user === "loading") {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#f8f9ff" }}>
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#07080f" }}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
@@ -371,14 +371,14 @@ function AdminGuard() {
   if (user && adminSession) return <AdminPage onSignOut={() => { sessionStorage.removeItem(ADMIN_SESSION); setAdminSession(false); signOut(auth); }} />;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#f8f9ff" }}>
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#07080f" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
         <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />
         <div className="absolute inset-0 opacity-[0.02]"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
       </div>
 
       <motion.div
@@ -414,8 +414,8 @@ function AdminGuard() {
             required
             className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none transition-all"
             style={{
-              background: "rgba(0,0,0,0.06)",
-              border: "1px solid rgba(0,0,0,0.10)",
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.10)",
             }}
           />
           <div className="relative">
@@ -428,8 +428,8 @@ function AdminGuard() {
               required
               className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none transition-all"
               style={{
-                background: error ? "rgba(239,68,68,0.08)" : "rgba(0,0,0,0.06)",
-                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(0,0,0,0.10)"}`,
+                background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.10)"}`,
               }}
             />
             {error && (
@@ -601,7 +601,7 @@ function SubjectCard({
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
 function NavIcon({ id, active }: { id: string; active: boolean }) {
-  const color = active ? "#38bdf8" : "rgba(0,0,0,0.35)";
+  const color = active ? "#38bdf8" : "rgba(255,255,255,0.35)";
   const sw: React.SVGProps<SVGSVGElement> = {
     viewBox: "0 0 24 24", fill: "none", stroke: color,
     strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",
@@ -669,7 +669,7 @@ function BottomNav() {
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
         borderTop: "1px solid rgba(0,0,0,0.08)",
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.45)",
+        boxShadow: "0 -4px 24px rgba(255,255,255,0.45)",
       }}
     >
       <div className="max-w-lg mx-auto flex items-stretch justify-around px-1 py-1 pb-safe">
@@ -703,7 +703,7 @@ function BottomNav() {
               </div>
               <span
                 className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
-                style={{ color: active ? "#38bdf8" : "rgba(0,0,0,0.35)" }}
+                style={{ color: active ? "#38bdf8" : "rgba(255,255,255,0.35)" }}
               >
                 {tab.label}
               </span>
@@ -723,7 +723,7 @@ function Dashboard() {
   const activeSubjects = selectedClass === "12" ? class12Subjects : subjects;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#f8f9ff" }}>
+    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
           className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20"
@@ -740,7 +740,7 @@ function Dashboard() {
         <div
           className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: `radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)`,
+            backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)`,
             backgroundSize: "32px 32px",
           }}
         />
@@ -851,8 +851,8 @@ function Dashboard() {
                 style={{
                   background: selectedClass === cls
                     ? "linear-gradient(135deg, #8b5cf6, #6366f1)"
-                    : "rgba(0,0,0,0.06)",
-                  color: selectedClass === cls ? "#fff" : "rgba(0,0,0,0.32)",
+                    : "rgba(255,255,255,0.06)",
+                  color: selectedClass === cls ? "#fff" : "rgba(255,255,255,0.32)",
                   border: `1px solid ${selectedClass === cls ? "rgba(139,92,246,0.5)" : "rgba(0,0,0,0.08)"}`,
                   boxShadow: selectedClass === cls ? "0 4px 20px rgba(139,92,246,0.35)" : "none",
                 }}
@@ -947,7 +947,7 @@ function OfflineBanner() {
             ? "linear-gradient(90deg, rgba(16,185,129,0.92), rgba(5,150,105,0.92))"
             : "linear-gradient(90deg, rgba(234,88,12,0.95), rgba(194,65,12,0.95))",
           backdropFilter: "blur(12px)",
-          boxShadow: "0 2px 16px rgba(0,0,0,0.45)",
+          boxShadow: "0 2px 16px rgba(255,255,255,0.45)",
         }}
       >
         <div className="flex items-center gap-2">

@@ -253,7 +253,7 @@ function PaymentSheet({
 
         {plan.singleSubject && selectedSubject && (
           <div className="mb-4 px-4 py-2.5 rounded-xl flex items-center gap-2"
-            style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.10)" }}>
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
             <span className="text-sm">📚</span>
             <span className="text-white/70 text-sm font-semibold">
               {SUBJECT_OPTIONS.find(s => s.id === selectedSubject)?.label ?? selectedSubject}
@@ -326,7 +326,7 @@ export default function PricingPage() {
   if (success) {
     const waLink = buildAdminWaLink(success.uid, success.plan, success.paymentId, success.subject);
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-28" style={{ background: "#f8f9ff" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-28" style={{ background: "#07080f" }}>
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", damping: 18, stiffness: 260 }}
@@ -366,7 +366,7 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "#f8f9ff" }}>
+    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "#07080f" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
@@ -379,7 +379,7 @@ export default function PricingPage() {
           className="text-center mb-8">
           <button onClick={() => navigate(-1 as never)}
             className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
-            style={{ background: "rgba(0,0,0,0.06)" }}>←</button>
+            style={{ background: "rgba(255,255,255,0.06)" }}>←</button>
           <motion.div animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
             transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }} className="text-4xl mb-3">👑</motion.div>
           <h1 className="text-white font-black text-2xl mb-1">SHIKEN Premium</h1>
@@ -404,13 +404,13 @@ export default function PricingPage() {
         {/* Freemium reminder */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="mb-6 rounded-2xl p-4"
-          style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.06)" }}>
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="text-white/70 font-bold text-xs mb-2">🆓 Free Plan (always available)</p>
           <div className="flex flex-col gap-1">
             {["Mini Test — unlimited (10 random questions)", "1 Full Length Test per subject (free trial)"].map(f => (
               <div key={f} className="flex items-center gap-2 text-xs text-white/45">
                 <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
-                  style={{ background: "rgba(0,0,0,0.08)", color: "rgba(0,0,0,0.40)" }}>✓</span>
+                  style={{ background: "rgba(0,0,0,0.08)", color: "rgba(255,255,255,0.40)" }}>✓</span>
                 {f}
               </div>
             ))}
@@ -422,7 +422,7 @@ export default function PricingPage() {
             <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.08 }}
               className="rounded-2xl p-5"
-              style={{ background: "rgba(0,0,0,0.05)", border: `1px solid ${plan.accent}25` }}>
+              style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${plan.accent}25` }}>
 
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -462,9 +462,9 @@ export default function PricingPage() {
                           onClick={() => setSubjectForPlan(prev => ({ ...prev, [plan.id]: s.id }))}
                           className="py-2 px-1 rounded-xl text-xs font-semibold text-center transition-all"
                           style={{
-                            background: sel ? `${plan.accent}30` : "rgba(0,0,0,0.05)",
+                            background: sel ? `${plan.accent}30` : "rgba(255,255,255,0.05)",
                             border: `1px solid ${sel ? plan.accent : "rgba(0,0,0,0.08)"}`,
-                            color: sel ? plan.accent : "rgba(0,0,0,0.40)",
+                            color: sel ? plan.accent : "rgba(255,255,255,0.40)",
                           }}>
                           {s.label.split(" / ")[0]}
                         </button>
@@ -484,9 +484,9 @@ export default function PricingPage() {
                 className="w-full py-3 rounded-xl font-black text-sm"
                 style={{
                   background: plan.singleSubject && !subjectForPlan[plan.id]
-                    ? "rgba(0,0,0,0.06)"
+                    ? "rgba(255,255,255,0.06)"
                     : `linear-gradient(135deg, ${plan.accent}, ${plan.id === "monthly_one" ? "#6366f1" : plan.id === "biannual_one" ? "#059669" : "#d97706"})`,
-                  color: plan.singleSubject && !subjectForPlan[plan.id] ? "rgba(0,0,0,0.20)" : "#000",
+                  color: plan.singleSubject && !subjectForPlan[plan.id] ? "rgba(255,255,255,0.20)" : "#000",
                   boxShadow: plan.singleSubject && !subjectForPlan[plan.id] ? "none" : `0 4px 20px ${plan.accent}40`,
                   cursor: plan.singleSubject && !subjectForPlan[plan.id] ? "not-allowed" : "pointer",
                 }}>

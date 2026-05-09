@@ -74,7 +74,7 @@ function Sparkline({ records, accent }: { records: TestRecord[]; accent: string 
       <path d={fillPath} fill={`url(#${gradId})`} />
       <path d={linePath} fill="none" stroke={accent} strokeWidth="1.5" strokeLinecap="round" />
       <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="2.5"
-        fill={gradeColor(pts[pts.length - 1].pct)} stroke="#f8f9ff" strokeWidth="1" />
+        fill={gradeColor(pts[pts.length - 1].pct)} stroke="#07080f" strokeWidth="1" />
     </svg>
   );
 }
@@ -87,7 +87,7 @@ function RingChart({ pct, accent, size = 72 }: { pct: number; accent: string; si
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke="rgba(0,0,0,0.06)" strokeWidth="5" />
+        stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none"
         stroke={accent} strokeWidth="5"
         strokeDasharray={`${dash} ${circ - dash}`}
@@ -124,13 +124,13 @@ function OverallTrend({ allRecords }: { allRecords: TestRecord[] }) {
       {[60, 80].map((p) => {
         const y = PY + (1 - p / 100) * iH;
         return <line key={p} x1={PX} y1={y} x2={W - PX} y2={y}
-          stroke="rgba(0,0,0,0.06)" strokeWidth="1" strokeDasharray="3 3" />;
+          stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3" />;
       })}
       <path d={fillPath} fill="url(#ot-grad)" />
       <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="2"
         strokeLinecap="round" strokeLinejoin="round" />
       <circle cx={xs[xs.length - 1]} cy={ys[ys.length - 1]} r="4"
-        fill={gradeColor(pts[pts.length - 1].pct)} stroke="#f8f9ff" strokeWidth="1.5" />
+        fill={gradeColor(pts[pts.length - 1].pct)} stroke="#07080f" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -204,7 +204,7 @@ export default function ProgressPage() {
   const hasAnyData = totalTests > 0;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#f8f9ff" }}>
+    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
       {/* Ambient blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
@@ -214,7 +214,7 @@ export default function ProgressPage() {
         <div className="absolute -bottom-16 left-1/3 w-64 h-64 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #10b981, transparent)" }} />
         <div className="absolute inset-0 opacity-[0.025]"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
       </div>
 
       <div className="relative z-10 max-w-lg mx-auto px-4 py-8 pb-16">

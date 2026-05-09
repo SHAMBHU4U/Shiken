@@ -179,7 +179,7 @@ export default function TermsPage() {
   const [, navigate] = useLocation();
 
   return (
-    <div className="min-h-screen w-full" style={{ background: "#f8f9ff" }}>
+    <div className="min-h-screen w-full" style={{ background: "#07080f" }}>
       <div className="max-w-lg mx-auto px-4 pt-6 pb-32">
 
         {/* Header */}
@@ -249,11 +249,11 @@ export default function TermsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12 + idx * 0.05, duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               className="rounded-2xl border overflow-hidden"
-              style={{ background: "rgba(0,0,0,0.05)", borderColor: "rgba(0,0,0,0.08)" }}
+              style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(0,0,0,0.08)" }}
             >
               {/* Section header */}
               <div className="flex items-center gap-3 px-4 pt-4 pb-3"
-                style={{ borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <span className="text-xl shrink-0">{section.icon}</span>
                 <h2 className="text-white font-bold text-sm">{section.title}</h2>
               </div>
