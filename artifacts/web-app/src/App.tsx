@@ -665,11 +665,11 @@ function BottomNav() {
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{
-        background: "rgba(248,249,255,0.97)",
+        background: "rgba(26,27,46,0.97)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
-        borderTop: "1px solid rgba(0,0,0,0.08)",
-        boxShadow: "0 -4px 24px rgba(255,255,255,0.45)",
+        borderTop: "1px solid rgba(255,255,255,0.09)",
+        boxShadow: "0 -4px 24px rgba(0,0,0,0.45)",
       }}
     >
       <div className="max-w-lg mx-auto flex items-stretch justify-around px-1 py-1 pb-safe">
