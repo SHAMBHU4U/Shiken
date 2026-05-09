@@ -29,7 +29,7 @@ export default function ContactPage() {
         >
           <div className="flex items-center gap-4 mb-5">
             <div className="w-16 h-16 rounded-[18px] flex items-center justify-center shrink-0 overflow-hidden" style={{ background: "linear-gradient(135deg, #5b21b6, #2563eb, #0f766e)", boxShadow: "0 10px 28px rgba(91,33,182,0.35)" }}>
-              <img src="/shiken-logo.png" alt="SHIKEN" className="w-11 h-11 object-contain" />
+              <img src="@assets/Screenshot_2026-05-08_195228_1778295164173.png" alt="SHIKEN" className="w-11 h-11 object-contain" />
             </div>
             <div>
               <p className="text-white font-black text-2xl tracking-tight">SHIKEN · शिकेन</p>
