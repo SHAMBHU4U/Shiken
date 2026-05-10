@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
-const ADMIN_PASSWORD = "shiken@admin2025";
+const ADMIN_PASSWORD = "#Shiken@468%";
 
 const SUBJECTS = [
   { id: "maths",          label: "Maths (गणित)",            accent: "#06b6d4", schema: "maths" },
