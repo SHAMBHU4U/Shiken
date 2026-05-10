@@ -1984,25 +1984,33 @@ function PDFImportPanel() {
 
 // ─── Upload Panel ─────────────────────────────────────────────────────────────
 
-const UPLOAD_SUBJECTS: Record<string, { label: string; path: string; accent: string }> = {
-  // Class 10
-  maths:    { label: "Maths (C10)",          path: "maths",            accent: "#06b6d4" },
-  english:  { label: "English (C10)",        path: "english",          accent: "#8b5cf6" },
-  hindi:    { label: "Hindi (C10)",           path: "hindi",            accent: "#f97316" },
-  science:  { label: "Science (C10)",        path: "science",          accent: "#10b981" },
-  social:   { label: "Social Science (C10)", path: "social science",   accent: "#f59e0b" },
-  sanskrit: { label: "Sanskrit (C10)",       path: "sanskrit",         accent: "#ec4899" },
-  // Class 12
-  physics:   { label: "Physics (C12)",       path: "class12/physics",   accent: "#3b82f6" },
-  chemistry: { label: "Chemistry (C12)",     path: "class12/chemistry", accent: "#10b981" },
-  biology:   { label: "Biology (C12)",       path: "class12/biology",   accent: "#22c55e" },
-  maths12:   { label: "Maths (C12)",         path: "class12/maths",     accent: "#06b6d4" },
-  social12:  { label: "Social (C12)",        path: "class12/social",    accent: "#f59e0b" },
-  hindi12:   { label: "Hindi (C12)",         path: "class12/hindi",     accent: "#f97316" },
-  english12: { label: "English (C12)",       path: "class12/english",   accent: "#8b5cf6" },
+const CLASS_UPLOAD_SUBJECTS: Record<"c10" | "c12", Record<string, { label: string; path: string; accent: string }>> = {
+  c10: {
+    maths:    { label: "Maths",          path: "maths",          accent: "#06b6d4" },
+    english:  { label: "English",        path: "english",        accent: "#8b5cf6" },
+    hindi:    { label: "Hindi",          path: "hindi",          accent: "#f97316" },
+    science:  { label: "Science",        path: "science",        accent: "#10b981" },
+    social:   { label: "Social Science", path: "social science", accent: "#f59e0b" },
+    sanskrit: { label: "Sanskrit",       path: "sanskrit",       accent: "#ec4899" },
+  },
+  c12: {
+    physics:   { label: "Physics",   path: "class12/physics",   accent: "#3b82f6" },
+    chemistry: { label: "Chemistry", path: "class12/chemistry", accent: "#10b981" },
+    biology:   { label: "Biology",   path: "class12/biology",   accent: "#22c55e" },
+    maths12:   { label: "Maths",     path: "class12/maths",     accent: "#06b6d4" },
+    social12:  { label: "Social",    path: "class12/social",    accent: "#f59e0b" },
+    hindi12:   { label: "Hindi",     path: "class12/hindi",     accent: "#f97316" },
+    english12: { label: "English",   path: "class12/english",   accent: "#8b5cf6" },
+  },
 };
 
+const CLASS_UPLOAD_META = {
+  c10: { label: "Class 10", accent: "#8b5cf6" },
+  c12: { label: "Class 12", accent: "#06b6d4" },
+} as const;
+
 function UploadPanel() {
+  const [classId, setClassId] = useState<"c10" | "c12">("c10");
   const [subjectId, setSubjectId] = useState("maths");
   const [mode, setMode]   = useState<"single" | "bulk">("single");
   const [chapter, setChapter] = useState("");
@@ -2014,8 +2022,16 @@ function UploadPanel() {
   const [status, setStatus] = useState<{ type: "idle" | "ok" | "err"; msg: string }>({ type: "idle", msg: "" });
   const [saving, setSaving] = useState(false);
 
-  const subject = UPLOAD_SUBJECTS[subjectId];
+  const subjects = CLASS_UPLOAD_SUBJECTS[classId];
+  const subject = subjects[subjectId] ?? Object.values(subjects)[0];
   const accent  = subject?.accent ?? "#8b5cf6";
+
+  useEffect(() => {
+    const firstSubject = Object.keys(subjects)[0];
+    if (firstSubject && !subjects[subjectId]) {
+      setSubjectId(firstSubject);
+    }
+  }, [classId, subjectId, subjects]);
 
   async function uploadQuestions(questions: Array<{ english: string; hindi: string; options: string[]; answerIndex: number; chapter: string }>) {
     setSaving(true);
@@ -2083,22 +2099,44 @@ function UploadPanel() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <p className="text-white/40 text-xs mb-2">Select subject:</p>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(UPLOAD_SUBJECTS).map(([id, s]) => (
-            <button key={id} onClick={() => setSubjectId(id)}
-              className="py-2 px-3 rounded-xl text-xs font-semibold text-left transition-all"
-              style={{
-                background: subjectId === id ? `${s.accent}25` : "rgba(255,255,255,0.05)",
-                border: `1px solid ${subjectId === id ? s.accent : "rgba(0,0,0,0.08)"}`,
-                color: subjectId === id ? s.accent : "rgba(255,255,255,0.40)",
-              }}>
-              {s.label}
-            </button>
-          ))}
+        <div>
+          <p className="text-white/40 text-xs mb-2">Select class:</p>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {(["c10", "c12"] as const).map((id) => {
+              const meta = CLASS_UPLOAD_META[id];
+              const isActive = classId === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setClassId(id)}
+                  className="py-2 px-3 rounded-xl text-xs font-semibold transition-all"
+                  style={{
+                    background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
+                    border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
+                    color: isActive ? meta.accent : "rgba(255,255,255,0.40)",
+                  }}
+                >
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-white/40 text-xs mb-2">Select subject:</p>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(subjects).map(([id, s]) => (
+              <button key={id} onClick={() => setSubjectId(id)}
+                className="py-2 px-3 rounded-xl text-xs font-semibold text-left transition-all"
+                style={{
+                  background: subjectId === id ? `${s.accent}25` : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${subjectId === id ? s.accent : "rgba(0,0,0,0.08)"}`,
+                  color: subjectId === id ? s.accent : "rgba(255,255,255,0.40)",
+                }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
 
       <div className="flex gap-2">
         {(["single", "bulk"] as const).map((m) => (
