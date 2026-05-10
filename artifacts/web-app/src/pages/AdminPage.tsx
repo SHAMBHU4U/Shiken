@@ -1714,9 +1714,24 @@ function QuestionsBankPanel() {
 
 // ─── PDF Import Panel ─────────────────────────────────────────────────────────
 
-const SUBJECT_PATHS: Record<string, string> = {
-  maths: "maths", english: "english", hindi: "hindi",
-  science: "science", social: "social science", sanskrit: "sanskrit",
+const PDF_SUBJECTS: Record<"c10" | "c12", Array<{ id: string; label: string; icon: string; accent: string; path: string }>> = {
+  c10: [
+    { id: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", path: "maths" },
+    { id: "english",  label: "English",        icon: "📖", accent: "#8b5cf6", path: "english" },
+    { id: "hindi",    label: "Hindi",          icon: "🔤", accent: "#f97316", path: "hindi" },
+    { id: "science",  label: "Science",        icon: "🔬", accent: "#10b981", path: "science" },
+    { id: "social",   label: "Social Science", icon: "🌍", accent: "#f59e0b", path: "social science" },
+    { id: "sanskrit", label: "Sanskrit",       icon: "📜", accent: "#ec4899", path: "sanskrit" },
+  ],
+  c12: [
+    { id: "physics",   label: "Physics",   icon: "⚡", accent: "#3b82f6", path: "class12/physics" },
+    { id: "chemistry", label: "Chemistry", icon: "🧪", accent: "#10b981", path: "class12/chemistry" },
+    { id: "biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", path: "class12/biology" },
+    { id: "maths12",   label: "Maths",     icon: "📐", accent: "#06b6d4", path: "class12/maths" },
+    { id: "social12",  label: "Social",    icon: "🌍", accent: "#f59e0b", path: "class12/social" },
+    { id: "hindi12",   label: "Hindi",     icon: "🔤", accent: "#f97316", path: "class12/hindi" },
+    { id: "english12", label: "English",   icon: "📖", accent: "#8b5cf6", path: "class12/english" },
+  ],
 };
 
 function readFileAsBase64(file: File): Promise<string> {
@@ -1731,6 +1746,7 @@ function readFileAsBase64(file: File): Promise<string> {
 type ImportStep = "idle" | "reading" | "parsing" | "preview" | "saving" | "done";
 
 function PDFImportPanel() {
+  const [classId,   setClassId]     = useState<"c10" | "c12">("c10");
   const [subjectId, setSubjectId]   = useState("english");
   const [chapter,   setChapter]     = useState("");
   const [file,      setFile]        = useState<File | null>(null);
@@ -1742,8 +1758,17 @@ function PDFImportPanel() {
   const [dragOver,  setDragOver]    = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const accent = ALL_SUBJECTS.find((s) => s.id === subjectId)?.accent ?? "#8b5cf6";
-  const busy   = step === "reading" || step === "parsing" || step === "saving";
+  const pdfSubjects = PDF_SUBJECTS[classId];
+  const activeSub   = pdfSubjects.find((s) => s.id === subjectId) ?? pdfSubjects[0];
+  const accent      = activeSub.accent;
+  const busy        = step === "reading" || step === "parsing" || step === "saving";
+
+  useEffect(() => {
+    const first = PDF_SUBJECTS[classId][0];
+    if (first && !PDF_SUBJECTS[classId].find((s) => s.id === subjectId)) {
+      setSubjectId(first.id);
+    }
+  }, [classId, subjectId]);
 
   async function handleExtract() {
     if (!file || !chapter.trim()) { setError("Chapter name is required."); return; }
@@ -1751,8 +1776,7 @@ function PDFImportPanel() {
     try {
       const base64 = await readFileAsBase64(file);
       setStep("parsing");
-      const label = ALL_SUBJECTS.find((s) => s.id === subjectId)?.label ?? subjectId;
-      const extracted = await parsePDFQuestions(base64, label, chapter.trim());
+      const extracted = await parsePDFQuestions(base64, activeSub.label, chapter.trim());
       if (extracted.length === 0) throw new Error("No MCQ questions found in this PDF.");
       setQuestions(extracted);
       setStep("preview");
@@ -1763,12 +1787,13 @@ function PDFImportPanel() {
   }
 
   async function handleSave() {
-    const path = SUBJECT_PATHS[subjectId] ?? subjectId;
+    const path = activeSub.path;
+    const encoded = path.split("/").map(encodeURIComponent).join("/");
     setStep("saving"); setSavedCount(0);
     let saved = 0;
     for (const q of questions) {
       try {
-        await fetch(`${DB_URL}/${encodeURIComponent(path)}.json`, {
+        await fetch(`${DB_URL}/${encoded}.json`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1811,18 +1836,39 @@ function PDFImportPanel() {
         </div>
       </div>
 
-      {/* Step 1 — Subject + Chapter */}
+      {/* Step 1 — Class + Subject + Chapter */}
       <div className="flex flex-col gap-3 mb-4">
+        <div>
+          <p className="text-white/40 text-xs font-semibold mb-1.5">Class</p>
+          <div className="grid grid-cols-2 gap-2">
+            {(["c10", "c12"] as const).map((id) => {
+              const meta = CLASS_UPLOAD_META[id];
+              const isActive = classId === id;
+              return (
+                <button key={id} onClick={() => { setClassId(id); setStep("idle"); setQuestions([]); }} disabled={busy}
+                  className="py-2 px-3 rounded-xl text-xs font-bold transition-all"
+                  style={{
+                    background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
+                    border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
+                    color: isActive ? meta.accent : "rgba(255,255,255,0.40)",
+                  }}>
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div>
           <p className="text-white/40 text-xs font-semibold mb-1.5">Subject</p>
           <div className="grid grid-cols-3 gap-2">
-            {ALL_SUBJECTS.map((s) => (
+            {pdfSubjects.map((s) => (
               <button key={s.id} onClick={() => setSubjectId(s.id)} disabled={busy}
                 className="flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-semibold transition-all"
                 style={{
-                  background:   subjectId === s.id ? `${s.accent}20` : "rgba(255,255,255,0.05)",
-                  borderColor:  subjectId === s.id ? `${s.accent}50` : "rgba(0,0,0,0.08)",
-                  color:        subjectId === s.id ? s.accent : "rgba(255,255,255,0.28)",
+                  background:   activeSub.id === s.id ? `${s.accent}20` : "rgba(255,255,255,0.05)",
+                  borderColor:  activeSub.id === s.id ? `${s.accent}50` : "rgba(0,0,0,0.08)",
+                  color:        activeSub.id === s.id ? s.accent : "rgba(255,255,255,0.28)",
                 }}>
                 <span className="text-base">{s.icon}</span>
                 {s.label}
@@ -1970,7 +2016,7 @@ function PDFImportPanel() {
           className="text-center py-8">
           <p className="text-4xl mb-3">🎉</p>
           <p className="text-white font-bold text-base mb-1">{savedCount} questions saved!</p>
-          <p className="text-white/30 text-xs mb-5">Now live in Firebase under "{SUBJECT_PATHS[subjectId]}" → chapter "{chapter}"</p>
+          <p className="text-white/30 text-xs mb-5">Now live in Firebase under "{activeSub.path}" → chapter "{chapter}"</p>
           <button onClick={() => { setStep("idle"); setFile(null); setQuestions([]); setChapter(""); setSavedCount(0); setError(""); }}
             className="px-5 py-2 rounded-xl text-sm font-semibold border transition-all"
             style={{ background: `${accent}15`, borderColor: `${accent}40`, color: accent }}>
