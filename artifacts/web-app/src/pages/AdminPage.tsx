@@ -2215,11 +2215,6 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
-  useEffect(() => {
-    if (activeTab === "overview") {
-      jumpRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [activeTab]);
 
   const totalQuestions = ALL_SUBJECTS.reduce((sum, s) => sum + (subjectData[s.id]?.status === "loaded" ? subjectData[s.id].count : 0), 0);
   const loadedCount   = ALL_SUBJECTS.filter((s) => subjectData[s.id]?.status === "loaded").length;
@@ -2295,64 +2290,49 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           ))}
         </motion.div>
 
-        {/* Tab switcher */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-          className="flex gap-1.5 mb-5 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
-          {([ 
-            { id: "overview",  label: "📊 DB",       badge: 0 },
-            { id: "ai",        label: "🤖 AI",       badge: 0 },
-            { id: "users",     label: "👥 Users",    badge: 0 },
-            { id: "payments",  label: "💳 Pay",      badge: pendingBadge },
-            { id: "ratings",   label: "⭐ Stars",    badge: 0 },
-            { id: "cache",     label: "🗄️ Cache",    badge: 0 },
-            { id: "pdf",       label: "📄 PDF",      badge: 0 },
-            { id: "bank",      label: "📚 Bank",     badge: 0 },
-            { id: "upload",    label: "📤 Upload",   badge: 0 },
-          ] as const).map(({ id, label, badge }) => (
-            <button key={id} onClick={() => { setActiveTab(id); setReviewSubject(null); }}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all relative"
-              style={{
-                background: activeTab === id ? "rgba(255,255,255,0.10)" : "transparent",
-                color:      activeTab === id ? "#fff" : "rgba(255,255,255,0.28)",
-                border:     activeTab === id ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent",
-              }}>
-              {label}
-              {badge > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-black font-black flex items-center justify-center"
-                  style={{ background: "#f59e0b", fontSize: "9px" }}>
-                  {badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </motion.div>
-
-        <div ref={jumpRef} className="mb-4 flex flex-wrap gap-2">
+        {/* Tab switcher — 3×3 grid for comfortable mobile tapping */}
+        <motion.div ref={jumpRef} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }} className="grid grid-cols-3 gap-2 mb-6">
           {([
-            { id: "overview", label: "Overview" },
-            { id: "ai", label: "AI Review" },
-            { id: "users", label: "Users" },
-            { id: "payments", label: "Payments" },
-            { id: "ratings", label: "Ratings" },
-            { id: "cache", label: "Cache" },
-            { id: "pdf", label: "PDF Import" },
-            { id: "bank", label: "Bank" },
-            { id: "upload", label: "Upload" },
-          ] as const).map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
-              style={{
-                background: activeTab === item.id ? "rgba(139,92,246,0.22)" : "rgba(255,255,255,0.05)",
-                color: activeTab === item.id ? "#fff" : "rgba(255,255,255,0.55)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+            { id: "overview",  icon: "📊", label: "Database",  badge: 0 },
+            { id: "ai",        icon: "🤖", label: "AI Review", badge: 0 },
+            { id: "users",     icon: "👥", label: "Users",     badge: 0 },
+            { id: "payments",  icon: "💳", label: "Payments",  badge: pendingBadge },
+            { id: "ratings",   icon: "⭐", label: "Ratings",   badge: 0 },
+            { id: "cache",     icon: "🗄️", label: "Cache",     badge: 0 },
+            { id: "pdf",       icon: "📄", label: "PDF Import",badge: 0 },
+            { id: "bank",      icon: "📚", label: "Q Bank",    badge: 0 },
+            { id: "upload",    icon: "📤", label: "Upload",    badge: 0 },
+          ] as const).map(({ id, icon, label, badge }) => {
+            const isActive = activeTab === id;
+            return (
+              <button key={id}
+                onClick={() => { setActiveTab(id); setReviewSubject(null); }}
+                className="relative flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl transition-all"
+                style={{
+                  background: isActive
+                    ? "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.15))"
+                    : "rgba(255,255,255,0.04)",
+                  border: isActive
+                    ? "1px solid rgba(139,92,246,0.4)"
+                    : "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: isActive ? "0 0 12px rgba(139,92,246,0.18)" : "none",
+                }}>
+                <span className="text-lg leading-none">{icon}</span>
+                <span className="text-[11px] font-semibold leading-tight text-center"
+                  style={{ color: isActive ? "#fff" : "rgba(255,255,255,0.40)" }}>
+                  {label}
+                </span>
+                {badge > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-black font-black flex items-center justify-center"
+                    style={{ background: "#f59e0b", fontSize: "10px" }}>
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </motion.div>
 
         <AnimatePresence mode="wait">
           {activeTab === "overview" && (
