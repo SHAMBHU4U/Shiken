@@ -2198,6 +2198,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
     return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload"] as const).find(t => t === p) ?? "overview";
   })();
   const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload">(initialTab);
+  const jumpRef = useRef<HTMLDivElement | null>(null);
   const [pendingBadge, setPendingBadge] = useState(0);
 
   const loadAll = useCallback(async () => {
@@ -2214,6 +2215,11 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   }, []);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+  useEffect(() => {
+    if (activeTab === "overview") {
+      jumpRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [activeTab]);
 
   const totalQuestions = ALL_SUBJECTS.reduce((sum, s) => sum + (subjectData[s.id]?.status === "loaded" ? subjectData[s.id].count : 0), 0);
   const loadedCount   = ALL_SUBJECTS.filter((s) => subjectData[s.id]?.status === "loaded").length;
@@ -2320,6 +2326,33 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             </button>
           ))}
         </motion.div>
+
+        <div ref={jumpRef} className="mb-4 flex flex-wrap gap-2">
+          {([
+            { id: "overview", label: "Overview" },
+            { id: "ai", label: "AI Review" },
+            { id: "users", label: "Users" },
+            { id: "payments", label: "Payments" },
+            { id: "ratings", label: "Ratings" },
+            { id: "cache", label: "Cache" },
+            { id: "pdf", label: "PDF Import" },
+            { id: "bank", label: "Bank" },
+            { id: "upload", label: "Upload" },
+          ] as const).map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+              style={{
+                background: activeTab === item.id ? "rgba(139,92,246,0.22)" : "rgba(255,255,255,0.05)",
+                color: activeTab === item.id ? "#fff" : "rgba(255,255,255,0.55)",
+                border: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
 
         <AnimatePresence mode="wait">
           {activeTab === "overview" && (
