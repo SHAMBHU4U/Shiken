@@ -12,15 +12,19 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 const basePath = process.env.BASE_PATH ?? "/";
+const isFirebaseBuild = process.env.FIREBASE_DEPLOY === "true";
 
 export default defineConfig({
   base: basePath,
   plugins: [
     react(),
     tailwindcss(),
-    runtimeErrorOverlay(),
+    ...(!isFirebaseBuild
+      ? [runtimeErrorOverlay()]
+      : []),
     ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
+    process.env.REPL_ID !== undefined &&
+    !isFirebaseBuild
       ? [
           await import("@replit/vite-plugin-cartographer").then((m) =>
             m.cartographer({

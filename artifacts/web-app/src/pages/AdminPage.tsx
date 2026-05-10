@@ -5,7 +5,7 @@ import { parsePDFQuestions } from "@/lib/gemini";
 import type { GeneratedQuestion } from "@/lib/gemini";
 
 const DB_URL  = "https://shiken-d8789-default-rtdb.firebaseio.com";
-const APP_URL = "https://shiken.replit.app";
+const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
 
 // ─── User Activity types ───────────────────────────────────────────────────────
 
@@ -157,7 +157,7 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
         <div className="flex items-center gap-2 shrink-0">
           {phone && noActivityToday && (
             <a
-              href={`https://wa.me/${phone}?text=${encodeURIComponent(`Namaste! 👋 SHIKEN पर आज practice करो aur apni streak bachao! 🔥 Open app: https://shiken.replit.app`)}`}
+              href={`https://wa.me/${phone}?text=${encodeURIComponent(`Namaste! 👋 SHIKEN पर आज practice करो aur apni streak bachao! 🔥 Open app: ${APP_URL}`)}`}
               target="_blank"
               rel="noreferrer"
               onClick={(e) => e.stopPropagation()}

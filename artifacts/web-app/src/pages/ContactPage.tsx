@@ -4,7 +4,7 @@ import { db } from "@/firebase";
 import { ref, set, get, onValue } from "firebase/database";
 
 const CONTACT_EMAIL = "shiken.query@gmail.com";
-const APP_URL = "https://shiken.replit.app";
+const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
 
 const DEVICE_KEY = "shiken_device_id";
 function getDeviceId(): string {
