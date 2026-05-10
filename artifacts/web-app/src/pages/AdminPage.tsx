@@ -490,13 +490,25 @@ function RatingsPanel() {
 }
 
 const ALL_SUBJECTS = [
-  { id: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",   border: "border-cyan-400/20" },
-  { id: "english",  label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
-  { id: "hindi",    label: "Hindi",           icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",   border: "border-orange-400/20" },
-  { id: "science",  label: "Science",         icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20", border: "border-emerald-400/20" },
-  { id: "social",   label: "Social Science",  icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20" },
-  { id: "sanskrit", label: "Sanskrit",        icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",   border: "border-pink-400/20" },
+  { id: "maths",    dbPath: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20" },
+  { id: "english",  dbPath: "english",  label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "hindi",    dbPath: "hindi",    label: "Hindi",           icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "science",  dbPath: "science",  label: "Science",         icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
+  { id: "social",   dbPath: "social science", label: "Social Science",  icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20" },
+  { id: "sanskrit", dbPath: "sanskrit", label: "Sanskrit",        icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",    border: "border-pink-400/20" },
 ];
+
+const ALL_C12_SUBJECTS = [
+  { id: "c12_physics",   dbPath: "class12/physics",   label: "Physics",   icon: "⚡", accent: "#3b82f6", gradient: "from-blue-500/20 to-indigo-600/20",    border: "border-blue-400/20" },
+  { id: "c12_chemistry", dbPath: "class12/chemistry", label: "Chemistry", icon: "🧪", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
+  { id: "c12_biology",   dbPath: "class12/biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", gradient: "from-green-500/20 to-lime-600/20",    border: "border-green-400/20" },
+  { id: "c12_maths",     dbPath: "class12/maths",     label: "Maths",     icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",     border: "border-cyan-400/20" },
+  { id: "c12_social",    dbPath: "class12/social",    label: "Social",    icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20",  border: "border-amber-400/20" },
+  { id: "c12_hindi",     dbPath: "class12/hindi",     label: "Hindi",     icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "c12_english",   dbPath: "class12/english",   label: "English",   icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+];
+
+type AdminSubject = (typeof ALL_SUBJECTS)[0] | (typeof ALL_C12_SUBJECTS)[0];
 
 type SubjectStatus = "loading" | "loaded" | "empty" | "error";
 
@@ -515,9 +527,10 @@ interface AIQuestion {
   chapter: string;
 }
 
-async function fetchCount(subjectId: string): Promise<SubjectInfo> {
+async function fetchCount(dbPath: string): Promise<SubjectInfo> {
   try {
-    const res = await fetch(`${DB_URL}/${subjectId}.json?shallow=true`);
+    const encoded = dbPath.split("/").map(encodeURIComponent).join("/");
+    const res = await fetch(`${DB_URL}/${encoded}.json?shallow=true`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data === null || data === true || data === false) {
@@ -533,8 +546,9 @@ async function fetchCount(subjectId: string): Promise<SubjectInfo> {
   }
 }
 
-async function fetchAIQuestions(subjectId: string): Promise<AIQuestion[]> {
-  const res = await fetch(`${DB_URL}/${subjectId}.json`);
+async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
+  const encoded = dbPath.split("/").map(encodeURIComponent).join("/");
+  const res = await fetch(`${DB_URL}/${encoded}.json`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json() as Record<string, unknown> | null;
   if (!data || typeof data !== "object") return [];
@@ -601,7 +615,7 @@ function StatusBadge({ status, count }: { status: SubjectStatus; count: number }
   );
 }
 
-function SubjectRow({ subject, info, index }: { subject: (typeof ALL_SUBJECTS)[0]; info: SubjectInfo; index: number }) {
+function SubjectRow({ subject, info, index }: { subject: AdminSubject; info: SubjectInfo; index: number }) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -613,7 +627,7 @@ function SubjectRow({ subject, info, index }: { subject: (typeof ALL_SUBJECTS)[0
       <div className="text-2xl select-none w-8 text-center">{subject.icon}</div>
       <div className="flex-1 min-w-0">
         <p className="text-white font-semibold text-sm">{subject.label}</p>
-        <p className="text-white/30 text-xs font-mono mt-0.5">/{subject.id}</p>
+        <p className="text-white/30 text-xs font-mono mt-0.5">/{subject.dbPath}</p>
       </div>
       <div className="shrink-0"><StatusBadge status={info.status} count={info.count} /></div>
       {info.status === "loaded" && (
@@ -633,7 +647,7 @@ function AIQuestionCard({
   question, subject, onApprove, onReject,
 }: {
   question: AIQuestion;
-  subject: (typeof ALL_SUBJECTS)[0];
+  subject: AdminSubject;
   onApprove: () => void;
   onReject: () => void;
 }) {
@@ -642,13 +656,13 @@ function AIQuestionCard({
 
   async function handleApprove() {
     setAction("approving");
-    try { await approveQuestion(subject.id, question.key); setDone("approved"); onApprove(); }
+    try { await approveQuestion(subject.dbPath, question.key); setDone("approved"); onApprove(); }
     catch { setAction(null); }
   }
 
   async function handleReject() {
     setAction("rejecting");
-    try { await rejectQuestion(subject.id, question.key); setDone("rejected"); onReject(); }
+    try { await rejectQuestion(subject.dbPath, question.key); setDone("rejected"); onReject(); }
     catch { setAction(null); }
   }
 
@@ -732,7 +746,7 @@ function AIQuestionCard({
   );
 }
 
-function AIReviewPanel({ subject, onClose }: { subject: (typeof ALL_SUBJECTS)[0]; onClose: () => void }) {
+function AIReviewPanel({ subject, onClose }: { subject: AdminSubject; onClose: () => void }) {
   const [questions, setQuestions] = useState<AIQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -741,7 +755,7 @@ function AIReviewPanel({ subject, onClose }: { subject: (typeof ALL_SUBJECTS)[0]
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetchAIQuestions(subject.id)
+    fetchAIQuestions(subject.dbPath)
       .then((qs) => {
         setQuestions(qs);
         setCounts({ total: qs.length, remaining: qs.length });
@@ -2269,14 +2283,18 @@ function UploadPanel() {
 
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
+const ALL_ADMIN_SUBJECTS = [...ALL_SUBJECTS, ...ALL_C12_SUBJECTS];
+
 export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [, navigate] = useLocation();
   const [subjectData, setSubjectData] = useState<Record<string, SubjectInfo>>(
-    Object.fromEntries(ALL_SUBJECTS.map((s) => [s.id, { count: 0, status: "loading" as SubjectStatus }]))
+    Object.fromEntries(ALL_ADMIN_SUBJECTS.map((s) => [s.id, { count: 0, status: "loading" as SubjectStatus }]))
   );
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [reviewSubject, setReviewSubject] = useState<(typeof ALL_SUBJECTS)[0] | null>(null);
+  const [reviewSubject, setReviewSubject] = useState<AdminSubject | null>(null);
+  const [overviewClass, setOverviewClass] = useState<"c10" | "c12">("c10");
+  const [aiClass, setAiClass] = useState<"c10" | "c12">("c10");
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
     return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload"] as const).find(t => t === p) ?? "overview";
@@ -2287,9 +2305,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
 
   const loadAll = useCallback(async () => {
     setRefreshing(true);
-    setSubjectData(Object.fromEntries(ALL_SUBJECTS.map((s) => [s.id, { count: 0, status: "loading" }])));
+    setSubjectData(Object.fromEntries(ALL_ADMIN_SUBJECTS.map((s) => [s.id, { count: 0, status: "loading" }])));
     const [results, pending] = await Promise.all([
-      Promise.all(ALL_SUBJECTS.map(async (s) => ({ id: s.id, info: await fetchCount(s.id) }))),
+      Promise.all(ALL_ADMIN_SUBJECTS.map(async (s) => ({ id: s.id, info: await fetchCount(s.dbPath) }))),
       fetchPendingCount(),
     ]);
     setSubjectData(Object.fromEntries(results.map((r) => [r.id, r.info])));
@@ -2300,10 +2318,13 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const totalQuestions = ALL_SUBJECTS.reduce((sum, s) => sum + (subjectData[s.id]?.status === "loaded" ? subjectData[s.id].count : 0), 0);
-  const loadedCount   = ALL_SUBJECTS.filter((s) => subjectData[s.id]?.status === "loaded").length;
-  const errorCount    = ALL_SUBJECTS.filter((s) => subjectData[s.id]?.status === "error").length;
-  const emptyCount    = ALL_SUBJECTS.filter((s) => subjectData[s.id]?.status === "empty").length;
+  const visibleOverviewSubjects = overviewClass === "c10" ? ALL_SUBJECTS : ALL_C12_SUBJECTS;
+  const visibleAiSubjects = aiClass === "c10" ? ALL_SUBJECTS : ALL_C12_SUBJECTS;
+
+  const totalQuestions = ALL_ADMIN_SUBJECTS.reduce((sum, s) => sum + (subjectData[s.id]?.status === "loaded" ? subjectData[s.id].count : 0), 0);
+  const loadedCount   = ALL_ADMIN_SUBJECTS.filter((s) => subjectData[s.id]?.status === "loaded").length;
+  const errorCount    = ALL_ADMIN_SUBJECTS.filter((s) => subjectData[s.id]?.status === "error").length;
+  const emptyCount    = ALL_ADMIN_SUBJECTS.filter((s) => subjectData[s.id]?.status === "empty").length;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
@@ -2421,8 +2442,25 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
         <AnimatePresence mode="wait">
           {activeTab === "overview" && (
             <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.25 }}>
+              {/* Class toggle */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {(["c10", "c12"] as const).map((cls) => {
+                  const isActive = overviewClass === cls;
+                  return (
+                    <button key={cls} onClick={() => setOverviewClass(cls)}
+                      className="py-2 rounded-xl text-xs font-bold transition-all"
+                      style={{
+                        background: isActive ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${isActive ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.08)"}`,
+                        color: isActive ? "#a78bfa" : "rgba(255,255,255,0.35)",
+                      }}>
+                      {cls === "c10" ? "Class 10" : "Class 12"}
+                    </button>
+                  );
+                })}
+              </div>
               <div className="flex flex-col gap-3 mb-6">
-                {ALL_SUBJECTS.map((subject, index) => (
+                {visibleOverviewSubjects.map((subject, index) => (
                   <SubjectRow key={subject.id} subject={subject}
                     info={subjectData[subject.id] ?? { count: 0, status: "loading" }} index={index} />
                 ))}
@@ -2434,9 +2472,26 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             <motion.div key="ai-review" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               {!reviewSubject ? (
                 <div>
+                  {/* Class toggle */}
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {(["c10", "c12"] as const).map((cls) => {
+                      const isActive = aiClass === cls;
+                      return (
+                        <button key={cls} onClick={() => setAiClass(cls)}
+                          className="py-2 rounded-xl text-xs font-bold transition-all"
+                          style={{
+                            background: isActive ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${isActive ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.08)"}`,
+                            color: isActive ? "#a78bfa" : "rgba(255,255,255,0.35)",
+                          }}>
+                          {cls === "c10" ? "Class 10" : "Class 12"}
+                        </button>
+                      );
+                    })}
+                  </div>
                   <p className="text-white/40 text-xs mb-3 font-medium">Select a subject to review its AI-generated questions:</p>
                   <div className="flex flex-col gap-2">
-                    {ALL_SUBJECTS.map((subject, i) => (
+                    {visibleAiSubjects.map((subject, i) => (
                       <motion.button
                         key={subject.id}
                         initial={{ opacity: 0, x: -10 }}
