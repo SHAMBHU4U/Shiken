@@ -31,7 +31,7 @@ interface UserRecord {
 }
 
 const SUBJECT_ICONS: Record<string, string> = {
-  maths: "📐", english: "📖", hindi: "🔤",
+  maths: "📐", english: "📖", hindi: "",
   science: "🔬", social: "🌍", sanskrit: "📜",
 };
 const SUBJECT_COLORS: Record<string, string> = {
