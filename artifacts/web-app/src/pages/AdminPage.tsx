@@ -546,6 +546,25 @@ async function fetchCount(dbPath: string): Promise<SubjectInfo> {
   }
 }
 
+async function fetchCollection(path: string): Promise<Record<string, unknown> | null> {
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  const res = await fetch(`${DB_URL}/${encoded}.json`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data === null) return null;
+  if (typeof data !== "object") return null;
+  return data as Record<string, unknown>;
+}
+
+async function setupCollection(path: string): Promise<void> {
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  await fetch(`${DB_URL}/${encoded}.json`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ __initialized: true }),
+  });
+}
+
 async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
   const encoded = dbPath.split("/").map(encodeURIComponent).join("/");
   const res = await fetch(`${DB_URL}/${encoded}.json`);
@@ -1131,6 +1150,13 @@ interface CacheSubjectGroup {
   total:      number;
 }
 
+interface AdminCollection {
+  path: string;
+  label: string;
+  icon: string;
+  accent: string;
+}
+
 function prettifySlug(slug: string): string {
   return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -1353,6 +1379,77 @@ function CachePanel() {
             })}
           </div>
         </>
+      )}
+    </div>
+  );
+}
+
+function CollectionPanel({ collection }: { collection: AdminCollection }) {
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setData(await fetchCollection(collection.path));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [collection.path]);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleSetup() {
+    setBusy(true);
+    setError("");
+    try {
+      await setupCollection(collection.path);
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const count = data ? Object.keys(data).filter((k) => k !== "__initialized").length : 0;
+
+  return (
+    <div className="rounded-xl border p-4" style={{ background: `${collection.accent}08`, borderColor: `${collection.accent}20` }}>
+      <div className="flex items-center gap-3 mb-4">
+        <span className="text-2xl">{collection.icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-sm">{collection.label}</p>
+          <p className="text-white/30 text-xs font-mono">/{collection.path}</p>
+        </div>
+        <button onClick={load} className="text-white/30 hover:text-white/60 text-xs transition-colors">↻</button>
+      </div>
+      {loading ? (
+        <p className="text-white/30 text-xs">Loading…</p>
+      ) : error ? (
+        <div className="text-red-400 text-xs">{error}</div>
+      ) : count === 0 ? (
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-white/60 text-sm font-medium">Collection is empty</p>
+            <p className="text-white/25 text-xs mt-0.5">Create it to start managing records</p>
+          </div>
+          <button
+            onClick={handleSetup}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-lg text-xs font-bold"
+            style={{ background: `${collection.accent}20`, color: collection.accent, border: `1px solid ${collection.accent}40` }}
+          >
+            {busy ? "…" : "Setup Collection"}
+          </button>
+        </div>
+      ) : (
+        <div className="text-white/35 text-xs">{count} records found</div>
       )}
     </div>
   );
@@ -2395,9 +2492,14 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           ))}
         </motion.div>
 
-        {/* Tab switcher — 3×3 grid for comfortable mobile tapping */}
-        <motion.div ref={jumpRef} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }} className="grid grid-cols-3 gap-2 mb-6">
+        {/* Tab switcher — horizontal scroll for all admin tools */}
+        <motion.div
+          ref={jumpRef}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="flex gap-2 mb-6 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
           {([
             { id: "overview",  icon: "📊", label: "Database",  badge: 0 },
             { id: "ai",        icon: "🤖", label: "AI Review", badge: 0 },
@@ -2413,7 +2515,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             return (
               <button key={id}
                 onClick={() => { setActiveTab(id); setReviewSubject(null); }}
-                className="relative flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl transition-all"
+                className="relative flex flex-col items-center gap-1.5 py-3 px-3 rounded-xl transition-all shrink-0 min-w-[92px]"
                 style={{
                   background: isActive
                     ? "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.15))"
@@ -2558,6 +2660,18 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "upload" && (
             <motion.div key="upload" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <UploadPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "coupons" && (
+            <motion.div key="coupons" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <CollectionPanel collection={{ path: "coupons", label: "Coupons", icon: "🏷️", accent: "#f59e0b" }} />
+            </motion.div>
+          )}
+
+          {activeTab === "announcements" && (
+            <motion.div key="announcements" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <CollectionPanel collection={{ path: "announcements", label: "Announcements", icon: "📣", accent: "#06b6d4" }} />
             </motion.div>
           )}
         </AnimatePresence>
