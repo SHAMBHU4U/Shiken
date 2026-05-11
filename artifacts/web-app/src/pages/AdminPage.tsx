@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import { ref, get, set } from "firebase/database";
+import { ref, get, set, remove, update, push } from "firebase/database";
 import { parsePDFQuestions } from "@/lib/gemini";
 import type { GeneratedQuestion } from "@/lib/gemini";
 import { db } from "@/firebase";
@@ -92,13 +92,11 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
 
   useEffect(() => {
     if (!isRealUid) { setSubscription("free"); return; }
-    fetch(`${DB_URL}/users/${user.uid}/subscriptionType.json`)
-      .then((r) => r.json())
-      .then((d) => setSubscription(d === "premium" ? "premium" : "free"))
+    get(ref(db, `users/${user.uid}/subscriptionType`))
+      .then((s) => setSubscription(s.val() === "premium" ? "premium" : "free"))
       .catch(() => setSubscription("free"));
-    fetch(`${DB_URL}/users/${user.uid}/phone.json`)
-      .then((r) => r.json())
-      .then((d) => { if (typeof d === "string" && d.length >= 10) setPhone(d); })
+    get(ref(db, `users/${user.uid}/phone`))
+      .then((s) => { const v = s.val(); if (typeof v === "string" && v.length >= 10) setPhone(v); })
       .catch(() => {});
   }, [user.uid, isRealUid]);
 
@@ -328,9 +326,8 @@ function RatingsPanel() {
   async function load() {
     setLoading(true); setError("");
     try {
-      const res = await fetch(`${DB_URL}/ratings.json`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const raw = await res.json() as Record<string, AdminRatingEntry> | null;
+      const snap = await get(ref(db, "ratings"));
+      const raw = snap.exists() ? snap.val() as Record<string, AdminRatingEntry> : null;
       if (!raw) { setEntries([]); return; }
       setEntries(
         Object.entries(raw)
@@ -582,15 +579,11 @@ async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
 }
 
 async function approveQuestion(subjectId: string, key: string): Promise<void> {
-  await fetch(`${DB_URL}/${subjectId}/${key}.json`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chapter: "General" }),
-  });
+  await update(ref(db, `${subjectId}/${key}`), { chapter: "General" });
 }
 
 async function rejectQuestion(subjectId: string, key: string): Promise<void> {
-  await fetch(`${DB_URL}/${subjectId}/${key}.json`, { method: "DELETE" });
+  await remove(ref(db, `${subjectId}/${key}`));
 }
 
 function StatusBadge({ status, count }: { status: SubjectStatus; count: number }) {
@@ -868,16 +861,15 @@ const PLAN_LABELS:  Record<string, string>  = { monthly: "Basic Monthly (30d)", 
 const ADMIN_WA_NUMBER = "918340472013";
 
 async function fetchPayments(): Promise<PaymentRecord[]> {
-  const res = await fetch(`${DB_URL}/users.json`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as Record<string, {
+  const snap = await get(ref(db, "users"));
+  const data = snap.exists() ? snap.val() as Record<string, {
     subscriptionType?: string;
     plan?: string;
     activatedAt?: number;
     requestedAt?: number;
     premiumUntil?: number;
     paymentVerified?: boolean;
-  }> | null;
+  }> : null;
   if (!data) return [];
 
   return Object.entries(data)
@@ -897,10 +889,9 @@ async function fetchPayments(): Promise<PaymentRecord[]> {
 }
 
 async function fetchPendingCount(): Promise<number> {
-  const res = await fetch(`${DB_URL}/users.json`);
-  if (!res.ok) return 0;
-  const data = await res.json() as Record<string, { subscriptionType?: string; paymentVerified?: boolean }> | null;
-  if (!data) return 0;
+  const snap = await get(ref(db, "users"));
+  if (!snap.exists()) return 0;
+  const data = snap.val() as Record<string, { subscriptionType?: string; paymentVerified?: boolean }>;
   return Object.values(data).filter(u =>
     u.subscriptionType === "premium" && !u.paymentVerified
   ).length;
@@ -920,16 +911,12 @@ function PaymentCard({ rec, onAction }: { rec: PaymentRecord; onAction: () => vo
   async function verify() {
     setWorking(true);
     try {
-      await fetch(`${DB_URL}/users/${rec.uid}.json`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          subscriptionType: "premium",
-          premiumUntil: rec.premiumUntil,
-          plan: rec.plan,
-          activatedAt: Date.now(),
-          paymentVerified: true,
-        }),
+      await update(ref(db, `users/${rec.uid}`), {
+        subscriptionType: "premium",
+        premiumUntil: rec.premiumUntil,
+        plan: rec.plan,
+        activatedAt: Date.now(),
+        paymentVerified: true,
       });
       setLocalStatus("verified");
     } catch { /* ignore */ }
@@ -939,11 +926,7 @@ function PaymentCard({ rec, onAction }: { rec: PaymentRecord; onAction: () => vo
   async function revoke() {
     setWorking(true);
     try {
-      await fetch(`${DB_URL}/users/${rec.uid}.json`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscriptionType: "free", paymentVerified: false }),
-      });
+      await update(ref(db, `users/${rec.uid}`), { subscriptionType: "free", paymentVerified: false });
       onAction();
     } catch { /* ignore */ }
     finally { setWorking(false); }
@@ -1147,9 +1130,8 @@ function prettifySlug(slug: string): string {
 }
 
 async function fetchCacheStats(): Promise<CacheSubjectGroup[]> {
-  const res = await fetch(`${DB_URL}/aiQuestionsCache.json`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as Record<string, Record<string, { questions?: unknown[]; updatedAt?: number }>> | null;
+  const snap = await get(ref(db, "aiQuestionsCache"));
+  const data = snap.exists() ? snap.val() as Record<string, Record<string, { questions?: unknown[]; updatedAt?: number }>> : null;
   if (!data) return [];
 
   return Object.entries(data).map(([subjectKey, chapters]) => {
@@ -1168,11 +1150,11 @@ async function fetchCacheStats(): Promise<CacheSubjectGroup[]> {
 }
 
 async function clearChapterCache(subjectKey: string, chapterKey: string): Promise<void> {
-  await fetch(`${DB_URL}/aiQuestionsCache/${subjectKey}/${chapterKey}.json`, { method: "DELETE" });
+  await remove(ref(db, `aiQuestionsCache/${subjectKey}/${chapterKey}`));
 }
 
 async function clearSubjectCache(subjectKey: string): Promise<void> {
-  await fetch(`${DB_URL}/aiQuestionsCache/${subjectKey}.json`, { method: "DELETE" });
+  await remove(ref(db, `aiQuestionsCache/${subjectKey}`));
 }
 
 function CachePanel() {
@@ -1462,9 +1444,8 @@ type RawBankQ = {
 };
 
 async function fetchAllBankQuestions(): Promise<BankQuestion[]> {
-  const res = await fetch(`${DB_URL}/aiQuestionsCache.json`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as Record<string, Record<string, { questions?: RawBankQ[] }>> | null;
+  const snap = await get(ref(db, "aiQuestionsCache"));
+  const data = snap.exists() ? snap.val() as Record<string, Record<string, { questions?: RawBankQ[] }>> : null;
   if (!data) return [];
   const result: BankQuestion[] = [];
   for (const [subjectKey, chapters] of Object.entries(data)) {
@@ -1487,11 +1468,7 @@ async function fetchAllBankQuestions(): Promise<BankQuestion[]> {
 }
 
 async function saveBankChapter(subjectKey: string, chapterKey: string, questions: RawBankQ[]): Promise<void> {
-  await fetch(`${DB_URL}/aiQuestionsCache/${subjectKey}/${chapterKey}/questions.json`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(questions),
-  });
+  await set(ref(db, `aiQuestionsCache/${subjectKey}/${chapterKey}/questions`), questions);
 }
 
 function EditQuestionModal({
@@ -1654,8 +1631,8 @@ function QuestionsBankPanel() {
   async function handleDelete(q: BankQuestion, flatIdx: number) {
     setDeletingFlatIdx(flatIdx);
     try {
-      const res = await fetch(`${DB_URL}/aiQuestionsCache/${q.subjectKey}/${q.chapterKey}/questions.json`);
-      const arr = await res.json() as RawBankQ[];
+      const snap = await get(ref(db, `aiQuestionsCache/${q.subjectKey}/${q.chapterKey}/questions`));
+      const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
       const updated = arr.filter((_, i) => i !== q.indexInArray);
       await saveBankChapter(q.subjectKey, q.chapterKey, updated);
       setQuestions((prev) =>
@@ -1670,8 +1647,8 @@ function QuestionsBankPanel() {
   async function handleSaveEdit(updated: BankQuestion, flatIdx: number) {
     setSaving(true);
     try {
-      const res = await fetch(`${DB_URL}/aiQuestionsCache/${updated.subjectKey}/${updated.chapterKey}/questions.json`);
-      const arr = await res.json() as RawBankQ[];
+      const snap = await get(ref(db, `aiQuestionsCache/${updated.subjectKey}/${updated.chapterKey}/questions`));
+      const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
       arr[updated.indexInArray] = {
         english: updated.english, hindi: updated.hindi,
         options: updated.options, optionsHindi: updated.optionsHindi,
@@ -1888,17 +1865,13 @@ function PDFImportPanel() {
     let saved = 0;
     for (const q of questions) {
       try {
-        await fetch(`${"https://shiken-d8789-default-rtdb.firebaseio.com"}/${path.split("/").map(encodeURIComponent).join("/")}.json`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            english:      q.english,
-            hindi:        q.hindi,
-            options:      q.options,
-            optionsHindi: q.optionsHindi,
-            correctAnswer: q.answerIndex,
-            chapter:      chapter.trim(),
-          }),
+        await push(ref(db, path), {
+          english:      q.english,
+          hindi:        q.hindi,
+          options:      q.options,
+          optionsHindi: q.optionsHindi,
+          correctAnswer: q.answerIndex,
+          chapter:      chapter.trim(),
         });
         saved++;
         setSavedCount(saved);
@@ -2178,8 +2151,6 @@ function UploadPanel() {
     setSaving(true);
     setStatus({ type: "idle", msg: "" });
     const dbPath = subject.path.toLowerCase();
-    const encoded = dbPath.split("/").map(encodeURIComponent).join("/");
-    const url = `${DB_URL}/${encoded}.json`;
     let successCount = 0;
     for (const q of questions) {
       const payload = {
@@ -2189,12 +2160,10 @@ function UploadPanel() {
         correct_answer: ["A","B","C","D"][q.answerIndex] ?? "A",
         chapter_name: q.chapter || "General",
       };
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) successCount++;
+      try {
+        await push(ref(db, dbPath), payload);
+        successCount++;
+      } catch { /* skip failed */ }
     }
     setSaving(false);
     if (successCount === questions.length) {
@@ -2380,7 +2349,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
     const p = new URLSearchParams(window.location.search).get("tab");
     return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "coupons" | "announcements">(initialTab);
   const jumpRef = useRef<HTMLDivElement | null>(null);
   const [pendingBadge, setPendingBadge] = useState(0);
 
