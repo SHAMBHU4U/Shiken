@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { ref, get, set } from "firebase/database";
 import { parsePDFQuestions } from "@/lib/gemini";
 import type { GeneratedQuestion } from "@/lib/gemini";
+import { db } from "@/firebase";
 
-const DB_URL  = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
 
 // ─── User Activity types ───────────────────────────────────────────────────────
@@ -39,9 +40,8 @@ const SUBJECT_COLORS: Record<string, string> = {
 };
 
 async function fetchUsers(): Promise<UserRecord[]> {
-  const res = await fetch(`${DB_URL}/userActivity.json`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as Record<string, { meta?: { deviceId: string; lastActive: number }; sessions?: Record<string, UserSession> }> | null;
+  const snap = await get(ref(db, "userActivity"));
+  const data = snap.exists() ? snap.val() as Record<string, { meta?: { deviceId: string; lastActive: number }; sessions?: Record<string, UserSession> }> : null;
   if (!data) return [];
   return Object.entries(data).map(([uid, u]) => {
     const sessions = u.sessions ? Object.values(u.sessions) : [];
@@ -77,11 +77,7 @@ function gradeColor(pct: number) {
 }
 
 async function setUserSubscription(uid: string, type: "free" | "premium") {
-  await fetch(`${DB_URL}/users/${uid}.json`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subscriptionType: type }),
-  });
+  await set(ref(db, `users/${uid}/subscriptionType`), type);
 }
 
 function UserCard({ user, index }: { user: UserRecord; index: number }) {
@@ -529,10 +525,8 @@ interface AIQuestion {
 
 async function fetchCount(dbPath: string): Promise<SubjectInfo> {
   try {
-    const encoded = dbPath.split("/").map(encodeURIComponent).join("/");
-    const res = await fetch(`${DB_URL}/${encoded}.json?shallow=true`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    const snap = await get(ref(db, dbPath));
+    const data = snap.exists() ? snap.val() : null;
     if (data === null || data === true || data === false) {
       return { count: data === null ? 0 : 1, status: data === null ? "empty" : "error", error: data !== null ? "Invalid data (not an object)" : undefined };
     }
@@ -547,29 +541,20 @@ async function fetchCount(dbPath: string): Promise<SubjectInfo> {
 }
 
 async function fetchCollection(path: string): Promise<Record<string, unknown> | null> {
-  const encoded = path.split("/").map(encodeURIComponent).join("/");
-  const res = await fetch(`${DB_URL}/${encoded}.json`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (data === null) return null;
-  if (typeof data !== "object") return null;
+  const snap = await get(ref(db, path));
+  if (!snap.exists()) return null;
+  const data = snap.val();
+  if (typeof data !== "object" || data === null) return null;
   return data as Record<string, unknown>;
 }
 
 async function setupCollection(path: string): Promise<void> {
-  const encoded = path.split("/").map(encodeURIComponent).join("/");
-  await fetch(`${DB_URL}/${encoded}.json`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ __initialized: true }),
-  });
+  await set(ref(db, path), { __initialized: true });
 }
 
 async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
-  const encoded = dbPath.split("/").map(encodeURIComponent).join("/");
-  const res = await fetch(`${DB_URL}/${encoded}.json`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json() as Record<string, unknown> | null;
+  const snap = await get(ref(db, dbPath));
+  const data = snap.exists() ? snap.val() as Record<string, unknown> : null;
   if (!data || typeof data !== "object") return [];
 
   const results: AIQuestion[] = [];
@@ -1899,12 +1884,11 @@ function PDFImportPanel() {
 
   async function handleSave() {
     const path = activeSub.path;
-    const encoded = path.split("/").map(encodeURIComponent).join("/");
     setStep("saving"); setSavedCount(0);
     let saved = 0;
     for (const q of questions) {
       try {
-        await fetch(`${DB_URL}/${encoded}.json`, {
+        await fetch(`${"https://shiken-d8789-default-rtdb.firebaseio.com"}/${path.split("/").map(encodeURIComponent).join("/")}.json`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
