@@ -398,6 +398,55 @@ JSON format (return ONLY this):
     .filter((q) => (q.english || q.hindi) && q.options.length >= 2);
 }
 
+export interface FullTranslation {
+  hindi: string;
+  optionsHindi: string[];
+}
+
+// Translates an English question + options fully into Hindi in one Gemini call.
+// Returns { hindi: translated question, optionsHindi: [4 translated options] }
+export async function translateQuestionFull(
+  english: string,
+  options: string[],
+  subject: string,
+): Promise<FullTranslation> {
+  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+  const prompt = `You are a Bihar Board exam translator. Translate this ${subject} question and its options from English into simple Hindi (Devanagari).
+
+English Question:
+${english}
+
+Options:
+${options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("\n")}
+
+STRICT RULES:
+- Return ONLY valid JSON, no markdown, no explanation.
+- Keep numbers, formulas, scientific symbols, and proper nouns unchanged.
+- Use simple Hindi that a Class 10/12 Bihar Board student easily understands.
+- JSON format exactly:
+{"hindi":"translated question here","optionsHindi":["option A Hindi","option B Hindi","option C Hindi","option D Hindi"]}`;
+
+  const response = await ai.models.generateContent({
+    model: FREE_MODEL,
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { temperature: 0.1, maxOutputTokens: 512, responseMimeType: "application/json" },
+  });
+
+  const raw = (response.text ?? "").trim();
+  let parsed: Record<string, unknown>;
+  try { parsed = JSON.parse(raw); }
+  catch { const m = raw.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; }
+
+  return {
+    hindi: String(parsed.hindi ?? english),
+    optionsHindi: Array.isArray(parsed.optionsHindi)
+      ? (parsed.optionsHindi as unknown[]).map(String).slice(0, 4)
+      : options,
+  };
+}
+
 export async function translateToEnglish(hindiText: string): Promise<string> {
   if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
 

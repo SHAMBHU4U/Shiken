@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithGemini, generateQuestions, generateComprehension, translateToEnglish } from "@/lib/gemini";
+import { explainWithGemini, generateQuestions, generateComprehension, translateToEnglish, translateQuestionFull, type FullTranslation } from "@/lib/gemini";
 import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -959,7 +959,7 @@ function ChapterSelect({
 
 function ResultScreen({
   questions, answers, accent, label, icon, isDemo, isOfflineCached, mode, chapter, subject, onHome, onRetry,
-  isPremium, onUpgrade,
+  isPremium, onUpgrade, fullTranslations,
 }: {
   questions: Question[];
   answers: Record<number, number>;
@@ -967,6 +967,7 @@ function ResultScreen({
   mode: "full" | "chapter" | "ai" | "mini"; chapter: string; subject: string;
   onHome: () => void; onRetry: () => void;
   isPremium: boolean; onUpgrade: () => void;
+  fullTranslations: Record<number, { hindi: string; optionsHindi: string[] }>;
 }) {
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answerIndex ? 1 : 0), 0);
   const pct   = Math.round((score / questions.length) * 100);
@@ -1514,12 +1515,16 @@ function ResultScreen({
                     </motion.svg>
                   </motion.button>
                 </div>
-                {q.english && q.hindi && <p className="text-white/35 text-xs mb-2 pl-1"><MathText text={q.hindi} /></p>}
+                {q.english && (q.hindi || fullTranslations[i]?.hindi) && (
+                  <p className="text-white/35 text-xs mb-2 pl-1">
+                    <MathText text={q.hindi || fullTranslations[i].hindi} />
+                  </p>
+                )}
                 <div className="flex flex-col gap-1 pl-1 mb-3">
                   {q.options.map((opt, oi) => {
                     const isCorrect  = oi === q.answerIndex;
                     const isUser     = oi === userAnswer;
-                    const optHindi   = q.optionsHindi?.[oi];
+                    const optHindi   = q.optionsHindi?.[oi] ?? fullTranslations[i]?.optionsHindi?.[oi];
                     const showHindiFirst = Boolean(optHindi);
                     return (
                       <div key={oi} className="flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg"
@@ -1708,9 +1713,55 @@ export default function SubjectPage() {
     }
   }
 
+  // ── Full question translation to Hindi (question + all options) ────────────
+  const [fullTranslations,   setFullTranslations]   = useState<Record<number, FullTranslation>>({});
+  const [fullTranslating,    setFullTranslating]    = useState<Record<number, boolean>>({});
+
+  function fullTransCacheKey(englishQ: string): string {
+    return btoa(unescape(encodeURIComponent(englishQ.slice(0, 80)))).replace(/[/+=]/g, "_") + "_full_hi";
+  }
+
+  async function fetchFullTranslation(i: number, q: { english: string; options: string[] }) {
+    if (fullTranslating[i] || fullTranslations[i]) return;
+    setFullTranslating((l) => ({ ...l, [i]: true }));
+    try {
+      const cacheKey = fullTransCacheKey(q.english);
+      const cached = await get(ref(db, `translations/${subject}/${cacheKey}`));
+      if (cached.exists()) {
+        setFullTranslations((t) => ({ ...t, [i]: cached.val() as FullTranslation }));
+      } else {
+        const result = await translateQuestionFull(q.english, q.options, subject);
+        setFullTranslations((t) => ({ ...t, [i]: result }));
+        set(ref(db, `translations/${subject}/${cacheKey}`), result).catch(() => {});
+      }
+    } catch {
+      // silently fail — fallback to English
+    } finally {
+      setFullTranslating((l) => { const n = { ...l }; delete n[i]; return n; });
+    }
+  }
+
 
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
+
+  // ── Auto-trigger full Hindi translation when in Hindi or Both mode ──────────
+  useEffect(() => {
+    if (screen !== "quiz" || langMode === "en") return;
+    const q = questions[currentIndex];
+    if (!q || !q.english) return;
+    const needsTranslation = !q.hindi || !q.optionsHindi || q.optionsHindi.length === 0;
+    if (needsTranslation && !fullTranslations[currentIndex] && !fullTranslating[currentIndex]) {
+      void fetchFullTranslation(currentIndex, { english: q.english, options: q.options });
+      // Prefetch next 2 questions silently
+      for (let j = 1; j <= 2; j++) {
+        const next = questions[currentIndex + j];
+        if (next?.english && (!next.hindi || !next.optionsHindi?.length)) {
+          void fetchFullTranslation(currentIndex + j, { english: next.english, options: next.options });
+        }
+      }
+    }
+  }, [langMode, currentIndex, screen]);
 
   // ── Timer countdown (setTimeout pattern: re-fires each second) ────────────────
   useEffect(() => {
@@ -2527,6 +2578,7 @@ export default function SubjectPage() {
           isDemo={isDemo} isOfflineCached={isOfflineCached} mode={mode} chapter={selectedChapter}
           onHome={() => { refreshHistory(); setScreen("mode-select"); }} onRetry={retryTest} subject={subject}
           isPremium={isPremium} onUpgrade={() => setUpgradeOpen(true)}
+          fullTranslations={fullTranslations}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
       </>
@@ -2857,14 +2909,40 @@ export default function SubjectPage() {
                       )}
                     </div>
                   )}
-                  {langMode === "hi" && (
-                    <p className="text-white font-semibold text-base leading-relaxed mb-1 pr-8">
-                      {currentIndex + 1}. <MathText text={q.hindi || q.english} />
-                    </p>
-                  )}
+                  {langMode === "hi" && (() => {
+                    const ft = fullTranslations[currentIndex];
+                    const isLoading = fullTranslating[currentIndex];
+                    const hindiQ = q.hindi || ft?.hindi;
+                    return (
+                      <div className="mb-1 pr-8">
+                        {isLoading && !hindiQ ? (
+                          <div className="flex items-center gap-2">
+                            <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="inline-block w-3.5 h-3.5 rounded-full border-2 border-transparent shrink-0"
+                              style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}40` }} />
+                            <span className="text-white/30 text-sm">हिंदी में अनुवाद हो रहा है…</span>
+                          </div>
+                        ) : (
+                          <p className="text-white font-semibold text-base leading-relaxed">
+                            {currentIndex + 1}. <MathText text={hindiQ || q.english} />
+                          </p>
+                        )}
+                        {!isLoading && !q.hindi && ft?.hindi && (
+                          <p className="text-white/30 text-xs mt-0.5 leading-snug">
+                            <MathText text={q.english} />
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {langMode === "both" && q.english && q.hindi && (
                     <p className="text-white/50 text-sm leading-relaxed pr-8">
                       <MathText text={q.hindi} />
+                    </p>
+                  )}
+                  {langMode === "both" && q.english && !q.hindi && fullTranslations[currentIndex]?.hindi && (
+                    <p className="text-white/50 text-sm leading-relaxed pr-8">
+                      <MathText text={fullTranslations[currentIndex].hindi} />
                     </p>
                   )}
                 </div>
@@ -2873,7 +2951,8 @@ export default function SubjectPage() {
                 <div className="flex flex-col gap-3">
                   {q.options.map((opt, oi) => {
                     const isSelected = selectedOption === oi;
-                    const optHindi   = q.optionsHindi?.[oi];
+                    const ft = fullTranslations[currentIndex];
+                    const optHindi   = q.optionsHindi?.[oi] ?? ft?.optionsHindi?.[oi];
                     const displayOpt = langMode === "hi" && optHindi ? optHindi : opt;
                     return (
                       <motion.button
