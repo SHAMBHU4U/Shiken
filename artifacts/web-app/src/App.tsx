@@ -104,6 +104,7 @@ const ANN_META = {
 function AnnouncementBanner() {
   const [items, setItems] = useState<AnnouncementItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem("shiken_announcement_dismissed") === "1");
 
   useEffect(() => {
     let alive = true;
@@ -129,25 +130,40 @@ function AnnouncementBanner() {
     return () => { alive = false; clearInterval(t); };
   }, []);
 
-  if (loading || items.length === 0) return null;
+  if (loading || items.length === 0 || dismissed) return null;
 
   const a = items[0];
   const meta = ANN_META[a.type] ?? ANN_META.info;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-5 rounded-2xl p-4"
-      style={{ background: meta.bg, border: `1px solid ${meta.color}40` }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/75 backdrop-blur-sm"
     >
-      <div className="flex items-start gap-3">
-        <span className="text-xl">{meta.icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-black text-sm">{a.title}</p>
-          <p className="text-white/45 text-xs mt-1 leading-relaxed">{a.body}</p>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-md rounded-3xl p-5"
+        style={{ background: "#0b1020", border: `1px solid ${meta.color}40`, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
+      >
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">{meta.icon}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-black text-lg">{a.title}</p>
+            <p className="text-white/50 text-sm mt-2 leading-relaxed">{a.body}</p>
+          </div>
         </div>
-      </div>
+        <div className="mt-5 flex gap-2">
+          <button
+            onClick={() => { sessionStorage.setItem("shiken_announcement_dismissed", "1"); setDismissed(true); }}
+            className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
+            style={{ background: `linear-gradient(135deg, ${meta.color}, ${meta.color}cc)` }}
+          >
+            Got it
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
   );
 }
