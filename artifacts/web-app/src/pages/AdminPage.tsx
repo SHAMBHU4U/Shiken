@@ -2893,7 +2893,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="flex gap-2 mb-6 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="grid grid-cols-3 gap-2 mb-6"
         >
           {([
             { id: "overview",  icon: "📊", label: "Database",  badge: 0 },
@@ -2912,7 +2912,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             return (
               <button key={id}
                 onClick={() => { setActiveTab(id); setReviewSubject(null); }}
-                className="relative flex flex-col items-center gap-1.5 py-3 px-3 rounded-xl transition-all shrink-0 min-w-[92px]"
+                className="relative flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl transition-all w-full"
                 style={{
                   background: isActive
                     ? "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.15))"
