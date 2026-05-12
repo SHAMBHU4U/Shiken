@@ -121,8 +121,37 @@ function PaymentSheet({
   onSuccess: (uid: string, paymentId: string) => void;
 }) {
   const { user } = useAuth();
-  const [paying, setPaying] = useState(false);
-  const [error, setError] = useState("");
+  const [paying, setPaying]             = useState(false);
+  const [error, setError]               = useState("");
+  const [couponInput, setCouponInput]   = useState("");
+  const [couponChecking, setCouponChecking] = useState(false);
+  const [couponResult, setCouponResult] = useState<{ applied: boolean; discount: number; finalAmount: number } | null>(null);
+  const [couponError, setCouponError]   = useState("");
+
+  async function handleCheckCoupon() {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    setCouponChecking(true); setCouponError(""); setCouponResult(null);
+    try {
+      const res = await fetch(`${API_BASE}api/razorpay/validate-coupon`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ couponCode: code, amount: plan.amount }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setCouponError(data.error ?? "Invalid coupon code.");
+      } else if (!data.couponApplied) {
+        setCouponError("Coupon code not valid or expired.");
+      } else {
+        setCouponResult({ applied: true, discount: data.discount, finalAmount: data.finalAmount });
+      }
+    } catch {
+      setCouponError("Could not verify coupon. Please try again.");
+    } finally {
+      setCouponChecking(false);
+    }
+  }
 
   async function handleActivate() {
     if (!auth.currentUser) return;
@@ -140,7 +169,7 @@ function PaymentSheet({
       const orderRes = await fetch(`${API_BASE}api/razorpay/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: plan.amount, planId: plan.id, uid }),
+        body: JSON.stringify({ amount: plan.amount, planId: plan.id, uid, couponCode: couponInput.trim() || undefined }),
       });
       const orderData = await orderRes.json();
       if (!orderRes.ok || !orderData.ok) {
@@ -260,6 +289,44 @@ function PaymentSheet({
             </span>
           </div>
         )}
+
+        {/* Coupon code input */}
+        <div className="mb-4">
+          <div className="flex gap-2">
+            <input
+              value={couponInput}
+              onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponResult(null); setCouponError(""); }}
+              placeholder="Coupon code (optional)"
+              className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/25 bg-white/5 border border-white/10 outline-none font-mono"
+              disabled={paying}
+              onKeyDown={e => e.key === "Enter" && handleCheckCoupon()}
+            />
+            <motion.button
+              onClick={handleCheckCoupon}
+              disabled={!couponInput.trim() || couponChecking || paying}
+              whileTap={{ scale: 0.95 }}
+              className="px-3 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0"
+              style={{
+                background: couponResult?.applied ? "rgba(16,185,129,0.15)" : "rgba(139,92,246,0.15)",
+                color: couponResult?.applied ? "#10b981" : "#a78bfa",
+                border: `1px solid ${couponResult?.applied ? "rgba(16,185,129,0.3)" : "rgba(139,92,246,0.3)"}`,
+                opacity: !couponInput.trim() || paying ? 0.4 : 1,
+              }}>
+              {couponChecking ? "…" : couponResult?.applied ? "✓" : "Apply"}
+            </motion.button>
+          </div>
+          {couponError && (
+            <p className="text-red-400 text-xs mt-1.5 px-1">{couponError}</p>
+          )}
+          {couponResult?.applied && (
+            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+              className="mt-2 px-3 py-2 rounded-xl flex items-center justify-between"
+              style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)" }}>
+              <span className="text-emerald-400 text-xs font-bold">🎉 Coupon applied! −₹{couponResult.discount} off</span>
+              <span className="text-emerald-300 text-sm font-black">₹{couponResult.finalAmount}</span>
+            </motion.div>
+          )}
+        </div>
 
         <p className="text-white/40 text-xs text-center mb-5">
           Secure payment powered by Razorpay · UPI, Card, Net Banking supported

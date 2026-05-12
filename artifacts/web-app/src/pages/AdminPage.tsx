@@ -2331,6 +2331,448 @@ function UploadPanel() {
   );
 }
 
+// ─── Coupons Panel ────────────────────────────────────────────────────────────
+
+interface CouponRecord {
+  code: string;
+  type: "flat" | "percent";
+  value: number;
+  active: boolean;
+  usageLimit: number | null;
+  usageCount: number;
+  expiresAt: number | null;
+  createdAt: number;
+}
+
+async function fetchCoupons(): Promise<CouponRecord[]> {
+  const snap = await get(ref(db, "coupons"));
+  if (!snap.exists()) return [];
+  const data = snap.val() as Record<string, Omit<CouponRecord, "code">>;
+  return Object.entries(data).map(([code, v]) => ({ code, ...v }))
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+}
+
+function CouponsPanel() {
+  const [coupons, setCoupons]     = useState<CouponRecord[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [creating, setCreating]   = useState(false);
+  const [busy, setBusy]           = useState(false);
+  const [error, setError]         = useState("");
+  const [success, setSuccess]     = useState("");
+  const [code, setCode]           = useState("");
+  const [type, setType]           = useState<"flat" | "percent">("percent");
+  const [value, setValue]         = useState("");
+  const [usageLimit, setUsageLimit] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { setCoupons(await fetchCoupons()); }
+    catch (e) { setError(String(e)); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleCreate() {
+    const trimCode = code.trim().toUpperCase();
+    const numVal   = Number(value);
+    if (!trimCode || !numVal || numVal <= 0) {
+      setError("Code and a valid value are required."); return;
+    }
+    if (type === "percent" && numVal > 100) {
+      setError("Percent discount cannot exceed 100."); return;
+    }
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const record: Omit<CouponRecord, "code"> = {
+        type, value: numVal, active: true, usageCount: 0,
+        usageLimit: usageLimit ? Number(usageLimit) : null,
+        expiresAt: expiresAt ? new Date(expiresAt).getTime() : null,
+        createdAt: Date.now(),
+      };
+      await set(ref(db, `coupons/${trimCode}`), record);
+      setSuccess(`Coupon "${trimCode}" created!`);
+      setCode(""); setValue(""); setUsageLimit(""); setExpiresAt(""); setCreating(false);
+      await load();
+    } catch (e) { setError(String(e)); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleActive(c: CouponRecord) {
+    try {
+      await update(ref(db, `coupons/${c.code}`), { active: !c.active });
+      setCoupons(prev => prev.map(x => x.code === c.code ? { ...x, active: !x.active } : x));
+    } catch (e) { setError(String(e)); }
+  }
+
+  async function handleDelete(c: CouponRecord) {
+    if (!confirm(`Delete coupon "${c.code}"?`)) return;
+    try {
+      await remove(ref(db, `coupons/${c.code}`));
+      setCoupons(prev => prev.filter(x => x.code !== c.code));
+    } catch (e) { setError(String(e)); }
+  }
+
+  const inp = "w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none placeholder-white/20";
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between mb-1">
+        <div>
+          <p className="text-white font-bold text-sm">Discount Coupons</p>
+          <p className="text-white/30 text-xs">{coupons.length} coupon{coupons.length !== 1 ? "s" : ""} · stored in /coupons</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={load} className="text-white/25 hover:text-white/50 text-xs transition-colors">↻</button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => { setCreating(c => !c); setError(""); setSuccess(""); }}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+            style={{ background: creating ? "rgba(239,68,68,0.12)" : "rgba(245,158,11,0.15)", color: creating ? "#f87171" : "#f59e0b", border: `1px solid ${creating ? "rgba(239,68,68,0.3)" : "rgba(245,158,11,0.35)"}` }}>
+            {creating ? "✕ Cancel" : "+ New Coupon"}
+          </motion.button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {creating && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="rounded-2xl border p-4 flex flex-col gap-3"
+            style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.25)" }}>
+            <p className="text-amber-400 font-bold text-xs">Create New Coupon</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-white/35 text-xs mb-1">Code</p>
+                <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="SHIKEN20" className={inp} />
+              </div>
+              <div>
+                <p className="text-white/35 text-xs mb-1">Type</p>
+                <div className="flex gap-2 h-[38px]">
+                  {(["percent", "flat"] as const).map(t => (
+                    <button key={t} onClick={() => setType(t)}
+                      className="flex-1 rounded-xl text-xs font-bold transition-all"
+                      style={{
+                        background: type === t ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.05)",
+                        color: type === t ? "#f59e0b" : "rgba(255,255,255,0.35)",
+                        border: `1px solid ${type === t ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)"}`,
+                      }}>
+                      {t === "percent" ? "%" : "₹"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-white/35 text-xs mb-1">{type === "percent" ? "Discount %" : "Flat ₹ off"}</p>
+                <input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder={type === "percent" ? "10" : "20"} className={inp} />
+              </div>
+              <div>
+                <p className="text-white/35 text-xs mb-1">Max Uses</p>
+                <input type="number" value={usageLimit} onChange={e => setUsageLimit(e.target.value)} placeholder="∞" className={inp} />
+              </div>
+              <div>
+                <p className="text-white/35 text-xs mb-1">Expires</p>
+                <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className={inp} />
+              </div>
+            </div>
+            <motion.button onClick={handleCreate} disabled={busy} whileTap={{ scale: 0.97 }}
+              className="w-full py-2.5 rounded-xl text-sm font-bold transition-all"
+              style={{ background: busy ? "rgba(255,255,255,0.06)" : "rgba(245,158,11,0.2)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.4)" }}>
+              {busy ? "Creating…" : "🏷️ Create Coupon"}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {(error || success) && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="px-4 py-2.5 rounded-xl text-xs font-semibold"
+          style={{
+            background: error ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)",
+            border: `1px solid ${error ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)"}`,
+            color: error ? "#f87171" : "#10b981",
+          }}>
+          {error || success}
+        </motion.div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-6 h-6 rounded-full border-2 border-transparent"
+            style={{ borderTopColor: "#f59e0b", borderRightColor: "#f59e0b40" }} />
+        </div>
+      ) : coupons.length === 0 ? (
+        <div className="text-center py-14">
+          <p className="text-4xl mb-3">🏷️</p>
+          <p className="text-white/40 text-sm font-medium">No coupons yet</p>
+          <p className="text-white/20 text-xs mt-1">Create your first discount coupon above</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {coupons.map(c => {
+            const expired = c.expiresAt ? c.expiresAt < Date.now() : false;
+            const limitReached = c.usageLimit ? c.usageCount >= c.usageLimit : false;
+            const effectivelyActive = c.active && !expired && !limitReached;
+            return (
+              <motion.div key={c.code} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border px-4 py-3 flex items-center gap-3"
+                style={{
+                  background: effectivelyActive ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.03)",
+                  borderColor: effectivelyActive ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.08)",
+                }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-black text-sm font-mono" style={{ color: effectivelyActive ? "#f59e0b" : "rgba(255,255,255,0.35)" }}>{c.code}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
+                      style={{ background: effectivelyActive ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.06)", color: effectivelyActive ? "#f59e0b" : "rgba(255,255,255,0.25)" }}>
+                      {effectivelyActive ? "Active" : expired ? "Expired" : limitReached ? "Limit hit" : "Inactive"}
+                    </span>
+                  </div>
+                  <p className="text-white/45 text-xs">
+                    {c.type === "percent" ? `${c.value}% off` : `₹${c.value} flat off`}
+                    {c.usageLimit ? ` · ${c.usageCount}/${c.usageLimit} used` : ` · ${c.usageCount} used`}
+                    {c.expiresAt ? ` · exp ${new Date(c.expiresAt).toLocaleDateString("en-IN")}` : ""}
+                  </p>
+                </div>
+                <button onClick={() => toggleActive(c)} disabled={expired || limitReached}
+                  className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all"
+                  style={{
+                    background: c.active ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.06)",
+                    color: c.active ? "#10b981" : "rgba(255,255,255,0.30)",
+                    border: `1px solid ${c.active ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.10)"}`,
+                    opacity: expired || limitReached ? 0.4 : 1,
+                  }}>
+                  {c.active ? "On" : "Off"}
+                </button>
+                <button onClick={() => handleDelete(c)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-all"
+                  style={{ background: "rgba(239,68,68,0.08)", color: "#f87171aa", border: "1px solid rgba(239,68,68,0.15)" }}>
+                  ✕
+                </button>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Announcements Panel ───────────────────────────────────────────────────────
+
+interface AnnouncementRecord {
+  id: string;
+  title: string;
+  body: string;
+  type: "info" | "warning" | "success";
+  active: boolean;
+  createdAt: number;
+}
+
+async function fetchAnnouncements(): Promise<AnnouncementRecord[]> {
+  const snap = await get(ref(db, "announcements"));
+  if (!snap.exists()) return [];
+  const data = snap.val() as Record<string, Omit<AnnouncementRecord, "id">>;
+  return Object.entries(data).map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+}
+
+const ANN_TYPE_META: Record<AnnouncementRecord["type"], { label: string; color: string; bg: string; icon: string }> = {
+  info:    { label: "Info",    color: "#06b6d4", bg: "rgba(6,182,212,0.1)",   icon: "ℹ️" },
+  warning: { label: "Warning", color: "#f59e0b", bg: "rgba(245,158,11,0.1)",  icon: "⚠️" },
+  success: { label: "Success", color: "#10b981", bg: "rgba(16,185,129,0.1)",  icon: "✅" },
+};
+
+function AnnouncementsPanel() {
+  const [announcements, setAnnouncements] = useState<AnnouncementRecord[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy]         = useState(false);
+  const [error, setError]       = useState("");
+  const [success, setSuccess]   = useState("");
+  const [title, setTitle]       = useState("");
+  const [body, setBody]         = useState("");
+  const [annType, setAnnType]   = useState<AnnouncementRecord["type"]>("info");
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try { setAnnouncements(await fetchAnnouncements()); }
+    catch (e) { setError(String(e)); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleCreate() {
+    if (!title.trim() || !body.trim()) { setError("Title and body are required."); return; }
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const record: Omit<AnnouncementRecord, "id"> = {
+        title: title.trim(), body: body.trim(),
+        type: annType, active: true, createdAt: Date.now(),
+      };
+      await push(ref(db, "announcements"), record);
+      setSuccess("Announcement created!");
+      setTitle(""); setBody(""); setCreating(false);
+      await load();
+    } catch (e) { setError(String(e)); }
+    finally { setBusy(false); }
+  }
+
+  async function toggleActive(a: AnnouncementRecord) {
+    try {
+      await update(ref(db, `announcements/${a.id}`), { active: !a.active });
+      setAnnouncements(prev => prev.map(x => x.id === a.id ? { ...x, active: !x.active } : x));
+    } catch (e) { setError(String(e)); }
+  }
+
+  async function handleDelete(a: AnnouncementRecord) {
+    if (!confirm(`Delete announcement "${a.title}"?`)) return;
+    try {
+      await remove(ref(db, `announcements/${a.id}`));
+      setAnnouncements(prev => prev.filter(x => x.id !== a.id));
+    } catch (e) { setError(String(e)); }
+  }
+
+  const inp = "w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none placeholder-white/20";
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between mb-1">
+        <div>
+          <p className="text-white font-bold text-sm">Announcements</p>
+          <p className="text-white/30 text-xs">{announcements.length} announcement{announcements.length !== 1 ? "s" : ""} · /announcements</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={load} className="text-white/25 hover:text-white/50 text-xs transition-colors">↻</button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => { setCreating(c => !c); setError(""); setSuccess(""); }}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+            style={{ background: creating ? "rgba(239,68,68,0.12)" : "rgba(6,182,212,0.15)", color: creating ? "#f87171" : "#06b6d4", border: `1px solid ${creating ? "rgba(239,68,68,0.3)" : "rgba(6,182,212,0.35)"}` }}>
+            {creating ? "✕ Cancel" : "+ New"}
+          </motion.button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {creating && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="rounded-2xl border p-4 flex flex-col gap-3"
+            style={{ background: "rgba(6,182,212,0.05)", border: "1px solid rgba(6,182,212,0.22)" }}>
+            <p className="text-cyan-400 font-bold text-xs">Create Announcement</p>
+
+            <div>
+              <p className="text-white/35 text-xs mb-1">Type</p>
+              <div className="flex gap-2">
+                {(Object.entries(ANN_TYPE_META) as [AnnouncementRecord["type"], typeof ANN_TYPE_META[keyof typeof ANN_TYPE_META]][]).map(([t, m]) => (
+                  <button key={t} onClick={() => setAnnType(t)}
+                    className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+                    style={{
+                      background: annType === t ? m.bg : "rgba(255,255,255,0.05)",
+                      color: annType === t ? m.color : "rgba(255,255,255,0.30)",
+                      border: `1px solid ${annType === t ? m.color + "50" : "rgba(255,255,255,0.08)"}`,
+                    }}>
+                    {m.icon} {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-white/35 text-xs mb-1">Title</p>
+              <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Site maintenance tomorrow" className={inp} />
+            </div>
+            <div>
+              <p className="text-white/35 text-xs mb-1">Body</p>
+              <textarea value={body} onChange={e => setBody(e.target.value)} rows={3} placeholder="Full announcement text..."
+                className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none placeholder-white/20 resize-none" />
+            </div>
+            <motion.button onClick={handleCreate} disabled={busy} whileTap={{ scale: 0.97 }}
+              className="w-full py-2.5 rounded-xl text-sm font-bold transition-all"
+              style={{ background: busy ? "rgba(255,255,255,0.06)" : "rgba(6,182,212,0.18)", color: "#06b6d4", border: "1px solid rgba(6,182,212,0.38)" }}>
+              {busy ? "Publishing…" : "📣 Publish Announcement"}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {(error || success) && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="px-4 py-2.5 rounded-xl text-xs font-semibold"
+          style={{
+            background: error ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)",
+            border: `1px solid ${error ? "rgba(239,68,68,0.25)" : "rgba(16,185,129,0.25)"}`,
+            color: error ? "#f87171" : "#10b981",
+          }}>
+          {error || success}
+        </motion.div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-6 h-6 rounded-full border-2 border-transparent"
+            style={{ borderTopColor: "#06b6d4", borderRightColor: "#06b6d440" }} />
+        </div>
+      ) : announcements.length === 0 ? (
+        <div className="text-center py-14">
+          <p className="text-4xl mb-3">📣</p>
+          <p className="text-white/40 text-sm font-medium">No announcements yet</p>
+          <p className="text-white/20 text-xs mt-1">Broadcast a message to all users above</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {announcements.map(a => {
+            const meta = ANN_TYPE_META[a.type] ?? ANN_TYPE_META.info;
+            return (
+              <motion.div key={a.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                className="rounded-xl border px-4 py-3"
+                style={{
+                  background: a.active ? meta.bg : "rgba(255,255,255,0.03)",
+                  borderColor: a.active ? meta.color + "35" : "rgba(255,255,255,0.08)",
+                }}>
+                <div className="flex items-start gap-3">
+                  <span className="text-base shrink-0 mt-0.5">{meta.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-white font-semibold text-sm truncate">{a.title}</p>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-bold shrink-0"
+                        style={{ background: a.active ? meta.bg : "rgba(255,255,255,0.06)", color: a.active ? meta.color : "rgba(255,255,255,0.25)" }}>
+                        {a.active ? "Live" : "Hidden"}
+                      </span>
+                    </div>
+                    <p className="text-white/40 text-xs leading-relaxed">{a.body}</p>
+                    <p className="text-white/20 text-xs mt-1">{new Date(a.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                  </div>
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    <button onClick={() => toggleActive(a)}
+                      className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all"
+                      style={{
+                        background: a.active ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.06)",
+                        color: a.active ? "#10b981" : "rgba(255,255,255,0.30)",
+                        border: `1px solid ${a.active ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.10)"}`,
+                      }}>
+                      {a.active ? "Live" : "Off"}
+                    </button>
+                    <button onClick={() => handleDelete(a)}
+                      className="w-full py-1 rounded-lg text-xs transition-all"
+                      style={{ background: "rgba(239,68,68,0.08)", color: "#f87171aa", border: "1px solid rgba(239,68,68,0.15)" }}>
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
 const ALL_ADMIN_SUBJECTS = [...ALL_SUBJECTS, ...ALL_C12_SUBJECTS];
@@ -2347,7 +2789,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [aiClass, setAiClass] = useState<"c10" | "c12">("c10");
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "coupons", "announcements"] as const).find(t => t === p) ?? "overview";
   })();
   const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "coupons" | "announcements">(initialTab);
   const jumpRef = useRef<HTMLDivElement | null>(null);
@@ -2462,7 +2904,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "cache",     icon: "🗄️", label: "Cache",     badge: 0 },
             { id: "pdf",       icon: "📄", label: "PDF Import",badge: 0 },
             { id: "bank",      icon: "📚", label: "Q Bank",    badge: 0 },
-            { id: "upload",    icon: "📤", label: "Upload",    badge: 0 },
+            { id: "upload",        icon: "📤", label: "Upload",    badge: 0 },
+            { id: "coupons",       icon: "🏷️", label: "Coupons",   badge: 0 },
+            { id: "announcements", icon: "📣", label: "Announce",   badge: 0 },
           ] as const).map(({ id, icon, label, badge }) => {
             const isActive = activeTab === id;
             return (
@@ -2618,13 +3062,13 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
 
           {activeTab === "coupons" && (
             <motion.div key="coupons" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
-              <CollectionPanel collection={{ path: "coupons", label: "Coupons", icon: "🏷️", accent: "#f59e0b" }} />
+              <CouponsPanel />
             </motion.div>
           )}
 
           {activeTab === "announcements" && (
             <motion.div key="announcements" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
-              <CollectionPanel collection={{ path: "announcements", label: "Announcements", icon: "📣", accent: "#06b6d4" }} />
+              <AnnouncementsPanel />
             </motion.div>
           )}
         </AnimatePresence>

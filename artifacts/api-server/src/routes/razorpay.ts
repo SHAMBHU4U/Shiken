@@ -32,17 +32,33 @@ router.post("/razorpay/create-order", async (req, res) => {
 
     if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
       const code = couponCode.trim().toUpperCase();
-      const COUPONS: Record<string, { type: "flat" | "percent"; value: number }> = {
-        // "SHIKEN10": { type: "percent", value: 10 },
-      };
-      const coupon = COUPONS[code];
-      if (coupon) {
-        discount = coupon.type === "percent"
-          ? Math.round((finalAmount * coupon.value) / 100)
-          : coupon.value;
-        finalAmount = Math.max(1, finalAmount - discount);
-        couponApplied = true;
-      }
+      try {
+        const couponRes = await fetch(`${DB_URL}/coupons/${code}.json`);
+        if (couponRes.ok) {
+          const coupon = await couponRes.json() as {
+            type: "flat" | "percent"; value: number; active: boolean;
+            expiresAt: number | null; usageLimit: number | null; usageCount: number;
+          } | null;
+          const now = Date.now();
+          const validCoupon = coupon
+            && coupon.active
+            && (!coupon.expiresAt || coupon.expiresAt > now)
+            && (coupon.usageLimit === null || coupon.usageCount < coupon.usageLimit);
+          if (validCoupon) {
+            discount = coupon.type === "percent"
+              ? Math.round((finalAmount * coupon.value) / 100)
+              : coupon.value;
+            finalAmount = Math.max(1, finalAmount - discount);
+            couponApplied = true;
+            // Increment usage count (fire-and-forget, best effort)
+            fetch(`${DB_URL}/coupons/${code}/usageCount.json`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify((coupon.usageCount ?? 0) + 1),
+            }).catch(() => {});
+          }
+        }
+      } catch { /* ignore coupon errors — don't block payment */ }
     }
 
     const razorpay = getRazorpayClient();
@@ -72,6 +88,47 @@ router.post("/razorpay/create-order", async (req, res) => {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err: msg }, "create-order failed");
+    return res.status(500).json({ ok: false, error: msg });
+  }
+});
+
+// ─── POST /api/razorpay/validate-coupon ──────────────────────────────────────
+router.post("/razorpay/validate-coupon", async (req, res) => {
+  try {
+    const { couponCode, amount } = req.body;
+    if (!couponCode || !amount) {
+      return res.status(400).json({ ok: false, error: "couponCode and amount are required" });
+    }
+    const code = String(couponCode).trim().toUpperCase();
+    const baseAmount = Number(amount);
+
+    const couponRes = await fetch(`${DB_URL}/coupons/${code}.json`);
+    if (!couponRes.ok) {
+      return res.json({ ok: true, couponApplied: false, discount: 0, finalAmount: baseAmount });
+    }
+    const coupon = await couponRes.json() as {
+      type: "flat" | "percent"; value: number; active: boolean;
+      expiresAt: number | null; usageLimit: number | null; usageCount: number;
+    } | null;
+
+    const now = Date.now();
+    const valid = coupon
+      && coupon.active
+      && (!coupon.expiresAt || coupon.expiresAt > now)
+      && (coupon.usageLimit === null || coupon.usageCount < coupon.usageLimit);
+
+    if (!valid) {
+      return res.json({ ok: true, couponApplied: false, discount: 0, finalAmount: baseAmount });
+    }
+
+    const discount = coupon.type === "percent"
+      ? Math.round((baseAmount * coupon.value) / 100)
+      : coupon.value;
+    const finalAmount = Math.max(1, baseAmount - discount);
+
+    return res.json({ ok: true, couponApplied: true, discount, finalAmount, type: coupon.type, value: coupon.value });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     return res.status(500).json({ ok: false, error: msg });
   }
 });
