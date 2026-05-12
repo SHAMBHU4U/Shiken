@@ -86,6 +86,72 @@ async function fetchLeaderboard(): Promise<LeaderEntry[]> {
 const RANK_MEDALS = ["🥇", "🥈", "🥉"];
 const GRADE_COLOR = (p: number) => p >= 80 ? "#10b981" : p >= 60 ? "#f59e0b" : "#ef4444";
 
+interface AnnouncementItem {
+  id: string;
+  title: string;
+  body: string;
+  type: "info" | "warning" | "success";
+  active: boolean;
+  createdAt: number;
+}
+
+const ANN_META = {
+  info: { color: "#06b6d4", bg: "rgba(6,182,212,0.08)", icon: "ℹ️" },
+  warning: { color: "#f59e0b", bg: "rgba(245,158,11,0.08)", icon: "⚠️" },
+  success: { color: "#10b981", bg: "rgba(16,185,129,0.08)", icon: "✅" },
+} as const;
+
+function AnnouncementBanner() {
+  const [items, setItems] = useState<AnnouncementItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    async function load() {
+      try {
+        const res = await fetch(`${DB_URL}/announcements.json`);
+        if (!res.ok) return;
+        const data = await res.json() as Record<string, Omit<AnnouncementItem, "id">> | null;
+        if (!alive) return;
+        const list = Object.entries(data ?? {})
+          .map(([id, a]) => ({ id, ...a }))
+          .filter((a) => a.active)
+          .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+        setItems(list);
+      } catch {
+        if (alive) setItems([]);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
+
+  if (loading || items.length === 0) return null;
+
+  const a = items[0];
+  const meta = ANN_META[a.type] ?? ANN_META.info;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-5 rounded-2xl p-4"
+      style={{ background: meta.bg, border: `1px solid ${meta.color}40` }}
+    >
+      <div className="flex items-start gap-3">
+        <span className="text-xl">{meta.icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-black text-sm">{a.title}</p>
+          <p className="text-white/45 text-xs mt-1 leading-relaxed">{a.body}</p>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Streak Reminder Banner ────────────────────────────────────────────────────
 
 function StreakReminderBanner({ onPractice }: { onPractice: () => void }) {
@@ -865,6 +931,7 @@ function Dashboard() {
 
         </motion.div>
 
+        <AnnouncementBanner />
         <StreakReminderBanner onPractice={() => {
           document.getElementById("subject-cards")?.scrollIntoView({ behavior: "smooth" });
         }} />
