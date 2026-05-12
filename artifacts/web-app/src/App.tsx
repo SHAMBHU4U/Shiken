@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut, type User } from "firebase/auth";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
 import { auth } from "@/firebase";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -333,6 +333,7 @@ function AdminGuard() {
     setError("");
     setSubmitting(true);
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, email.trim(), password);
       sessionStorage.setItem(ADMIN_SESSION, "1");
       setAdminSession(true);
