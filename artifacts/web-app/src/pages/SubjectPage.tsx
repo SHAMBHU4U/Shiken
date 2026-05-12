@@ -2869,6 +2869,7 @@ export default function SubjectPage() {
                   {q.options.map((opt, oi) => {
                     const isSelected = selectedOption === oi;
                     const optHindi   = q.optionsHindi?.[oi];
+                    const displayOpt = langMode === "hi" && optHindi ? optHindi : opt;
                     return (
                       <motion.button
                         key={oi}
@@ -2911,6 +2912,11 @@ export default function SubjectPage() {
                           {langMode !== "en" && !optHindi && langMode === "hi" && (
                             <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
                               <MathText text={opt} />
+                            </span>
+                          )}
+                          {langMode === "hi" && optHindi && (
+                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                              <MathText text={displayOpt} />
                             </span>
                           )}
                         </span>
