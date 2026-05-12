@@ -1520,6 +1520,7 @@ function ResultScreen({
                     const isCorrect  = oi === q.answerIndex;
                     const isUser     = oi === userAnswer;
                     const optHindi   = q.optionsHindi?.[oi];
+                    const showHindiFirst = Boolean(optHindi);
                     return (
                       <div key={oi} className="flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg"
                         style={{
@@ -1528,9 +1529,13 @@ function ResultScreen({
                         }}>
                         <span className="font-bold w-4 shrink-0 mt-0.5">{String.fromCharCode(65 + oi)}.</span>
                         <span className="flex flex-col gap-0.5 flex-1 min-w-0">
-                          <MathText text={opt} />
-                          {optHindi && (
-                            <span style={{ opacity: 0.65, fontSize: "10px" }}><MathText text={optHindi} /></span>
+                          {showHindiFirst ? (
+                            <>
+                              <MathText text={optHindi ?? opt} />
+                              <span style={{ opacity: 0.65, fontSize: "10px" }}><MathText text={opt} /></span>
+                            </>
+                          ) : (
+                            <MathText text={opt} />
                           )}
                         </span>
                         {isCorrect          && <span className="ml-auto font-semibold shrink-0">✓ Correct</span>}
@@ -2898,26 +2903,28 @@ export default function SubjectPage() {
                           {String.fromCharCode(65 + oi)}
                         </span>
                         <span className="flex flex-col gap-0.5 min-w-0">
-                          {langMode !== "hi" && (
-                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
-                              <MathText text={opt} />
-                            </span>
-                          )}
-                          {langMode !== "en" && optHindi && (
-                            <span className={langMode === "hi" ? "text-sm font-medium leading-snug" : "text-xs leading-snug"}
-                              style={{ color: langMode === "hi" ? (isSelected ? "#fff" : "rgba(255,255,255,0.55)") : (isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.22)") }}>
-                              <MathText text={optHindi} />
-                            </span>
-                          )}
-                          {langMode !== "en" && !optHindi && langMode === "hi" && (
-                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
-                              <MathText text={opt} />
-                            </span>
-                          )}
-                          {langMode === "hi" && optHindi && (
-                            <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
-                              <MathText text={displayOpt} />
-                            </span>
+                          {langMode === "hi" ? (
+                            <>
+                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                                <MathText text={displayOpt} />
+                              </span>
+                              {optHindi && (
+                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.22)" }}>
+                                  <MathText text={opt} />
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                                <MathText text={opt} />
+                              </span>
+                              {optHindi && (
+                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.22)" }}>
+                                  <MathText text={optHindi} />
+                                </span>
+                              )}
+                            </>
                           )}
                         </span>
                       </motion.button>
