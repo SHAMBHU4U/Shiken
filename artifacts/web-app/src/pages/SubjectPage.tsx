@@ -2780,23 +2780,6 @@ export default function SubjectPage() {
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-6 pb-28 flex flex-col min-h-screen">
 
-        {/* Language toggle */}
-        <div className="flex justify-end mb-3">
-          <motion.button
-            onClick={cycleLang}
-            whileTap={{ scale: 0.93 }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
-            style={{
-              background: langMode !== "both" ? `${meta.accent}22` : "rgba(255,255,255,0.05)",
-              borderColor: langMode !== "both" ? `${meta.accent}55` : "rgba(255,255,255,0.10)",
-              color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.35)",
-            }}
-            title="Toggle language: Both / English / Hindi"
-          >
-            <span>{langLabel}</span>
-          </motion.button>
-        </div>
-
         {/* Passage toggle — shown when doing comprehension quiz */}
         {selectedChapter === "Comprehension" && passageText && (
           <div className="mb-3">
@@ -2947,11 +2930,40 @@ export default function SubjectPage() {
                   )}
                 </div>
 
+                {/* Language toggle — below question, above options */}
+                <div className="flex items-center justify-between mt-3 mb-1">
+                  <motion.button
+                    onClick={cycleLang}
+                    whileTap={{ scale: 0.93 }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
+                    style={{
+                      background: langMode !== "both" ? `${meta.accent}22` : "rgba(255,255,255,0.05)",
+                      borderColor: langMode !== "both" ? `${meta.accent}55` : "rgba(255,255,255,0.10)",
+                      color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.35)",
+                    }}
+                    title="Toggle language: Both / English / Hindi"
+                  >
+                    🌐 {langLabel}
+                  </motion.button>
+                  {fullTranslating[currentIndex] && (
+                    <div className="flex items-center gap-1.5">
+                      <motion.span
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="inline-block w-3 h-3 rounded-full border-2 border-transparent"
+                        style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}40` }}
+                      />
+                      <span className="text-white/30 text-xs">हिंदी अनुवाद हो रहा है…</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Options */}
                 <div className="flex flex-col gap-3">
                   {q.options.map((opt, oi) => {
                     const isSelected = selectedOption === oi;
                     const ft = fullTranslations[currentIndex];
+                    const isTranslating = fullTranslating[currentIndex];
                     const optHindi   = q.optionsHindi?.[oi] ?? ft?.optionsHindi?.[oi];
                     const displayOpt = langMode === "hi" && optHindi ? optHindi : opt;
                     return (
@@ -2984,22 +2996,26 @@ export default function SubjectPage() {
                         <span className="flex flex-col gap-0.5 min-w-0">
                           {langMode === "hi" ? (
                             <>
-                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
-                                <MathText text={displayOpt} />
-                              </span>
-                              {optHindi && (
-                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.22)" }}>
+                              {isTranslating && !optHindi ? (
+                                <span className="block h-4 rounded w-4/5 animate-pulse" style={{ background: "rgba(255,255,255,0.10)" }} />
+                              ) : (
+                                <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.85)" }}>
+                                  <MathText text={displayOpt} />
+                                </span>
+                              )}
+                              {optHindi && !isTranslating && (
+                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.28)" }}>
                                   <MathText text={opt} />
                                 </span>
                               )}
                             </>
                           ) : (
                             <>
-                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.55)" }}>
+                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.85)" }}>
                                 <MathText text={opt} />
                               </span>
                               {optHindi && (
-                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.22)" }}>
+                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.28)" }}>
                                   <MathText text={optHindi} />
                                 </span>
                               )}
@@ -3108,17 +3124,27 @@ export default function SubjectPage() {
                   <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: `${meta.accent}20`, color: meta.accent, flexShrink: 0 }}>
                     {mode === "full" ? "Full Test" : selectedChapter}
                   </span>
-                  <motion.button
-                    onClick={() => setPaletteOpen(true)}
-                    whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                    style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: `${meta.accent}18`, color: meta.accent, fontSize: 12, fontWeight: 700, flexShrink: 0, cursor: "pointer" }}
-                  >
-                    <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
-                      <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
-                      <rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/>
-                    </svg>
-                    {currentIndex + 1}/{questions.length}
-                  </motion.button>
+                  <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <motion.button
+                      onClick={cycleLang}
+                      whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: langMode !== "both" ? `${meta.accent}28` : "rgba(255,255,255,0.06)", color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.35)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      title="Toggle language"
+                    >
+                      🌐 {langLabel}
+                    </motion.button>
+                    <motion.button
+                      onClick={() => setPaletteOpen(true)}
+                      whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
+                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: `${meta.accent}18`, color: meta.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
+                        <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
+                        <rect x="0" y="7" width="5" height="5" rx="1"/><rect x="7" y="7" width="5" height="5" rx="1"/>
+                      </svg>
+                      {currentIndex + 1}/{questions.length}
+                    </motion.button>
+                  </div>
                 </div>
                 <div style={{ height: 6, borderRadius: 999, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
                   <motion.div
