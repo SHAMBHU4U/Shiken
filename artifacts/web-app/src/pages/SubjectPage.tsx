@@ -1694,6 +1694,9 @@ export default function SubjectPage() {
   // Quiz per-question translation state (for questions stored only in Hindi)
   const [quizTranslateTexts,   setQuizTranslateTexts]   = useState<Record<number, string>>({});
   const [quizTranslateLoading, setQuizTranslateLoading] = useState<Record<number, boolean>>({});
+  const [fullTranslations, setFullTranslations] = useState<Record<number, FullTranslation>>({});
+  const [fullTranslating, setFullTranslating] = useState<Record<number, boolean>>({});
+  const fullTranslationCache = useRef<Record<string, FullTranslation>>({});
   async function fetchQuizTranslation(i: number, hindiText: string) {
     if (quizTranslateLoading[i] || quizTranslateTexts[i]) return;
     setQuizTranslateLoading((l) => ({ ...l, [i]: true }));
