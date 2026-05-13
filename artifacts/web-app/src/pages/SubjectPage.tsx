@@ -959,7 +959,7 @@ function ChapterSelect({
 
 function ResultScreen({
   questions, answers, accent, label, icon, isDemo, isOfflineCached, mode, chapter, subject, onHome, onRetry,
-  isPremium, onUpgrade, fullTranslations,
+  isPremium, onUpgrade,
 }: {
   questions: Question[];
   answers: Record<number, number>;
@@ -967,7 +967,6 @@ function ResultScreen({
   mode: "full" | "chapter" | "ai" | "mini"; chapter: string; subject: string;
   onHome: () => void; onRetry: () => void;
   isPremium: boolean; onUpgrade: () => void;
-  fullTranslations: Record<number, { hindi: string; optionsHindi: string[] }>;
 }) {
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answerIndex ? 1 : 0), 0);
   const pct   = Math.round((score / questions.length) * 100);
@@ -1000,6 +999,9 @@ function ResultScreen({
   // Per-question translation state (for questions stored only in Hindi)
   const [translateTexts,   setTranslateTexts]   = useState<Record<number, string>>({});
   const [translateLoading, setTranslateLoading] = useState<Record<number, boolean>>({});
+  const [fullTranslations,   setFullTranslations]   = useState<Record<number, FullTranslation>>({});
+  const [fullTranslating,    setFullTranslating]    = useState<Record<number, boolean>>({});
+  const fullTranslationCache = useRef<Record<string, FullTranslation>>({});
 
   function translateCacheKey(hindiText: string): string {
     return btoa(unescape(encodeURIComponent(hindiText.slice(0, 80)))).replace(/[/+=]/g, "_") + "_en";
@@ -1692,7 +1694,6 @@ export default function SubjectPage() {
   // Quiz per-question translation state (for questions stored only in Hindi)
   const [quizTranslateTexts,   setQuizTranslateTexts]   = useState<Record<number, string>>({});
   const [quizTranslateLoading, setQuizTranslateLoading] = useState<Record<number, boolean>>({});
-
   async function fetchQuizTranslation(i: number, hindiText: string) {
     if (quizTranslateLoading[i] || quizTranslateTexts[i]) return;
     setQuizTranslateLoading((l) => ({ ...l, [i]: true }));
@@ -1713,24 +1714,29 @@ export default function SubjectPage() {
     }
   }
 
-  // ── Full question translation to Hindi (question + all options) ────────────
-  const [fullTranslations,   setFullTranslations]   = useState<Record<number, FullTranslation>>({});
-  const [fullTranslating,    setFullTranslating]    = useState<Record<number, boolean>>({});
-
   function fullTransCacheKey(englishQ: string): string {
     return btoa(unescape(encodeURIComponent(englishQ.slice(0, 80)))).replace(/[/+=]/g, "_") + "_full_hi";
   }
 
   async function fetchFullTranslation(i: number, q: { english: string; options: string[] }) {
+    const cacheKey = fullTransCacheKey(q.english);
+    const chapterKey = `${selectedChapter || ""}::${cacheKey}`;
+    const cachedMemory = fullTranslationCache.current[chapterKey];
     if (fullTranslating[i] || fullTranslations[i]) return;
+    if (cachedMemory) {
+      setFullTranslations((t) => ({ ...t, [i]: cachedMemory }));
+      return;
+    }
     setFullTranslating((l) => ({ ...l, [i]: true }));
     try {
-      const cacheKey = fullTransCacheKey(q.english);
       const cached = await get(ref(db, `translations/${subject}/${cacheKey}`));
       if (cached.exists()) {
-        setFullTranslations((t) => ({ ...t, [i]: cached.val() as FullTranslation }));
+        const value = cached.val() as FullTranslation;
+        fullTranslationCache.current[chapterKey] = value;
+        setFullTranslations((t) => ({ ...t, [i]: value }));
       } else {
         const result = await translateQuestionFull(q.english, q.options, subject);
+        fullTranslationCache.current[chapterKey] = result;
         setFullTranslations((t) => ({ ...t, [i]: result }));
         set(ref(db, `translations/${subject}/${cacheKey}`), result).catch(() => {});
       }
@@ -2578,7 +2584,6 @@ export default function SubjectPage() {
           isDemo={isDemo} isOfflineCached={isOfflineCached} mode={mode} chapter={selectedChapter}
           onHome={() => { refreshHistory(); setScreen("mode-select"); }} onRetry={retryTest} subject={subject}
           isPremium={isPremium} onUpgrade={() => setUpgradeOpen(true)}
-          fullTranslations={fullTranslations}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
       </>
