@@ -26,6 +26,17 @@ interface RazorpayResponse {
 }
 interface RazorpayInstance { open(): void; on(event: string, handler: () => void): void; }
 
+function normalizeErrorMessage(err: unknown, fallback: string): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message || fallback;
+  if (err && typeof err === "object") {
+    const maybe = (err as { error?: unknown; message?: unknown }).error ?? (err as { message?: unknown }).message;
+    if (typeof maybe === "string" && maybe.trim()) return maybe;
+    try { return JSON.stringify(err); } catch { return fallback; }
+  }
+  return fallback;
+}
+
 const PLANS = [
   {
     id: "monthly_one",
@@ -158,7 +169,7 @@ function PaymentSheet({
     const uid = auth.currentUser.uid;
 
     if (!window.Razorpay) {
-      setError("Razorpay failed to load. Please refresh and try again.");
+      setError("Payment gateway failed to load. Please refresh and try again.");
       return;
     }
 
@@ -173,7 +184,7 @@ function PaymentSheet({
       });
       const orderData = await orderRes.json();
       if (!orderRes.ok || !orderData.ok) {
-        setError(orderData.error ?? "Could not create order. Please try again.");
+        setError(normalizeErrorMessage(orderData, "Could not create order. Please try again."));
         setPaying(false);
         return;
       }
@@ -243,9 +254,20 @@ function PaymentSheet({
         setError("Payment failed. Please try again.");
         setPaying(false);
       });
-      rzp.open();
-    } catch {
-      setError("Network error. Please check your connection and try again.");
+      try {
+        rzp.open();
+      } catch {
+        window.location.href = `https://api.razorpay.com/v1/checkout?` + new URLSearchParams({
+          key: RAZORPAY_KEY,
+          order_id: orderData.orderId,
+          amount: String(orderData.amount * 100),
+          currency: "INR",
+          name: "SHIKEN",
+          description: `${plan.name}${plan.singleSubject && selectedSubject ? " · " + selectedSubject : ""} — ${plan.period}`,
+        }).toString();
+      }
+    } catch (err) {
+      setError(normalizeErrorMessage(err, "Network error. Please check your connection and try again."));
       setPaying(false);
     }
   }
