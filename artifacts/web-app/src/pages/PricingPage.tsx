@@ -151,7 +151,7 @@ function PaymentSheet({
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        setCouponError(data.error ?? "Invalid coupon code.");
+        setCouponError(normalizeErrorMessage(data, "Invalid coupon code."));
       } else if (!data.couponApplied) {
         setCouponError("Coupon code not valid or expired.");
       } else {
@@ -221,7 +221,7 @@ function PaymentSheet({
             const verifyData = await verifyRes.json();
 
             if (!verifyRes.ok || !verifyData.ok) {
-              setError(verifyData.error ?? "Verification failed. Contact support with Payment ID: " + response.razorpay_payment_id);
+              setError(normalizeErrorMessage(verifyData, "Verification failed. Contact support with Payment ID: " + response.razorpay_payment_id));
               setPaying(false);
               return;
             }

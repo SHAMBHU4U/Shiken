@@ -8,6 +8,17 @@ const router = Router();
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
+function errorText(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err instanceof Error) return err.message || "Unknown error";
+  if (err && typeof err === "object") {
+    const maybe = (err as { error?: unknown; message?: unknown }).error ?? (err as { message?: unknown }).message;
+    if (typeof maybe === "string" && maybe.trim()) return maybe;
+    try { return JSON.stringify(err); } catch { return "Unknown error"; }
+  }
+  return "Unknown error";
+}
+
 function getRazorpayClient(): Razorpay {
   const keyId     = process.env["RAZORPAY_KEY_ID"];
   const keySecret = process.env["RAZORPAY_KEY_SECRET"];
@@ -86,7 +97,7 @@ router.post("/razorpay/create-order", async (req, res) => {
       couponApplied,
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorText(err);
     logger.error({ err: msg }, "create-order failed");
     return res.status(500).json({ ok: false, error: msg });
   }
@@ -128,7 +139,7 @@ router.post("/razorpay/validate-coupon", async (req, res) => {
 
     return res.json({ ok: true, couponApplied: true, discount, finalAmount, type: coupon.type, value: coupon.value });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorText(err);
     return res.status(500).json({ ok: false, error: msg });
   }
 });
@@ -224,7 +235,7 @@ router.post("/razorpay/verify-payment", async (req, res) => {
 
     return res.json({ ok: true, paymentId: razorpay_payment_id });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg = errorText(err);
     logger.error({ err: msg }, "verify-payment failed");
     return res.status(500).json({ ok: false, error: msg });
   }
