@@ -19,6 +19,11 @@ function errorText(err: unknown): string {
   return "Unknown error";
 }
 
+function jsonError(res: any, status: number, err: unknown, fallback: string) {
+  const msg = errorText(err) || fallback;
+  return res.status(status).json({ ok: false, error: msg });
+}
+
 function getRazorpayClient(): Razorpay {
   const keyId     = process.env["RAZORPAY_KEY_ID"];
   const keySecret = process.env["RAZORPAY_KEY_SECRET"];
@@ -99,7 +104,7 @@ router.post("/razorpay/create-order", async (req, res) => {
   } catch (err: unknown) {
     const msg = errorText(err);
     logger.error({ err: msg }, "create-order failed");
-    return res.status(500).json({ ok: false, error: msg });
+    return jsonError(res, 500, msg, "create-order failed");
   }
 });
 
@@ -140,7 +145,7 @@ router.post("/razorpay/validate-coupon", async (req, res) => {
     return res.json({ ok: true, couponApplied: true, discount, finalAmount, type: coupon.type, value: coupon.value });
   } catch (err: unknown) {
     const msg = errorText(err);
-    return res.status(500).json({ ok: false, error: msg });
+    return jsonError(res, 500, msg, "coupon validation failed");
   }
 });
 
@@ -237,7 +242,7 @@ router.post("/razorpay/verify-payment", async (req, res) => {
   } catch (err: unknown) {
     const msg = errorText(err);
     logger.error({ err: msg }, "verify-payment failed");
-    return res.status(500).json({ ok: false, error: msg });
+    return jsonError(res, 500, msg, "verify-payment failed");
   }
 });
 
