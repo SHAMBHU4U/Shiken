@@ -37,6 +37,11 @@ function normalizeErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+function formatGatewayError(err: unknown): string {
+  const msg = normalizeErrorMessage(err, "Payment failed.");
+  return msg.toLowerCase().includes("object object") ? "Payment failed. Please try again." : msg;
+}
+
 const PLANS = [
   {
     id: "monthly_one",
@@ -189,13 +194,21 @@ function PaymentSheet({
         return;
       }
 
+      const orderId = typeof orderData.orderId === "string" ? orderData.orderId : "";
+      const amount = Number(orderData.amount);
+      if (!orderId || !Number.isFinite(amount)) {
+        setError("Payment gateway returned invalid order data. Please try again.");
+        setPaying(false);
+        return;
+      }
+
       const options: RazorpayOptions = {
         key:         RAZORPAY_KEY,
-        amount:      orderData.amount * 100,
+        amount,
         currency:    "INR",
         name:        "SHIKEN",
         description: `${plan.name}${plan.singleSubject && selectedSubject ? " · " + selectedSubject : ""} — ${plan.period}`,
-        order_id:    orderData.orderId,
+        order_id:    orderId,
         prefill: {
           email: auth.currentUser.email   ?? undefined,
           name:  auth.currentUser.displayName ?? undefined,
@@ -259,15 +272,15 @@ function PaymentSheet({
       } catch {
         window.location.href = `https://api.razorpay.com/v1/checkout?` + new URLSearchParams({
           key: RAZORPAY_KEY,
-          order_id: orderData.orderId,
-          amount: String(orderData.amount * 100),
+          order_id: orderId,
+          amount: String(amount),
           currency: "INR",
           name: "SHIKEN",
           description: `${plan.name}${plan.singleSubject && selectedSubject ? " · " + selectedSubject : ""} — ${plan.period}`,
         }).toString();
       }
     } catch (err) {
-      setError(normalizeErrorMessage(err, "Network error. Please check your connection and try again."));
+      setError(formatGatewayError(err));
       setPaying(false);
     }
   }
