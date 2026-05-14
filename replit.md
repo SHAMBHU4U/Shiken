@@ -94,7 +94,7 @@ Each subject uses a **different field structure** — the parser handles all of 
 - `artifacts/web-app/src/hooks/useSubscription.ts` — subscription hook
 - `artifacts/web-app/src/components/UpgradeModal.tsx` — premium paywall bottom sheet
 - `artifacts/web-app/src/firebase.ts` — exports `db`, `auth`, `storage`
-- `artifacts/api-server/src/routes/` — explain (SSE), analyze-test (SSE), generate-questions
+- `artifacts/api-server/src/routes/` — explain (SSE), analyze-test (SSE), generate-questions, translate, parse-pdf, comprehension
 
 ## Features
 

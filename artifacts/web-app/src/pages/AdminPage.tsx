@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { ref, get, set, remove, update, push } from "firebase/database";
-import { parsePDFQuestions } from "@/lib/gemini";
 import type { GeneratedQuestion } from "@/lib/gemini";
 import { db } from "@/firebase";
 
@@ -1849,7 +1848,13 @@ function PDFImportPanel() {
     try {
       const base64 = await readFileAsBase64(file);
       setStep("parsing");
-      const extracted = await parsePDFQuestions(base64, activeSub.label, chapter.trim());
+      const pdfResp = await fetch("/api/parse-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pdfBase64: base64, subject: activeSub.label, chapter: chapter.trim() }),
+      });
+      if (!pdfResp.ok) throw new Error("PDF parsing failed on server.");
+      const { questions: extracted } = await pdfResp.json() as { questions: Array<{ english: string; hindi: string; options: string[]; optionsHindi: string[]; answerIndex: number }> };
       if (extracted.length === 0) throw new Error("No MCQ questions found in this PDF.");
       setQuestions(extracted);
       setStep("preview");

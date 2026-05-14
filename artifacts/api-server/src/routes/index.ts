@@ -6,6 +6,9 @@ import generateRouter from "./explain/generate";
 import analyzeRouter from "./explain/analyze";
 import notifyWhatsappRouter from "./notify-whatsapp";
 import razorpayRouter from "./razorpay";
+import translateRouter from "./translate";
+import parsePDFRouter from "./parse-pdf";
+import comprehensionRouter from "./comprehension";
 
 const router: IRouter = Router();
 
@@ -15,5 +18,8 @@ router.use(generateRouter);
 router.use(analyzeRouter);
 router.use(notifyWhatsappRouter);
 router.use(razorpayRouter);
+router.use(translateRouter);
+router.use(parsePDFRouter);
+router.use(comprehensionRouter);
 
 export default router;

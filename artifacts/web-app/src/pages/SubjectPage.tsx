@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithGemini, generateQuestions, generateComprehension, translateToEnglish, translateQuestionFull, type FullTranslation } from "@/lib/gemini";
+import { explainWithGemini, generateQuestions, generateComprehension, type FullTranslation } from "@/lib/gemini";
 import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -1016,7 +1016,13 @@ function ResultScreen({
       if (cached.exists()) {
         setTranslateTexts((t) => ({ ...t, [i]: cached.val() as string }));
       } else {
-        const text = await translateToEnglish(hindiText);
+        const resp = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "toEnglish", hindi: hindiText, subject }),
+        });
+        const json = await resp.json() as { result?: string };
+        const text = json.result ?? hindiText;
         setTranslateTexts((t) => ({ ...t, [i]: text }));
         set(ref(db, `translations/${subject}/${cacheKey}`), text).catch(() => {});
       }
@@ -1706,7 +1712,13 @@ export default function SubjectPage() {
       if (cached.exists()) {
         setQuizTranslateTexts((t) => ({ ...t, [i]: cached.val() as string }));
       } else {
-        const text = await translateToEnglish(hindiText);
+        const resp = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "toEnglish", hindi: hindiText, subject }),
+        });
+        const json = await resp.json() as { result?: string };
+        const text = json.result ?? hindiText;
         setQuizTranslateTexts((t) => ({ ...t, [i]: text }));
         set(ref(db, `translations/${subject}/${cacheKey}`), text).catch(() => {});
       }
@@ -1738,7 +1750,12 @@ export default function SubjectPage() {
         fullTranslationCache.current[chapterKey] = value;
         setFullTranslations((t) => ({ ...t, [i]: value }));
       } else {
-        const result = await translateQuestionFull(q.english, q.options, subject);
+        const resp = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "fullTranslation", english: q.english, options: q.options, subject }),
+        });
+        const result = await resp.json() as FullTranslation;
         fullTranslationCache.current[chapterKey] = result;
         setFullTranslations((t) => ({ ...t, [i]: result }));
         set(ref(db, `translations/${subject}/${cacheKey}`), result).catch(() => {});
@@ -1821,29 +1838,55 @@ export default function SubjectPage() {
     }
 
     setScreen("loading");
+    const controller = new AbortController();
     const dbPath = meta.path.toLowerCase();
-    const subjectRef = ref(db, dbPath);
 
-    get(subjectRef)
-      .then((snapshot) => {
+    const doFetch = async () => {
+      // Get auth token if user is logged in so Firebase rules allow the read
+      let token: string | null = null;
+      try {
+        if (auth.currentUser) {
+          token = await auth.currentUser.getIdToken();
+        }
+      } catch { /* ignore token errors */ }
+
+      const encodedPath = dbPath.split("/").map(encodeURIComponent).join("/");
+      const dbUrl = `https://shiken-d8789-default-rtdb.firebaseio.com/${encodedPath}.json${token ? `?auth=${token}` : ""}`;
+
+      const r = await fetch(dbUrl, { signal: controller.signal });
+      return r.json();
+    };
+
+    doFetch()
+      .then((data: unknown) => {
         if (!mountedRef.current) return;
-        const data = snapshot.val();
-        const parsed = data ? parseQuestions(data, subject, classId) : [];
+        // Firebase returns {"error":"..."} on permission denied — that's an object with no questions
+        const parsed = data && typeof data === "object" && !("error" in (data as object))
+          ? parseQuestions(data, subject, classId)
+          : [];
         if (parsed.length > 0) {
           setAllQuestions(parsed);
           setIsDemo(false);
           setIsOfflineCached(false);
           saveQuestionsToCache(classId, subject, parsed);
         } else {
-          setAllQuestions(demoQuestions[subject] ?? demoQuestions.maths);
-          setIsDemo(true);
-          setIsOfflineCached(false);
+          // No data or permission denied — try local cache first
+          const cached = loadQuestionsFromCache(classId, subject);
+          if (cached && (cached as Question[]).length > 0) {
+            setAllQuestions(cached as Question[]);
+            setIsDemo(false);
+            setIsOfflineCached(true);
+          } else {
+            setAllQuestions(demoQuestions[subject] ?? demoQuestions.maths);
+            setIsDemo(true);
+            setIsOfflineCached(false);
+          }
         }
         setSavedProgress(loadProgress(subject));
         setScreen("mode-select");
       })
       .catch((err: Error) => {
-        if (!mountedRef.current) return;
+        if (err.name === "AbortError" || !mountedRef.current) return;
         const cached = loadQuestionsFromCache(classId, subject);
         if (cached && (cached as Question[]).length > 0) {
           setAllQuestions(cached as Question[]);
@@ -1857,6 +1900,8 @@ export default function SubjectPage() {
         setSavedProgress(loadProgress(subject));
         setScreen("mode-select");
       });
+
+    return () => controller.abort();
   }, [subject]);
 
   // ── Derived data ─────────────────────────────────────────────────────────────
@@ -2081,8 +2126,20 @@ export default function SubjectPage() {
           .filter((q) => (q.english || q.hindi) && q.options.length >= 2);
         setQuestions(qs);
       } else {
-        // 2. Generate via Gemini AI with subject-aware prompt
-        const result = await generateComprehension(7, subj);
+        // 2. Generate via AI (browser-direct, server fallback)
+        const result = await (async () => {
+          try {
+            return await generateComprehension(7, subj);
+          } catch {
+            const resp = await fetch("/api/generate-comprehension", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ count: 7, subject: subj }),
+            });
+            if (!resp.ok) throw new Error("Server comprehension failed");
+            return await resp.json() as { title: string; passage: string; questions: Array<{ english: string; hindi: string; options: string[]; optionsHindi: string[]; answerIndex: number }> };
+          }
+        })();
         setPassageTitle(result.title);
         setPassageText(result.passage);
         setQuestions(result.questions.map((q) => ({ ...q, chapter: "Comprehension" })));
