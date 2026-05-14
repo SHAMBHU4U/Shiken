@@ -1821,16 +1821,13 @@ export default function SubjectPage() {
     }
 
     setScreen("loading");
-    const controller = new AbortController();
-    const dbPath = meta.path.toLowerCase(); // always lowercase; "social science" keeps its space
-    // Encode each path segment so "social science" → "social%20science"
-    // and "class12/physics" keeps its slash as a real path separator
-    const dbUrl  = `https://shiken-d8789-default-rtdb.firebaseio.com/${dbPath.split("/").map(encodeURIComponent).join("/")}.json`;
+    const dbPath = meta.path.toLowerCase();
+    const subjectRef = ref(db, dbPath);
 
-    fetch(dbUrl, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((data: unknown) => {
+    get(subjectRef)
+      .then((snapshot) => {
         if (!mountedRef.current) return;
+        const data = snapshot.val();
         const parsed = data ? parseQuestions(data, subject, classId) : [];
         if (parsed.length > 0) {
           setAllQuestions(parsed);
@@ -1846,7 +1843,7 @@ export default function SubjectPage() {
         setScreen("mode-select");
       })
       .catch((err: Error) => {
-        if (err.name === "AbortError" || !mountedRef.current) return;
+        if (!mountedRef.current) return;
         const cached = loadQuestionsFromCache(classId, subject);
         if (cached && (cached as Question[]).length > 0) {
           setAllQuestions(cached as Question[]);
@@ -1860,8 +1857,6 @@ export default function SubjectPage() {
         setSavedProgress(loadProgress(subject));
         setScreen("mode-select");
       });
-
-    return () => controller.abort();
   }, [subject]);
 
   // ── Derived data ─────────────────────────────────────────────────────────────
