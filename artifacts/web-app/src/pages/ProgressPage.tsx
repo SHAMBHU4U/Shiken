@@ -398,7 +398,7 @@ export default function ProgressPage() {
                     const d = new Date(r.date);
                     const dateStr = d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
                     const timeStr = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-                    const modeLabel = r.mode === "full" ? "Full Test" : r.mode === "chapter" ? r.chapter : "AI Practice";
+                    const modeLabel = r.mode === "full" ? "Full Test" : r.mode === "chapter" ? r.chapter : "Shiken AI Practice";
                     return (
                       <div key={i}
                         className={`flex items-center gap-3 px-4 py-3 ${i < recentTests.length - 1 ? "border-b border-white/5" : ""}`}>

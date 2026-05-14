@@ -661,7 +661,7 @@ function ModeSelect({
     },
     {
       id: "ai",
-      title: "AI Practice",
+      title: "Shiken AI Practice",
       subtitle: isPremium ? "5 fresh AI-generated questions" : "AI practice — Premium only",
       icon: "🤖",
       desc: isPremium
@@ -2355,7 +2355,7 @@ export default function SubjectPage() {
   if (screen === "ai-chapter-select") {
     return (
       <ChapterSelect
-        meta={{ ...meta, label: "AI Practice — " + meta.label }}
+        meta={{ ...meta, label: "Shiken AI Practice — " + meta.label }}
         chapters={chapters}
         onBack={() => setScreen("mode-select")}
         onSelect={startAIPractice}
