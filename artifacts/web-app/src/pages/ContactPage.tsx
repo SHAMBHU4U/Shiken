@@ -144,8 +144,8 @@ export default function ContactPage() {
               },
               {
                 icon: "🤖",
-                title: "AI Explanations (Gemini)",
-                desc: "Get instant step-by-step explanations for any question in Hindi or English, powered by Google Gemini.",
+                title: "Shiken Explanation",
+                desc: "Get instant step-by-step explanations for any question in Hindi or English, powered by AI.",
               },
               {
                 icon: "📝",

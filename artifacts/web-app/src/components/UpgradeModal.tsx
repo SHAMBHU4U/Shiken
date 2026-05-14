@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 const features = [
   { icon: "🎯", text: "Full 50-question tests (25 DB + 25 AI-generated)" },
   { icon: "📂", text: "Chapter-wise targeted deep practice" },
-  { icon: "🤖", text: "Gemini AI fresh questions every session" },
+  { icon: "🤖", text: "Fresh AI questions every session" },
   { icon: "🧠", text: "AI-powered test analysis in Hindi" },
   { icon: "💡", text: "Per-question AI explanations with caching" },
   { icon: "📹", text: "Priority video consultation with mentor" },

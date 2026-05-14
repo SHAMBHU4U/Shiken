@@ -1247,7 +1247,7 @@ function CachePanel() {
             <div>
               <p className="text-cyan-400 text-xs font-bold">Shared question cache</p>
               <p className="text-white/30 text-xs mt-0.5 leading-relaxed">
-                Cached chapters load instantly — zero Gemini API calls. New questions are generated only when a chapter has no cache yet. Max 100 per chapter.
+                Cached chapters load instantly — zero AI API calls. New questions are generated only when a chapter has no cache yet. Max 100 per chapter.
               </p>
             </div>
           </div>
@@ -1899,7 +1899,7 @@ function PDFImportPanel() {
         <div>
           <p className="text-indigo-400 text-xs font-bold">PDF → Firebase Importer</p>
           <p className="text-white/30 text-xs mt-0.5 leading-relaxed">
-            Upload a question paper PDF. Gemini AI reads it and extracts all MCQ questions — both in English and Hindi — then saves them directly to Firebase.
+            Upload a question paper PDF. AI reads it and extracts all MCQ questions — both in English and Hindi — then saves them directly to Firebase.
           </p>
         </div>
       </div>
@@ -2007,7 +2007,7 @@ function PDFImportPanel() {
           {step === "reading" ? (
             <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>⏳</motion.span> Reading PDF…</>
           ) : step === "parsing" ? (
-            <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}>🤖</motion.span> Gemini is extracting questions…</>
+            <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}>🤖</motion.span> AI is extracting questions…</>
           ) : (
             <>🔍 Extract Questions with AI</>
           )}

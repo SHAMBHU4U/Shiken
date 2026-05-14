@@ -311,7 +311,7 @@ JSON format (return ONLY this, nothing else):
   }
 
   if (!Array.isArray(questions) || questions.length === 0) {
-    throw new Error("No questions returned from Gemini");
+    throw new Error("No questions returned from AI");
   }
 
   return (questions as Record<string, unknown>[])
@@ -385,7 +385,7 @@ JSON format (return ONLY this):
     const match = raw.match(/\[[\s\S]*\]/);
     parsed = match ? JSON.parse(match[0]) : [];
   }
-  if (!Array.isArray(parsed)) throw new Error("Gemini returned no questions");
+  if (!Array.isArray(parsed)) throw new Error("AI returned no questions");
 
   return (parsed as Record<string, unknown>[])
     .map((q) => ({

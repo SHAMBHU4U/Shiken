@@ -665,8 +665,8 @@ function ModeSelect({
       subtitle: isPremium ? "5 fresh AI-generated questions" : "AI practice — Premium only",
       icon: "🤖",
       desc: isPremium
-        ? "Gemini बनाएगा नए सवाल तुम्हारे लिए। हर बार अलग, हर बार नया!"
-        : "Upgrade to Premium for Gemini-powered AI practice sessions.",
+        ? "नए सवाल तुम्हारे लिए तैयार किए जा रहे हैं। हर बार अलग, हर बार नया!"
+        : "Upgrade to Premium for AI practice sessions.",
       onClick: isPremium ? onAI : onUpgrade,
       glowColor: isPremium ? "#6366f1" : "#fbbf24",
       locked: !isPremium,
@@ -1053,7 +1053,7 @@ function ResultScreen({
         return;
       }
 
-      // ── Not cached — call Gemini directly from browser ─────────────────────
+      // ── Not cached — call AI directly from browser ─────────────────────
       let fullText = "";
       const tryDirect = async () => {
         fullText = await explainWithGemini(
@@ -1944,7 +1944,7 @@ export default function SubjectPage() {
     // Pick 25 from existing DB questions
     const existing25 = pick(allQuestions, 25);
 
-    // Pick representative chapters for Gemini prompt
+    // Pick representative chapters for AI prompt
     // For Hindi/Sanskrit: filter out untagged "?" questions and prioritise grammar chapters
     const HINDI_GRAMMAR_CHAPTERS = [
       "वर्ण विचार","संज्ञा","सर्वनाम","क्रिया","विशेषण",
@@ -2449,7 +2449,7 @@ export default function SubjectPage() {
             className="w-14 h-14 rounded-full border-2 border-transparent mx-auto mb-5"
             style={{ borderTopColor: "#6366f1", borderRightColor: "#6366f150" }}
           />
-          <p className="text-white font-bold text-lg mb-1">🤖 Gemini सोच रहा है...</p>
+          <p className="text-white font-bold text-lg mb-1">🤖 Preparing your test...</p>
           <p className="text-white/40 text-sm">तुम्हारे लिए नए सवाल बना रहा हूँ</p>
           <p className="text-indigo-400/60 text-xs mt-2">Chapter: {selectedChapter}</p>
         </motion.div>
@@ -2474,7 +2474,7 @@ export default function SubjectPage() {
           <div className="flex flex-col gap-2.5 text-left max-w-xs mx-auto">
             {[
               { emoji: "🗄️", text: "25 questions Firebase से ले रहा हूँ" },
-              { emoji: "🤖", text: "Gemini 25 नए questions बना रहा है" },
+              { emoji: "🤖", text: "25 नए questions तैयार किए जा रहे हैं" },
               { emoji: "💾", text: "New questions database में save होंगे" },
             ].map(({ emoji, text }, idx) => (
               <motion.div
