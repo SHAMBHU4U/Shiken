@@ -6,17 +6,8 @@ import {
   signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, updateProfile,
   type User,
 } from "firebase/auth";
-import { 
-  getFirestore, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  serverTimestamp 
-} from "firebase/firestore";
-import { auth } from "../firebase";
-
-// Firestore database initialize karein
-const db = getFirestore();
+import { ref, get, set, serverTimestamp } from "firebase/database";
+import { auth, db } from "../firebase";
 
 interface AuthContextType {
   user: User | null;
@@ -42,13 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]   = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // User ka data Firestore mein save karne ka helper function
-  const syncUserToFirestore = async (u: User) => {
-    const userRef = doc(db, "users", u.uid);
-    const userSnap = await getDoc(userRef);
-
+  // User ka data Realtime DB mein save karne ka helper function
+  const syncUserToDB = async (u: User) => {
+    const userRef = ref(db, `users/${u.uid}`);
+    const userSnap = await get(userRef);
     if (!userSnap.exists()) {
-      await setDoc(userRef, {
+      await set(userRef, {
         uid: u.uid,
         name: u.displayName || "New Student",
         email: u.email,
@@ -64,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
         // Jab bhi login state badle, check karo ki user database mein hai ya nahi
-        await syncUserToFirestore(u);
+        await syncUserToDB(u);
       }
       setUser(u);
       setLoading(false);
@@ -73,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Redirect result handle karein (Mobile users ke liye)
     getRedirectResult(auth).then(async (result) => {
       if (result?.user) {
-        await syncUserToFirestore(result.user);
+        await syncUserToDB(result.user);
       }
     }).catch((err) => console.error("Redirect error:", err));
 
@@ -91,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
-        await syncUserToFirestore(result.user);
+        await syncUserToDB(result.user);
       }
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
@@ -116,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // Manual signup ke waqt bhi database entry banayein
-    await setDoc(doc(db, "users", newUser.uid), {
+    await set(ref(db, `users/${newUser.uid}`), {
       uid: newUser.uid,
       name: name.trim() || newUser.displayName || "Student",
       email: newUser.email,
