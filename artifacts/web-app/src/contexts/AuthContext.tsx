@@ -6,7 +6,17 @@ import {
   signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, updateProfile,
   type User,
 } from "firebase/auth";
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  setDoc, 
+  serverTimestamp 
+} from "firebase/firestore";
 import { auth } from "../firebase";
+
+// Firestore database initialize karein
+const db = getFirestore();
 
 interface AuthContextType {
   user: User | null;
@@ -32,21 +42,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]   = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // User ka data Firestore mein save karne ka helper function
+  const syncUserToFirestore = async (u: User) => {
+    const userRef = doc(db, "users", u.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        uid: u.uid,
+        name: u.displayName || "New Student",
+        email: u.email,
+        photoURL: u.photoURL,
+        createdAt: serverTimestamp(),
+        role: "student"
+      });
+      console.log("Naya user database mein save ho gaya!");
+    }
+  };
+
   useEffect(() => {
-    // 1. Set up auth state listener immediately — this is the source of truth.
-    //    It fires right away with the current user (or null) and on every change.
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (u) {
+        // Jab bhi login state badle, check karo ki user database mein hai ya nahi
+        await syncUserToFirestore(u);
+      }
       setUser(u);
       setLoading(false);
     });
 
-    // 2. Also consume any pending redirect result (from a previous signInWithRedirect call).
-    //    onAuthStateChanged will automatically fire when the redirect completes,
-    //    so we just need to call getRedirectResult to clear the pending state.
-    //    Errors here (e.g. auth/unauthorized-domain) are surfaced in the catch.
-    getRedirectResult(auth).catch(() => {});
+    // Redirect result handle karein (Mobile users ke liye)
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        await syncUserToFirestore(result.user);
+      }
+    }).catch((err) => console.error("Redirect error:", err));
 
-    // 3. Return the cleanup function — this is what React uses on unmount.
     return unsub;
   }, []);
 
@@ -54,22 +84,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
 
-    // Inside Replit's dev iframe: only popup can work
-    // Mobile browsers: redirect works reliably; popups are blocked
-    // Desktop production: popup gives instant UX
     if (isMobileBrowser() && !isInIframe()) {
-      // Redirect flow: page navigates to Google and back.
-      // getRedirectResult (in useEffect above) will handle the result.
       return signInWithRedirect(auth, provider);
     }
 
-    // Try popup. If blocked by browser, fall back to redirect automatically.
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        await syncUserToFirestore(result.user);
+      }
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
       if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
-        // Fall back to redirect when popup is blocked
         await signInWithRedirect(auth, provider);
       } else {
         throw err;
@@ -83,7 +109,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUpWithEmail = async (email: string, password: string, name: string) => {
     const cred = await createUserWithEmailAndPassword(auth, email, password);
-    if (name.trim()) await updateProfile(cred.user, { displayName: name.trim() });
+    const newUser = cred.user;
+
+    if (name.trim()) {
+      await updateProfile(newUser, { displayName: name.trim() });
+    }
+
+    // Manual signup ke waqt bhi database entry banayein
+    await setDoc(doc(db, "users", newUser.uid), {
+      uid: newUser.uid,
+      name: name.trim() || newUser.displayName || "Student",
+      email: newUser.email,
+      createdAt: serverTimestamp(),
+      role: "student"
+    });
   };
 
   const resetPassword = async (email: string) => {
