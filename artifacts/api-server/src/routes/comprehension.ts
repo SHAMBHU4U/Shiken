@@ -93,7 +93,7 @@ Return ONLY this JSON (no markdown, no explanation):
 
   try {
     const response = await genai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash-lite",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: { maxOutputTokens: 4096 },
     });

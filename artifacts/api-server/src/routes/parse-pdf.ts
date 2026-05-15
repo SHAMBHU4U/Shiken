@@ -51,7 +51,7 @@ JSON format (return ONLY this):
 
   try {
     const response = await genai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash-lite",
       contents: [{
         role: "user",
         parts: [

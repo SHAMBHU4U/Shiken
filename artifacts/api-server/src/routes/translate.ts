@@ -41,7 +41,7 @@ Hindi question:
 ${hindi}`;
 
       const response = await genai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: { temperature: 0.2, maxOutputTokens: 256 },
       });
@@ -66,7 +66,7 @@ STRICT RULES:
 {"hindi":"translated question here","optionsHindi":["option A Hindi","option B Hindi","option C Hindi","option D Hindi"]}`;
 
       const response = await genai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.0-flash-lite",
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: { temperature: 0.1, maxOutputTokens: 512, responseMimeType: "application/json" },
       });

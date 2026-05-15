@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -17,7 +17,8 @@ import PricingPage from "@/pages/PricingPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import QuestionAdminPage from "@/pages/QuestionAdminPage";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import GoalSelectPage from "@/pages/GoalSelectPage";
+import { AuthProvider, useAuth, type UserGoal } from "@/contexts/AuthContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
   getNotificationPermission, requestAndScheduleReminder,
@@ -561,6 +562,43 @@ function AdminGuard() {
   );
 }
 
+// ─── Global spinner ───────────────────────────────────────────────────────────
+
+function SplashLoader() {
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#07080f" }}>
+      <div className="flex flex-col items-center gap-4">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+          className="w-10 h-10 rounded-full border-2 border-transparent"
+          style={{ borderTopColor: "#8b5cf6", borderRightColor: "#06b6d4" }}
+        />
+        <p className="text-white/30 text-xs font-medium tracking-wide">Loading…</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Auth Guard ───────────────────────────────────────────────────────────────
+// Public paths that bypass the auth+goal check
+const PUBLIC_PATHS = ["/admin", "/admin-shiken-portal", "/privacy", "/terms"];
+
+function AuthGuard({ children }: { children: ReactNode }) {
+  const { user, loading, goal, goalLoading } = useAuth();
+  const [location] = useLocation();
+
+  const isPublic = PUBLIC_PATHS.some((p) => location === p || location.startsWith(p + "/"));
+  if (isPublic) return <>{children}</>;
+
+  if (loading) return <SplashLoader />;
+  if (!user) return <ProfilePage />;
+  if (goalLoading) return <SplashLoader />;
+  if (!goal) return <GoalSelectPage />;
+
+  return <>{children}</>;
+}
+
 const queryClient = new QueryClient();
 
 const subjects = [
@@ -583,6 +621,52 @@ const class12Subjects = [
 ];
 
 const CLASS_KEY = "shiken_class";
+
+// ─── Goal → subjects mapping ──────────────────────────────────────────────────
+
+type GoalConfig = {
+  label: string;
+  labelHindi: string;
+  classId: "10" | "12";
+  badge: string;
+  accent: string;
+  subjectIds: string[];
+};
+
+const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
+  neet: {
+    label: "NEET",
+    labelHindi: "मेडिकल प्रवेश",
+    classId: "12",
+    badge: "🩺",
+    accent: "#10b981",
+    subjectIds: ["physics", "chemistry", "biology"],
+  },
+  jee: {
+    label: "JEE Main",
+    labelHindi: "इंजीनियरिंग प्रवेश",
+    classId: "12",
+    badge: "⚙️",
+    accent: "#3b82f6",
+    subjectIds: ["physics", "chemistry", "maths"],
+  },
+  c10: {
+    label: "Class 10",
+    labelHindi: "बिहार बोर्ड दसवीं",
+    classId: "10",
+    badge: "📚",
+    accent: "#f59e0b",
+    subjectIds: ["maths", "english", "hindi", "science", "social", "sanskrit"],
+  },
+  c12: {
+    label: "Class 12",
+    labelHindi: "बिहार बोर्ड बारहवीं",
+    classId: "12",
+    badge: "🎓",
+    accent: "#8b5cf6",
+    subjectIds: ["physics", "chemistry", "biology", "maths", "social", "hindi", "english"],
+  },
+};
 
 type Ripple = { id: number; x: number; y: number; color: string };
 
@@ -800,17 +884,17 @@ function BottomNav() {
 
 function Dashboard() {
   const [, navigate] = useLocation();
-  const [username, setUsername] = useState(getStoredUsername);
-  const hasName = username !== "";
-  const [selectedClass, setSelectedClass] = useState(() => localStorage.getItem(CLASS_KEY) ?? "10");
-  const activeSubjects = selectedClass === "12" ? class12Subjects : subjects;
+  const { goal, clearGoal } = useAuth();
+  const goalCfg = goal ? GOAL_CONFIG[goal] : GOAL_CONFIG.c10;
+  const allSubjectPool = goalCfg.classId === "12" ? class12Subjects : subjects;
+  const activeSubjects = allSubjectPool.filter((s) => goalCfg.subjectIds.includes(s.id));
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
           className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }}
+          style={{ background: `radial-gradient(circle, ${goalCfg.accent}80, transparent)` }}
         />
         <div
           className="absolute top-1/2 -right-32 w-80 h-80 rounded-full blur-3xl opacity-15"
@@ -846,42 +930,40 @@ function Dashboard() {
             >
               <div
                 className="absolute inset-0 rounded-[24px] blur-2xl scale-125 opacity-50"
-                style={{ background: "linear-gradient(135deg, #8b5cf6, #06b6d4)" }}
+                style={{ background: `linear-gradient(135deg, ${goalCfg.accent}, #06b6d4)` }}
               />
               <div
                 className="relative w-[80px] h-[80px] rounded-[20px] flex items-center justify-center overflow-hidden"
                 style={{
                   background: "#ffffff",
-                  boxShadow: "0 12px 36px rgba(139,92,246,0.4), 0 4px 12px rgba(0,0,0,0.3)",
+                  boxShadow: `0 12px 36px ${goalCfg.accent}66, 0 4px 12px rgba(0,0,0,0.3)`,
                 }}
               >
-                <img
-                  src="/shiken-logo.png"
-                  alt="SHIKEN"
-                  className="w-[60px] h-[60px] object-contain"
-                />
+                <img src="/shiken-logo.png" alt="SHIKEN" className="w-[60px] h-[60px] object-contain" />
               </div>
             </motion.div>
           </div>
 
-          {/* ── AI badge ───────────────────────────────────────────── */}
-          <motion.div
+          {/* ── Goal badge ─────────────────────────────────────────── */}
+          <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4"
-            style={{ background: "rgba(139,92,246,0.13)", border: "1px solid rgba(139,92,246,0.32)" }}
+            onClick={() => clearGoal()}
+            whileTap={{ scale: 0.96 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 cursor-pointer group"
+            style={{
+              background: `${goalCfg.accent}1a`,
+              border: `1px solid ${goalCfg.accent}45`,
+            }}
+            title="Change goal"
           >
-            <motion.span
-              animate={{ opacity: [1, 0.35, 1] }}
-              transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: "#a78bfa" }}
-            />
-            <span className="text-violet-300 text-[11px] font-bold tracking-[0.18em] uppercase">
-              Bihar Board Class {selectedClass} · AI Powered
+            <span className="text-sm">{goalCfg.badge}</span>
+            <span className="text-[11px] font-bold tracking-[0.15em] uppercase" style={{ color: `${goalCfg.accent}cc` }}>
+              {goalCfg.label} · {goalCfg.labelHindi}
             </span>
-          </motion.div>
+            <span className="text-white/20 group-hover:text-white/50 text-[10px] transition-colors ml-0.5">✎</span>
+          </motion.button>
 
           {/* ── SHIKEN title ───────────────────────────────────────── */}
           <motion.h1
@@ -915,36 +997,10 @@ function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="text-white/35 text-sm font-medium mb-4"
+            className="text-white/35 text-sm font-medium"
           >
-            Choose your class and subject
+            Subject चुनो और शुरू करो
           </motion.p>
-
-          {/* Class toggle */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            className="flex items-center gap-3 justify-center"
-          >
-            {(["10", "12"] as const).map((cls) => (
-              <button
-                key={cls}
-                onClick={() => { setSelectedClass(cls); localStorage.setItem(CLASS_KEY, cls); }}
-                className="px-7 py-2.5 rounded-xl text-sm font-black transition-all"
-                style={{
-                  background: selectedClass === cls
-                    ? "linear-gradient(135deg, #8b5cf6, #6366f1)"
-                    : "rgba(255,255,255,0.06)",
-                  color: selectedClass === cls ? "#fff" : "rgba(255,255,255,0.32)",
-                  border: `1px solid ${selectedClass === cls ? "rgba(139,92,246,0.5)" : "rgba(0,0,0,0.08)"}`,
-                  boxShadow: selectedClass === cls ? "0 4px 20px rgba(139,92,246,0.35)" : "none",
-                }}
-              >
-                Class {cls}
-              </button>
-            ))}
-          </motion.div>
-
         </motion.div>
 
         <AnnouncementBanner />
@@ -958,8 +1014,8 @@ function Dashboard() {
               key={subject.id}
               subject={subject}
               index={index}
-              classId={selectedClass}
-              onClick={() => navigate(`/c${selectedClass}/${subject.id}`)}
+              classId={goalCfg.classId}
+              onClick={() => navigate(`/c${goalCfg.classId}/${subject.id}`)}
             />
           ))}
         </div>
@@ -1058,22 +1114,24 @@ function AppRoutes() {
   return (
     <>
       <OfflineBanner />
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/admin" component={AdminGuard} />
-        <Route path="/progress" component={ProgressPage} />
-        <Route path="/profile" component={ProfilePage} />
-        <Route path="/counselling" component={CounsellingPage} />
-        <Route path="/contact" component={ContactPage} />
-        <Route path="/leaderboard" component={LeaderboardPage} />
-        <Route path="/pricing" component={PricingPage} />
-        <Route path="/privacy" component={PrivacyPage} />
-        <Route path="/terms" component={TermsPage} />
-        <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
-        <Route path="/c10/:subject" component={SubjectPage} />
-        <Route path="/c12/:subject" component={SubjectPage} />
-        <Route path="/:subject" component={SubjectPage} />
-      </Switch>
+      <AuthGuard>
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/admin" component={AdminGuard} />
+          <Route path="/progress" component={ProgressPage} />
+          <Route path="/profile" component={ProfilePage} />
+          <Route path="/counselling" component={CounsellingPage} />
+          <Route path="/contact" component={ContactPage} />
+          <Route path="/leaderboard" component={LeaderboardPage} />
+          <Route path="/pricing" component={PricingPage} />
+          <Route path="/privacy" component={PrivacyPage} />
+          <Route path="/terms" component={TermsPage} />
+          <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
+          <Route path="/c10/:subject" component={SubjectPage} />
+          <Route path="/c12/:subject" component={SubjectPage} />
+          <Route path="/:subject" component={SubjectPage} />
+        </Switch>
+      </AuthGuard>
       <BottomNav />
     </>
   );

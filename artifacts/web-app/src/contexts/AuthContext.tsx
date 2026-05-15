@@ -9,9 +9,15 @@ import {
 import { ref, get, set, serverTimestamp } from "firebase/database";
 import { auth, db } from "../firebase";
 
+export type UserGoal = "neet" | "jee" | "c10" | "c12";
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  goal: UserGoal | null;
+  goalLoading: boolean;
+  setGoal: (goal: UserGoal) => Promise<void>;
+  clearGoal: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
@@ -30,12 +36,13 @@ function isMobileBrowser() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]   = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser]         = useState<User | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [goal, setGoalState]    = useState<UserGoal | null>(null);
+  const [goalLoading, setGoalLoading] = useState(false);
 
-  // User ka data Realtime DB mein save karne ka helper function
   const syncUserToDB = async (u: User) => {
-    const userRef = ref(db, `users/${u.uid}`);
+    const userRef  = ref(db, `users/${u.uid}`);
     const userSnap = await get(userRef);
     if (!userSnap.exists()) {
       await set(userRef, {
@@ -44,31 +51,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: u.email,
         photoURL: u.photoURL,
         createdAt: serverTimestamp(),
-        role: "student"
+        role: "student",
       });
-      console.log("Naya user database mein save ho gaya!");
+    }
+  };
+
+  const loadGoal = async (u: User) => {
+    setGoalLoading(true);
+    try {
+      const snap = await get(ref(db, `users/${u.uid}/goal`));
+      setGoalState(snap.exists() ? (snap.val() as UserGoal) : null);
+    } catch {
+      setGoalState(null);
+    } finally {
+      setGoalLoading(false);
     }
   };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (u) {
-        // Jab bhi login state badle, check karo ki user database mein hai ya nahi
         await syncUserToDB(u);
+        await loadGoal(u);
+      } else {
+        setGoalState(null);
+        setGoalLoading(false);
       }
       setUser(u);
       setLoading(false);
     });
 
-    // Redirect result handle karein (Mobile users ke liye)
     getRedirectResult(auth).then(async (result) => {
       if (result?.user) {
         await syncUserToDB(result.user);
+        await loadGoal(result.user);
       }
     }).catch((err) => console.error("Redirect error:", err));
 
     return unsub;
   }, []);
+
+  const setGoal = async (g: UserGoal) => {
+    if (!user) return;
+    await set(ref(db, `users/${user.uid}/goal`), g);
+    setGoalState(g);
+  };
+
+  const clearGoal = async () => {
+    if (!user) return;
+    await set(ref(db, `users/${user.uid}/goal`), null);
+    setGoalState(null);
+  };
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -82,6 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
         await syncUserToDB(result.user);
+        await loadGoal(result.user);
       }
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
@@ -98,20 +132,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUpWithEmail = async (email: string, password: string, name: string) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const cred    = await createUserWithEmailAndPassword(auth, email, password);
     const newUser = cred.user;
 
     if (name.trim()) {
       await updateProfile(newUser, { displayName: name.trim() });
     }
 
-    // Manual signup ke waqt bhi database entry banayein
     await set(ref(db, `users/${newUser.uid}`), {
       uid: newUser.uid,
       name: name.trim() || newUser.displayName || "Student",
       email: newUser.email,
       createdAt: serverTimestamp(),
-      role: "student"
+      role: "student",
     });
   };
 
@@ -119,10 +152,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
-  const signOut = async () => { await fbSignOut(auth); };
+  const signOut = async () => {
+    await fbSignOut(auth);
+    setGoalState(null);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, signOut }}>
+    <AuthContext.Provider value={{
+      user, loading,
+      goal, goalLoading, setGoal, clearGoal,
+      signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, signOut,
+    }}>
       {children}
     </AuthContext.Provider>
   );
