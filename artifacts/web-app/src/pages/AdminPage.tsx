@@ -500,7 +500,16 @@ const ALL_C12_SUBJECTS = [
   { id: "c12_english",   dbPath: "class12/english",   label: "English",   icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
 ];
 
-type AdminSubject = (typeof ALL_SUBJECTS)[0] | (typeof ALL_C12_SUBJECTS)[0];
+const ENTRANCE_SUBJECTS = [
+  { id: "jee_physics",    dbPath: "entrance_exams/jee/physics",    label: "JEE Physics",    icon: "⚡", accent: "#3b82f6", gradient: "from-blue-500/20 to-indigo-600/20",    border: "border-blue-400/20" },
+  { id: "jee_chemistry",  dbPath: "entrance_exams/jee/chemistry",  label: "JEE Chemistry",  icon: "🧪", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
+  { id: "jee_maths",      dbPath: "entrance_exams/jee/maths",      label: "JEE Maths",      icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",     border: "border-cyan-400/20" },
+  { id: "neet_physics",   dbPath: "entrance_exams/neet/physics",   label: "NEET Physics",   icon: "⚡", accent: "#3b82f6", gradient: "from-blue-500/20 to-indigo-600/20",    border: "border-blue-400/20" },
+  { id: "neet_chemistry", dbPath: "entrance_exams/neet/chemistry", label: "NEET Chemistry", icon: "🧪", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
+  { id: "neet_biology",   dbPath: "entrance_exams/neet/biology",   label: "NEET Biology",   icon: "🌿", accent: "#22c55e", gradient: "from-green-500/20 to-lime-600/20",    border: "border-green-400/20" },
+];
+
+type AdminSubject = (typeof ALL_SUBJECTS)[0] | (typeof ALL_C12_SUBJECTS)[0] | (typeof ENTRANCE_SUBJECTS)[0];
 
 type SubjectStatus = "loading" | "loaded" | "empty" | "error";
 
