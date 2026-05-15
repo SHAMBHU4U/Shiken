@@ -18,6 +18,7 @@ import PrivacyPage from "@/pages/PrivacyPage";
 import TermsPage from "@/pages/TermsPage";
 import QuestionAdminPage from "@/pages/QuestionAdminPage";
 import GoalSelectPage from "@/pages/GoalSelectPage";
+import MockTestPage from "@/pages/MockTestPage";
 import { AuthProvider, useAuth, type UserGoal } from "@/contexts/AuthContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
@@ -813,7 +814,7 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
 function BottomNav() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
-  const isQuiz  = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/");
+  const isQuiz  = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/") || location.startsWith("/mock-test/");
   const isAdmin = location === "/admin";
   if (isQuiz || isAdmin) return null;
 
@@ -964,6 +965,36 @@ function Dashboard() {
             </span>
             <span className="text-white/20 group-hover:text-white/50 text-[10px] transition-colors ml-0.5">✎</span>
           </motion.button>
+
+          {/* ── Full Mock Test CTA (JEE / NEET only) ──────────────── */}
+          {(goal === "jee" || goal === "neet") && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="mb-2"
+            >
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate(`/mock-test/${goal}`)}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-white text-sm"
+                style={{
+                  background: goal === "jee"
+                    ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
+                    : "linear-gradient(135deg, #10b981, #3b82f6)",
+                  boxShadow: goal === "jee"
+                    ? "0 4px 24px rgba(59,130,246,0.45)"
+                    : "0 4px 24px rgba(16,185,129,0.45)",
+                }}
+              >
+                <span className="text-lg">{goal === "jee" ? "⚙️" : "🩺"}</span>
+                Full Mock Test — {goal.toUpperCase()}
+                <span className="text-[10px] font-semibold opacity-70 ml-1">
+                  {goal === "jee" ? "90 Qs · 3hr" : "200 Qs · 3hr"}
+                </span>
+              </motion.button>
+            </motion.div>
+          )}
 
           {/* ── SHIKEN title ───────────────────────────────────────── */}
           <motion.h1
@@ -1127,6 +1158,7 @@ function AppRoutes() {
           <Route path="/privacy" component={PrivacyPage} />
           <Route path="/terms" component={TermsPage} />
           <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
+          <Route path="/mock-test/:examType" component={MockTestPage} />
           <Route path="/c10/:subject" component={SubjectPage} />
           <Route path="/c12/:subject" component={SubjectPage} />
           <Route path="/:subject" component={SubjectPage} />

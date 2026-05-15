@@ -9,6 +9,7 @@ import razorpayRouter from "./razorpay";
 import translateRouter from "./translate";
 import parsePDFRouter from "./parse-pdf";
 import comprehensionRouter from "./comprehension";
+import generateMockRouter from "./generate-mock";
 
 const router: IRouter = Router();
 
@@ -21,5 +22,6 @@ router.use(razorpayRouter);
 router.use(translateRouter);
 router.use(parsePDFRouter);
 router.use(comprehensionRouter);
+router.use(generateMockRouter);
 
 export default router;
