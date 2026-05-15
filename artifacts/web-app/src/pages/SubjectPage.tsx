@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithGemini, generateQuestions, generateComprehension, type FullTranslation } from "@/lib/gemini";
+import { explainWithShikenEngine, generateQuestions, generateComprehension, type FullTranslation } from "@/lib/gemini";
 import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -25,6 +25,7 @@ const CHAPTER_ICONS: Record<string, string> = {
   "Writing Skills":  "✍️",
   "General":         "📚",
   "AI Generated":    "🤖",
+  "Shiken Generated": "🤖",
   // Class 10 Maths
   "Numbers":                                        "🔢",
   "Real Numbers":                                   "🔢",
@@ -454,7 +455,7 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
       english = hindi;
       hindi   = "";
     }
-    // If both fields are identical (AI sometimes echoes same text), clear hindi.
+    // If both fields are identical (Shiken Engine sometimes echoes same text), clear hindi.
     if (hindi && hindi === english) {
       hindi = "";
     }
@@ -521,6 +522,78 @@ const slideVariants = {
   center: { x: 0, opacity: 1 },
   exit:  (dir: number) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 0 }),
 };
+
+// ─── Choose Plan Overlay (for expired subscriptions) ──────────────────────────
+
+function ChoosePlanOverlay({ goal, onClose }: { goal: "jee" | "neet" | "c10" | "c12"; onClose: () => void }) {
+  const [, navigate] = useLocation();
+  const plans: Record<string, { id: string; name: string; price: string; accent: string; emoji: string; features: string[] }[]> = {
+    jee: [
+      { id: "jee_neet_weekly", name: "Weekly Pass", price: "₹29", accent: "#3b82f6", emoji: "📅", features: ["All JEE subjects", "7 days access", "Shiken Engine questions"] },
+      { id: "jee_neet_monthly", name: "Monthly Plan", price: "₹69", accent: "#6366f1", emoji: "📆", features: ["All JEE subjects", "30 days access", "Priority counselling"] },
+      { id: "jee_neet_yearly", name: "Yearly Pro", price: "₹499", accent: "#f59e0b", emoji: "🎯", features: ["All JEE subjects", "1 year access", "Golden badge", "Priority counselling"] },
+    ],
+    neet: [
+      { id: "jee_neet_weekly", name: "Weekly Pass", price: "₹29", accent: "#10b981", emoji: "📅", features: ["All NEET subjects", "7 days access", "Shiken Engine questions"] },
+      { id: "jee_neet_monthly", name: "Monthly Plan", price: "₹69", accent: "#059669", emoji: "📆", features: ["All NEET subjects", "30 days access", "Priority counselling"] },
+      { id: "jee_neet_yearly", name: "Yearly Pro", price: "₹499", accent: "#f59e0b", emoji: "🎯", features: ["All NEET subjects", "1 year access", "Golden badge", "Priority counselling"] },
+    ],
+    c10: [
+      { id: "c10_monthly", name: "Monthly Pass", price: "₹49", accent: "#f59e0b", emoji: "📅", features: ["1 subject unlimited", "30 days access", "Shiken Engine questions"] },
+      { id: "c10_6month", name: "6 Months", price: "₹99", accent: "#10b981", emoji: "📆", features: ["1 subject unlimited", "6 months access", "Shiken Engine questions"] },
+    ],
+    c12: [
+      { id: "c12_monthly", name: "Monthly Pass", price: "₹49", accent: "#8b5cf6", emoji: "📅", features: ["1 subject unlimited", "30 days access", "Shiken Engine questions"] },
+      { id: "c12_6month", name: "6 Months", price: "₹99", accent: "#10b981", emoji: "📆", features: ["1 subject unlimited", "6 months access", "Shiken Engine questions"] },
+    ],
+  };
+  const list = plans[goal] || plans.c10;
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center px-5"
+      style={{ background: "rgba(7,8,15,0.92)", backdropFilter: "blur(12px)" }}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <div className="text-3xl mb-2">⏰</div>
+          <h2 className="text-white font-black text-xl mb-1">Plan Expired</h2>
+          <p className="text-white/40 text-sm">Your premium access has ended. Choose a plan to continue.</p>
+        </div>
+        <div className="flex flex-col gap-3 mb-6">
+          {list.map((plan, i) => (
+            <motion.div key={plan.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+              className="rounded-2xl p-4"
+              style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${plan.accent}25` }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{plan.emoji}</span>
+                  <p className="text-white font-bold text-sm">{plan.name}</p>
+                </div>
+                <p className="font-black text-lg" style={{ color: plan.accent }}>{plan.price}</p>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {plan.features.map(f => (
+                  <span key={f} className="text-[10px] px-2 py-0.5 rounded-full text-white/50"
+                    style={{ background: `${plan.accent}15` }}>{f}</span>
+                ))}
+              </div>
+              <motion.button whileTap={{ scale: 0.97 }}
+                onClick={() => { onClose(); navigate(`/pricing?plan=${plan.id}`); }}
+                className="w-full py-2.5 rounded-xl font-bold text-xs text-black"
+                style={{ background: `linear-gradient(135deg, ${plan.accent}, ${plan.accent}cc)`, boxShadow: `0 4px 16px ${plan.accent}40` }}>
+                Get {plan.name} →
+              </motion.button>
+            </motion.div>
+          ))}
+        </div>
+        <motion.button whileTap={{ scale: 0.97 }} onClick={onClose}
+          className="w-full py-3 rounded-xl font-bold text-xs text-white/50"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          ← Back to Free Mode
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
 
 // ─── Magic ripple ─────────────────────────────────────────────────────────────
 
@@ -633,16 +706,16 @@ function ModeSelect({
       id: "full",
       title: "Full Length Test",
       subtitle: isPremium
-        ? `25 DB + 25 AI questions (50 total)`
+        ? `25 DB + 25 Shiken Engine questions (50 total)`
         : !hasUsedFreeFull
           ? "1 Free Test Available! · 50 questions"
           : "Upgrade for unlimited tests",
       icon: "🎯",
       desc: isPremium
-        ? "Covers entire syllabus with AI-generated questions. ⏱ 60 min"
+        ? "Covers entire syllabus with Shiken Engine questions. ⏱ 60 min"
         : !hasUsedFreeFull
-          ? "Try your first Full Length Test free! Includes AI-generated questions. ⏱ 60 min"
-          : "You've used your 1 free test. Upgrade to Premium for unlimited AI-powered tests.",
+          ? "Try your first Full Length Test free! Includes Shiken Engine questions. ⏱ 60 min"
+          : "You've used your 1 free test. Upgrade to Premium for unlimited Shiken Engine tests.",
       onClick: (isPremium || !hasUsedFreeFull) ? onFull : onUpgrade,
       glowColor: (isPremium || !hasUsedFreeFull) ? meta.accent : "#fbbf24",
       locked: !isPremium && hasUsedFreeFull,
@@ -661,12 +734,12 @@ function ModeSelect({
     },
     {
       id: "ai",
-      title: "Shiken AI Practice",
-      subtitle: isPremium ? "5 fresh AI-generated questions" : "AI practice — Premium only",
+      title: "Shiken Practice",
+      subtitle: isPremium ? "5 fresh Shiken Engine questions" : "Shiken Engine practice — Premium only",
       icon: "🤖",
       desc: isPremium
         ? "नए सवाल तुम्हारे लिए तैयार किए जा रहे हैं। हर बार अलग, हर बार नया!"
-        : "Upgrade to Premium for AI practice sessions.",
+        : "Upgrade to Premium for Shiken Engine practice sessions.",
       onClick: isPremium ? onAI : onUpgrade,
       glowColor: isPremium ? "#6366f1" : "#fbbf24",
       locked: !isPremium,
@@ -1059,10 +1132,10 @@ function ResultScreen({
         return;
       }
 
-      // ── Not cached — call AI directly from browser ─────────────────────
+      // ── Not cached — call Shiken Engine directly from browser ─────────
       let fullText = "";
       const tryDirect = async () => {
-        fullText = await explainWithGemini(
+        fullText = await explainWithShikenEngine(
           {
             questionEnglish: q.english,
             questionHindi:   q.hindi || "",
@@ -1129,7 +1202,7 @@ function ResultScreen({
     }
   }
 
-  // AI analysis state
+  // Shiken Engine analysis state
   const [analysisOpen,    setAnalysisOpen]    = useState(false);
   const [analysisText,    setAnalysisText]    = useState("");
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -1180,7 +1253,7 @@ function ResultScreen({
     }
   }
 
-  // Auto-trigger AI analysis for premium users after test
+  // Auto-trigger Shiken Engine analysis for premium users after test
   useEffect(() => {
     if (!isPremium || isDemo || autoAnalysisRef.current) return;
     autoAnalysisRef.current = true;
@@ -1307,7 +1380,7 @@ function ResultScreen({
                 <p className="text-amber-300 font-black text-xs uppercase tracking-widest mb-1">Kya aap jante hain?</p>
                 <p className="text-white text-sm font-semibold leading-relaxed mb-3">
                   ₹199/- mein aap board exams tak{" "}
-                  <span style={{ color: "#fbbf24" }}>unlimited AI tests</span> aur{" "}
+                  <span style={{ color: "#fbbf24" }}>unlimited Shiken Engine tests</span> aur{" "}
                   <span style={{ color: "#fbbf24" }}>direct mentorship</span> pa sakte hain!
                   <span className="text-white/50 font-normal"> (Sirf ₹33 mahina)</span>
                 </p>
@@ -1390,7 +1463,7 @@ function ResultScreen({
           </motion.button>
         </div>
 
-        {/* ── AI Test Analysis ─────────────────────────────────────────────── */}
+        {/* ── Shiken Engine Test Analysis ─────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
           className="mb-6"
@@ -1571,7 +1644,7 @@ function ResultScreen({
                       style={{ color: isExLoading ? "#a5b4fc" : "#818cf8" }}
                     >
                       <span>{isExLoading ? "समझाया जा रहा है…" : isExOpen ? "Explanation छुपाएं ↑" : "🤖 Explain करें ↓"}</span>
-                      {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && (
+                      {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && q.chapter !== "Shiken Generated" && (
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-2 shrink-0"
                           style={{ background: `${accent}18`, color: `${accent}cc`, border: `1px solid ${accent}30` }}>
                           {q.chapter}
@@ -1613,7 +1686,7 @@ function ResultScreen({
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-semibold mt-2"
                     style={{ background: "rgba(99,102,241,0.04)", borderColor: "rgba(99,102,241,0.16)", color: "#818cf8" }}>
                     <span>🤖 Explain करें — Premium unlock करें</span>
-                    {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && (
+                    {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && q.chapter !== "Shiken Generated" && (
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-2 shrink-0"
                         style={{ background: `${accent}18`, color: `${accent}cc`, border: `1px solid ${accent}30` }}>
                         {q.chapter}
@@ -1687,9 +1760,10 @@ export default function SubjectPage() {
   const refreshHistory = () => setSubjectHistory(loadHistory(subject));
 
   // Subscription & upgrade modal
-  const { isPremium, isTopper, isSubjectPremium } = useSubscription();
+  const { isPremium, isTopper, isSubjectPremium, isActive, daysLeft, expiryDate } = useSubscription();
   const isSubjectPrem = isSubjectPremium(subject);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [showChoosePlan, setShowChoosePlan] = useState(false);
   const [hasUsedFreeFull, setHasUsedFreeFull] = useState(() => localStorage.getItem(fullTestKey) === "used");
 
   // Comprehension passage state
@@ -1925,7 +1999,7 @@ export default function SubjectPage() {
         return a.name.localeCompare(b.name);
       });
 
-    // Inject virtual Comprehension chapter for Hindi and Sanskrit (AI-generated passages)
+    // Inject virtual Comprehension chapter for Hindi and Sanskrit (Shiken Engine passages)
     if ((subject === "hindi" || subject === "sanskrit") && !map.has("Comprehension")) {
       list.push({ name: "Comprehension", count: 7 });
     }
@@ -1949,7 +2023,7 @@ export default function SubjectPage() {
     saveProgress(subject, snap);
   }
 
-  // ── Firebase: save AI-generated questions (dedup by english text) ─────────────
+  // ── Firebase: save Shiken Engine-generated questions (dedup by english text) ─────────────
   async function saveAIQuestionsToFirebase(generated: Question[]) {
     if (!meta || generated.length === 0) return;
     const dbPath = meta.path.toLowerCase();
@@ -1967,7 +2041,7 @@ export default function SubjectPage() {
           hindi: q.hindi || "",
           options: q.options,
           correctAnswer: q.answerIndex,
-          chapter: "AI Generated",
+          chapter: "Shiken Generated",
         });
       }
     } catch { /* non-critical — DB save failed, quiz continues */ }
@@ -1984,7 +2058,7 @@ export default function SubjectPage() {
     // Pick 25 from existing DB questions
     const existing25 = pick(allQuestions, 25);
 
-    // Pick representative chapters for AI prompt
+    // Pick representative chapters for Shiken Engine prompt
     // For Hindi/Sanskrit: filter out untagged "?" questions and prioritise grammar chapters
     const HINDI_GRAMMAR_CHAPTERS = [
       "वर्ण विचार","संज्ञा","सर्वनाम","क्रिया","विशेषण",
@@ -2016,9 +2090,9 @@ export default function SubjectPage() {
       // ── 1. Check shared Firebase cache first (instant, no API call) ───────────
       const cached = await getCachedQuestions(subjectLabel, chapterKey, 25);
       if (cached && cached.length >= 25) {
-        aiQuestions = cached.map((q) => ({ ...q, chapter: "AI Generated" }));
+        aiQuestions = cached.map((q) => ({ ...q, chapter: "Shiken Generated" }));
       } else {
-        // ── 2. Generate via Gemini (browser-direct, server fallback) ────────────
+        // ── 2. Generate via Shiken Engine (browser-direct, server fallback) ────────────
         const fetched = await (async () => {
           try {
             return await generateQuestions(subjectLabel, chapterKey, 25);
@@ -2040,15 +2114,15 @@ export default function SubjectPage() {
           }
         })();
         aiQuestions = fetched
-          .map((q) => ({ ...q, chapter: "AI Generated" }))
+          .map((q) => ({ ...q, chapter: "Shiken Generated" }))
           .filter((q) => q.english && q.options.length >= 2);
         // ── 3. Merge into shared cache + subject DB (non-blocking) ───────────
         mergeQuestionsToCache(subjectLabel, chapterKey, fetched).catch(() => {});
         saveAIQuestionsToFirebase(aiQuestions).catch(() => {});
       }
-    } catch { /* AI generation failed — fall back to DB-only */ }
+    } catch { /* Shiken Engine generation failed — fall back to DB-only */ }
 
-    // Fill up to 50 total (pad with more DB questions if AI failed)
+    // Fill up to 50 total (pad with more DB questions if Shiken Engine failed)
     const needed = Math.max(0, 50 - existing25.length - aiQuestions.length);
     const usedEnglish = new Set(existing25.map((q) => q.english));
     const extra = needed > 0 ? pick(allQuestions.filter((q) => !usedEnglish.has(q.english)), needed) : [];
@@ -2126,7 +2200,7 @@ export default function SubjectPage() {
           .filter((q) => (q.english || q.hindi) && q.options.length >= 2);
         setQuestions(qs);
       } else {
-        // 2. Generate via AI (browser-direct, server fallback)
+        // 2. Generate via Shiken Engine (browser-direct, server fallback)
         const result = await (async () => {
           try {
             return await generateComprehension(7, subj);
@@ -2244,7 +2318,7 @@ export default function SubjectPage() {
       let fetched = cached ?? [];
 
       if (fetched.length < 5) {
-        // ── 2. Generate via Gemini (browser-direct, server fallback) ────────────
+        // ── 2. Generate via Shiken Engine (browser-direct, server fallback) ────────────
         fetched = await (async () => {
           try {
             return await generateQuestions(subjectLabel, chapter, 5);
@@ -2366,10 +2440,19 @@ export default function SubjectPage() {
           history={subjectHistory}
           isPremium={isSubjectPrem}
           onMiniTest={() => setScreen("mini-chapter-select")}
-          onUpgrade={() => setUpgradeOpen(true)}
+          onUpgrade={() => {
+            if (isPremium && !isActive) setShowChoosePlan(true);
+            else setUpgradeOpen(true);
+          }}
           hasUsedFreeFull={hasUsedFreeFull}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+        {showChoosePlan && (
+          <ChoosePlanOverlay
+            goal={classId === "12" ? "c12" : "c10"}
+            onClose={() => setShowChoosePlan(false)}
+          />
+        )}
       </>
     );
   }
@@ -2407,7 +2490,7 @@ export default function SubjectPage() {
   if (screen === "ai-chapter-select") {
     return (
       <ChapterSelect
-        meta={{ ...meta, label: "Shiken AI Practice — " + meta.label }}
+        meta={{ ...meta, label: "Shiken Practice — " + meta.label }}
         chapters={chapters}
         onBack={() => setScreen("mode-select")}
         onSelect={startAIPractice}
@@ -2494,16 +2577,24 @@ export default function SubjectPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(99,102,241,0.18) 0%, transparent 60%)" }} />
-        <motion.div className="relative z-10 text-center">
+        <motion.div className="relative z-10 text-center w-full max-w-sm">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
             className="w-14 h-14 rounded-full border-2 border-transparent mx-auto mb-5"
             style={{ borderTopColor: "#6366f1", borderRightColor: "#6366f150" }}
           />
-          <p className="text-white font-bold text-lg mb-1">🤖 Preparing your test...</p>
-          <p className="text-white/40 text-sm">तुम्हारे लिए नए सवाल बना रहा हूँ</p>
-          <p className="text-indigo-400/60 text-xs mt-2">Chapter: {selectedChapter}</p>
+          <p className="text-white font-bold text-lg mb-1">Preparing your personalized test...</p>
+          <p className="text-white/40 text-sm mb-4">शिकेन इंज़िन तुम्हारे लिए सवाल तैयार कर रहा है</p>
+          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden mb-2">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: "linear-gradient(90deg, #6366f1, #8b5cf6)" }}
+              animate={{ width: ["0%", "60%", "85%", "100%"] }}
+              transition={{ duration: 4, ease: "easeInOut", repeat: Infinity }}
+            />
+          </div>
+          <p className="text-indigo-400/60 text-xs">Chapter: {selectedChapter}</p>
         </motion.div>
       </div>
     );
@@ -2514,19 +2605,27 @@ export default function SubjectPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}22 0%, transparent 60%)` }} />
-        <motion.div className="relative z-10 text-center px-4">
+        <motion.div className="relative z-10 text-center px-4 w-full max-w-sm">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }}
             className="w-16 h-16 rounded-full border-2 border-transparent mx-auto mb-6"
             style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }}
           />
-          <p className="text-white font-bold text-xl mb-2">⚡ Smart Test बन रहा है...</p>
-          <p className="text-white/40 text-sm mb-5">25 database + 25 AI questions mix हो रहे हैं</p>
+          <p className="text-white font-bold text-xl mb-2">Preparing your personalized test...</p>
+          <p className="text-white/40 text-sm mb-5">शिकेन इंज़िन तुम्हारे लिए सवाल तैयार कर रहा है</p>
+          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden mb-5">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}cc)` }}
+              animate={{ width: ["0%", "40%", "70%", "100%"] }}
+              transition={{ duration: 5, ease: "easeInOut", repeat: Infinity }}
+            />
+          </div>
           <div className="flex flex-col gap-2.5 text-left max-w-xs mx-auto">
             {[
-              { emoji: "🗄️", text: "25 questions Firebase से ले रहा हूँ" },
-              { emoji: "🤖", text: "25 नए questions तैयार किए जा रहे हैं" },
+              { emoji: "🗄️", text: "25 questions database से ले रहा हूँ" },
+              { emoji: "🤖", text: "25 नए questions शिकेन इंज़िन से तैयार किए जा रहे हैं" },
               { emoji: "💾", text: "New questions database में save होंगे" },
             ].map(({ emoji, text }, idx) => (
               <motion.div
@@ -2558,15 +2657,23 @@ export default function SubjectPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}20 0%, transparent 60%)` }} />
-        <motion.div className="relative z-10 text-center">
+        <motion.div className="relative z-10 text-center w-full max-w-sm">
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1.3, repeat: Infinity, ease: "linear" }}
             className="w-16 h-16 rounded-full border-2 border-transparent mx-auto mb-6"
             style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }}
           />
-          <p className="text-white font-bold text-xl mb-2">📖 Loading Passage…</p>
-          <p className="text-white/40 text-sm">Fetching your comprehension passage</p>
+          <p className="text-white font-bold text-xl mb-2">Preparing your personalized test...</p>
+          <p className="text-white/40 text-sm mb-4">शिकेन इंज़िन तुम्हारे लिए गद्यांश तैयार कर रहा है</p>
+          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}cc)` }}
+              animate={{ width: ["0%", "50%", "80%", "100%"] }}
+              transition={{ duration: 4, ease: "easeInOut", repeat: Infinity }}
+            />
+          </div>
         </motion.div>
       </div>
     );

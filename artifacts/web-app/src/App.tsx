@@ -19,6 +19,8 @@ import TermsPage from "@/pages/TermsPage";
 import QuestionAdminPage from "@/pages/QuestionAdminPage";
 import GoalSelectPage from "@/pages/GoalSelectPage";
 import MockTestPage from "@/pages/MockTestPage";
+import ReferralPage from "@/pages/ReferralPage";
+import ChoosePlanPage from "@/pages/ChoosePlanPage";
 import { AuthProvider, useAuth, type UserGoal } from "@/contexts/AuthContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
@@ -1155,6 +1157,8 @@ function AppRoutes() {
           <Route path="/contact" component={ContactPage} />
           <Route path="/leaderboard" component={LeaderboardPage} />
           <Route path="/pricing" component={PricingPage} />
+          <Route path="/referral" component={ReferralPage} />
+          <Route path="/choose-plan" component={() => <ChoosePlanPage />} />
           <Route path="/privacy" component={PrivacyPage} />
           <Route path="/terms" component={TermsPage} />
           <Route path="/admin-shiken-portal" component={QuestionAdminPage} />

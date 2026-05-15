@@ -91,7 +91,7 @@ export async function generateComprehension(
   count = 7,
   subject: "english" | "hindi" | "sanskrit" = "english",
 ): Promise<ComprehensionResult> {
-  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  if (!API_KEY) throw new Error("Shiken Engine API key not set");
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
   let prompt: string;
@@ -222,7 +222,7 @@ export async function generateQuestions(
   chapter: string,
   count: number,
 ): Promise<GeneratedQuestion[]> {
-  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  if (!API_KEY) throw new Error("Shiken Engine API key not set");
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
@@ -331,7 +331,7 @@ export async function parsePDFQuestions(
   subject:   string,
   chapter:   string,
 ): Promise<GeneratedQuestion[]> {
-  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  if (!API_KEY) throw new Error("Shiken Engine API key not set");
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
@@ -403,14 +403,14 @@ export interface FullTranslation {
   optionsHindi: string[];
 }
 
-// Translates an English question + options fully into Hindi in one Gemini call.
+// Translates an English question + options fully into Hindi using the Shiken Engine.
 // Returns { hindi: translated question, optionsHindi: [4 translated options] }
 export async function translateQuestionFull(
   english: string,
   options: string[],
   subject: string,
 ): Promise<FullTranslation> {
-  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  if (!API_KEY) throw new Error("Shiken Engine API key not set");
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
   const prompt = `You are a Bihar Board exam translator. Translate this ${subject} question and its options from English into simple Hindi (Devanagari).
@@ -448,7 +448,7 @@ STRICT RULES:
 }
 
 export async function translateToEnglish(hindiText: string): Promise<string> {
-  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  if (!API_KEY) throw new Error("Shiken Engine API key not set");
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
@@ -473,7 +473,7 @@ ${hindiText}`;
   return (response.text ?? "").trim();
 }
 
-export async function explainWithGemini(
+export async function explainWithShikenEngine(
   params: {
     questionEnglish: string;
     questionHindi:   string;
@@ -485,7 +485,7 @@ export async function explainWithGemini(
   },
   onChunk: (text: string) => void,
 ): Promise<string> {
-  if (!API_KEY) throw new Error("VITE_GEMINI_API_KEY not set");
+  if (!API_KEY) throw new Error("Shiken Engine API key not set");
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
   const prompt = buildPrompt(params);

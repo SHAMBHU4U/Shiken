@@ -17,7 +17,7 @@ const SECTIONS: Section[] = [
     icon: "📋",
     title: "Introduction",
     content: [
-      "SHIKEN is a Bihar Board Class 10 AI-powered exam preparation platform. This Privacy Policy explains what information we collect when you use the app, how we use it, and the choices you have.",
+      "SHIKEN is a Bihar Board exam preparation platform. This Privacy Policy explains what information we collect when you use the app, how we use it, and the choices you have.",
       "By using SHIKEN, you agree to the practices described in this policy. If you do not agree, please stop using the app.",
     ],
   },
@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
           "Powering the leaderboard so students can see how they rank.",
           "Activating and verifying premium subscriptions.",
           "Sending WhatsApp confirmation messages when you request support or a payment is verified (only if you provided a phone number).",
-          "Generating and caching AI-powered practice questions using the Google Gemini API so they load faster on subsequent visits.",
+          "Generating and caching practice questions using the Shiken Engine so they load faster on subsequent visits.",
           "Analysing overall usage patterns (not tied to personal identity) to improve question quality and app performance.",
         ],
       },
@@ -63,15 +63,15 @@ const SECTIONS: Section[] = [
   {
     id: "ai",
     icon: "🤖",
-    title: "AI & Third-Party Services",
+    title: "Shiken Engine & Third-Party Services",
     content: [
       "SHIKEN uses the following third-party services:",
       {
         type: "list",
         items: [
-          "Google Firebase Realtime Database — stores quiz sessions, user metadata, and AI-generated questions. Data is hosted on Google Cloud infrastructure.",
-          "Google Firebase Authentication — used only for the admin panel (email/password login). Regular students do not have a Firebase Auth account.",
-          "Google Gemini API — generates practice questions from your chosen subject and chapter. Your question requests (subject + chapter name) are sent to the Gemini API. No personal identifying information is included in these requests.",
+          "Google Firebase Realtime Database \u2014 stores quiz sessions, user metadata, and generated questions. Data is hosted on Google Cloud infrastructure.",
+          "Google Firebase Authentication \u2014 used for user login (Google + Email/Password).",
+          "Shiken Engine \u2014 generates practice questions from your chosen subject and chapter. Your question requests (subject + chapter name) are processed securely. No personal identifying information is included in these requests.",
         ],
       },
       "We do not sell, rent, or trade your information with any third party. Google's own privacy policy governs how Google processes data on its infrastructure.",

@@ -351,7 +351,7 @@ function overlapScore(rawTokens: string[], canonTokens: string[]): number {
  * @param raw       Raw chapter_name / chapter value from Firebase
  */
 export function normalizeChapter(subject: string, classId: string, raw: string): string {
-  if (!raw || raw === "General" || raw === "AI Generated") return raw;
+  if (!raw || raw === "General" || raw === "AI Generated" || raw === "Shiken Generated") return raw;
 
   const map     = classId === "12" ? CLASS12_CHAPTERS : CLASS10_CHAPTERS;
   const canon   = map[subject];

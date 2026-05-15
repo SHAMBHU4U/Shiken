@@ -10,6 +10,7 @@ import translateRouter from "./translate";
 import parsePDFRouter from "./parse-pdf";
 import comprehensionRouter from "./comprehension";
 import generateMockRouter from "./generate-mock";
+import referralRouter from "./referral";
 
 const router: IRouter = Router();
 
@@ -23,5 +24,6 @@ router.use(translateRouter);
 router.use(parsePDFRouter);
 router.use(comprehensionRouter);
 router.use(generateMockRouter);
+router.use(referralRouter);
 
 export default router;

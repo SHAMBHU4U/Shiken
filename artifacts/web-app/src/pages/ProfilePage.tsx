@@ -284,8 +284,8 @@ function AuthForm() {
           </h1>
           <p className="text-white/40 text-sm">
             {tab === "in"
-              ? "Bihar Board परीक्षा की तैयारी करो · AI Powered"
-              : "Class 10 & 12 · Bihar Board · AI Powered"}
+              ? "Bihar Board परीक्षा की तैयारी करो · Shiken Engine"
+              : "Class 10 & 12 · Bihar Board · Shiken Engine"}
           </p>
         </div>
 
@@ -389,7 +389,7 @@ export default function ProfilePage() {
   const [phoneSaved,   setPhoneSaved]   = useState(false);
   const [notifPerm,    setNotifPerm]    = useState<"default"|"granted"|"denied"|"unsupported">("default");
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const { isPremium } = useSubscription();
+  const { isPremium, isActive, daysLeft, expiryDate, walletBalance, referralCode, referralCount } = useSubscription();
 
   async function handleAvatarSelect(id: string) {
     setAvatarId(id);
@@ -621,7 +621,7 @@ export default function ProfilePage() {
                 </motion.div>
               )}
             </AnimatePresence>
-            {isPremium && (
+            {isPremium && isActive && (
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-1"
                 style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 2px 12px rgba(251,191,36,0.4)" }}>
@@ -629,7 +629,20 @@ export default function ProfilePage() {
                 <span className="text-black font-black text-xs">Premium Member</span>
               </motion.div>
             )}
+            {isPremium && !isActive && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-1"
+                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}>
+                <span className="text-xs">⏰</span>
+                <span className="font-black text-xs">Expired</span>
+              </motion.div>
+            )}
             <p className="text-white/40 text-xs truncate">{user.email}</p>
+            {expiryDate && (
+              <p className="text-white/25 text-xs mt-0.5">
+                {isActive ? `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}` : `Expired on ${new Date(expiryDate).toLocaleDateString("en-IN")}`}
+              </p>
+            )}
             <p className="text-white/25 text-xs mt-0.5">
               Joined {new Date(user.metadata.creationTime || "").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
             </p>
@@ -668,6 +681,37 @@ export default function ProfilePage() {
             </motion.div>
           );
         })()}
+
+        {/* Wallet + Referral */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+          className="rounded-2xl p-4 mb-4"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">💰</span>
+              <p className="text-white/70 text-xs font-black uppercase tracking-widest">Wallet</p>
+            </div>
+            <p className="text-emerald-400 font-black text-sm">₹{walletBalance}</p>
+          </div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm">📞</span>
+              <p className="text-white/70 text-xs font-black uppercase tracking-widest">Referrals</p>
+            </div>
+            <p className="text-white/60 font-bold text-sm">{referralCount} invited</p>
+          </div>
+          {referralCode && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-sm">🔗</span>
+              <p className="text-white/40 text-xs">Code: <span className="font-mono text-white/60 font-bold">{referralCode}</span></p>
+            </div>
+          )}
+          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate("/referral")}
+            className="w-full py-2.5 rounded-xl font-bold text-xs text-white"
+            style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", boxShadow: "0 4px 16px rgba(139,92,246,0.3)" }}>
+            Earn Rewards →
+          </motion.button>
+        </motion.div>
 
         {/* Score trend chart */}
         {sessions.length >= 2 && (

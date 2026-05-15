@@ -2,11 +2,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 
 const features = [
-  { icon: "🎯", text: "Full 50-question tests (25 DB + 25 AI-generated)" },
+  { icon: "🎯", text: "Full 50-question tests (25 DB + 25 Shiken Engine)" },
   { icon: "📂", text: "Chapter-wise targeted deep practice" },
-  { icon: "🤖", text: "Fresh AI questions every session" },
-  { icon: "🧠", text: "AI-powered test analysis in Hindi" },
-  { icon: "💡", text: "Per-question AI explanations with caching" },
+  { icon: "🤖", text: "Fresh Shiken Engine questions every session" },
+  { icon: "🧠", text: "Shiken Engine test analysis in Hindi" },
+  { icon: "💡", text: "Per-question Shiken Engine explanations with caching" },
   { icon: "📹", text: "Priority video consultation with mentor" },
   { icon: "👑", text: "Golden badge & premium profile theme" },
 ];

@@ -557,7 +557,7 @@ async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
   for (const [key, raw] of Object.entries(data)) {
     const q = raw as Record<string, unknown>;
     const chapter = String(q.chapter ?? q.chapter_name ?? "");
-    if (chapter !== "AI Generated") continue;
+    if (chapter !== "AI Generated" && chapter !== "Shiken Generated" && chapter !== "Engine Generated") continue;
 
     let opts: string[] = [];
     if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
@@ -776,7 +776,7 @@ function AIReviewPanel({ subject, onClose }: { subject: AdminSubject; onClose: (
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className="text-xl">{subject.icon}</span>
           <div>
-            <p className="text-white font-bold text-sm">{subject.label} — AI Questions</p>
+            <p className="text-white font-bold text-sm">{subject.label} — Shiken Engine Questions</p>
             {!loading && !error && (
               <p className="text-white/35 text-xs">
                 {counts.remaining} pending · {counts.total - counts.remaining} reviewed
@@ -809,7 +809,7 @@ function AIReviewPanel({ subject, onClose }: { subject: AdminSubject; onClose: (
           <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             className="w-8 h-8 rounded-full border-2 border-transparent"
             style={{ borderTopColor: subject.accent, borderRightColor: `${subject.accent}50` }} />
-          <span className="text-white/40 text-sm">Loading AI questions…</span>
+          <span className="text-white/40 text-sm">Loading Shiken Engine questions…</span>
         </div>
       ) : error ? (
         <div className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-red-400 text-sm">
@@ -818,8 +818,8 @@ function AIReviewPanel({ subject, onClose }: { subject: AdminSubject; onClose: (
       ) : questions.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-white/3 px-4 py-10 text-center">
           <p className="text-3xl mb-3">🤖</p>
-          <p className="text-white/50 text-sm font-medium">No AI questions pending review</p>
-          <p className="text-white/25 text-xs mt-1">Start a Full Test to generate new AI questions</p>
+          <p className="text-white/50 text-sm font-medium">No Shiken Engine questions pending review</p>
+          <p className="text-white/25 text-xs mt-1">Start a Full Test to generate new Shiken Engine questions</p>
         </div>
       ) : counts.remaining === 0 ? (
         <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-10 text-center">
@@ -1235,7 +1235,7 @@ function CachePanel() {
         <div className="text-center py-16">
           <p className="text-4xl mb-3">🗄️</p>
           <p className="text-white/40 text-sm font-medium">Cache is empty</p>
-          <p className="text-white/20 text-xs mt-1">Questions get cached automatically when students take AI tests</p>
+          <p className="text-white/20 text-xs mt-1">Questions get cached automatically when students take Shiken Engine tests</p>
         </div>
       ) : (
         <>
@@ -1246,7 +1246,7 @@ function CachePanel() {
             <div>
               <p className="text-cyan-400 text-xs font-bold">Shared question cache</p>
               <p className="text-white/30 text-xs mt-0.5 leading-relaxed">
-                Cached chapters load instantly — zero AI API calls. New questions are generated only when a chapter has no cache yet. Max 100 per chapter.
+                Cached chapters load instantly — zero external API calls. New questions are generated only when a chapter has no cache yet. Max 100 per chapter.
               </p>
             </div>
           </div>
@@ -1904,7 +1904,7 @@ function PDFImportPanel() {
         <div>
           <p className="text-indigo-400 text-xs font-bold">PDF → Firebase Importer</p>
           <p className="text-white/30 text-xs mt-0.5 leading-relaxed">
-            Upload a question paper PDF. AI reads it and extracts all MCQ questions — both in English and Hindi — then saves them directly to Firebase.
+            Upload a question paper PDF. Shiken Engine reads it and extracts all MCQ questions — both in English and Hindi — then saves them directly to Firebase.
           </p>
         </div>
       </div>
@@ -2012,9 +2012,9 @@ function PDFImportPanel() {
           {step === "reading" ? (
             <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>⏳</motion.span> Reading PDF…</>
           ) : step === "parsing" ? (
-            <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}>🤖</motion.span> AI is extracting questions…</>
+            <><motion.span animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}>🤖</motion.span> Shiken Engine is extracting questions…</>
           ) : (
-            <>🔍 Extract Questions with AI</>
+            <>🔍 Extract Questions with Shiken Engine</>
           )}
         </motion.button>
       )}
@@ -2902,7 +2902,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
         >
           {([
             { id: "overview",  icon: "📊", label: "Database",  badge: 0 },
-            { id: "ai",        icon: "🤖", label: "AI Review", badge: 0 },
+            { id: "ai",        icon: "🤖", label: "Shiken Engine Review", badge: 0 },
             { id: "users",     icon: "👥", label: "Users",     badge: 0 },
             { id: "payments",  icon: "💳", label: "Payments",  badge: pendingBadge },
             { id: "ratings",   icon: "⭐", label: "Ratings",   badge: 0 },
@@ -2993,7 +2993,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
                       );
                     })}
                   </div>
-                  <p className="text-white/40 text-xs mb-3 font-medium">Select a subject to review its AI-generated questions:</p>
+                  <p className="text-white/40 text-xs mb-3 font-medium">Select a subject to review its Shiken Engine-generated questions:</p>
                   <div className="flex flex-col gap-2">
                     {visibleAiSubjects.map((subject, i) => (
                       <motion.button
@@ -3010,7 +3010,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
                         <span className="text-xl">{subject.icon}</span>
                         <div className="flex-1">
                           <p className="text-white font-semibold text-sm">{subject.label}</p>
-                          <p className="text-white/30 text-xs">Review AI-generated questions</p>
+                          <p className="text-white/30 text-xs">Review Shiken Engine-generated questions</p>
                         </div>
                         <span className="text-white/25 group-hover:text-white/60 transition-colors text-sm">→</span>
                       </motion.button>

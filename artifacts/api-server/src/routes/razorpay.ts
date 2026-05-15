@@ -33,6 +33,48 @@ function getRazorpayClient(): Razorpay {
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
 }
 
+/** Map planId to days and category */
+function planMeta(planId: string): { days: number; category: "jee_neet" | "class10_12" | "other" } {
+  switch (planId) {
+    case "jee_neet_weekly":   return { days: 7,   category: "jee_neet" };
+    case "jee_neet_monthly":  return { days: 30,  category: "jee_neet" };
+    case "jee_neet_yearly":   return { days: 365, category: "jee_neet" };
+    case "c10_monthly":       return { days: 30,  category: "class10_12" };
+    case "c12_monthly":       return { days: 30,  category: "class10_12" };
+    case "c10_6month":        return { days: 180, category: "class10_12" };
+    case "c12_6month":        return { days: 180, category: "class10_12" };
+    case "monthly_one":       return { days: 30,  category: "other" };
+    case "biannual_one":      return { days: 180, category: "other" };
+    case "biannual_all":      return { days: 180, category: "other" };
+    default:                  return { days: 30,  category: "other" };
+  }
+}
+
+/** Credit referrer when a new user signs up with referral code */
+async function creditReferrer(referredBy: string, category: "jee_neet" | "class10_12"): Promise<void> {
+  if (!referredBy) return;
+  const reward = category === "jee_neet" ? 5 : 10;
+  const safeRef = String(referredBy).replace(/[#.$\/[\]]/g, "_");
+  try {
+    // Fetch current referrer data
+    const refRes = await fetch(`${DB_URL}/users/${safeRef}.json`);
+    const refData = refRes.ok ? (await refRes.json() as Record<string, unknown> | null) : null;
+    const currentWallet = typeof refData?.walletBalance === "number" ? refData.walletBalance : 0;
+    const currentCount = typeof refData?.referralCount === "number" ? refData.referralCount : 0;
+    await fetch(`${DB_URL}/users/${safeRef}.json`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        walletBalance: currentWallet + reward,
+        referralCount: currentCount + 1,
+      }),
+    });
+    logger.info({ referrer: safeRef, reward, category }, "Referral reward credited");
+  } catch (err) {
+    logger.error({ err, referrer: safeRef }, "Failed to credit referrer");
+  }
+}
+
 // ─── POST /api/razorpay/create-order ─────────────────────────────────────────
 router.post("/razorpay/create-order", async (req, res) => {
   try {
@@ -197,9 +239,13 @@ router.post("/razorpay/verify-payment", async (req, res) => {
     }
 
     // Build the Firebase update payload
+    const { days: planDays, category } = planMeta(planId);
+    const effectiveDays = Number(days) || planDays;
+    const premiumUntil = Date.now() + effectiveDays * 86_400_000;
+
     const firebasePayload: Record<string, unknown> = {
       subscriptionType:  "premium",
-      premiumUntil:      Date.now() + Number(days) * 86_400_000,
+      premiumUntil:      premiumUntil,
       plan:              planId,
       activatedAt:       Date.now(),
       paymentVerified:   true,
@@ -209,11 +255,19 @@ router.post("/razorpay/verify-payment", async (req, res) => {
         [planId]: {
           active:      true,
           activatedAt: Date.now(),
-          expiresAt:   Date.now() + Number(days) * 86_400_000,
+          expiresAt:   premiumUntil,
           paymentId:   razorpay_payment_id,
         },
       },
     };
+
+    // If user was referred, credit the referrer based on plan category
+    const userRes = await fetch(`${DB_URL}/users/${safeId}.json`);
+    const userData = userRes.ok ? (await userRes.json() as Record<string, unknown> | null) : null;
+    const referredBy = typeof userData?.referredBy === "string" ? userData.referredBy : null;
+    if (referredBy) {
+      await creditReferrer(referredBy, category);
+    }
 
     // For single-subject plans: accumulate premiumSubjects array
     // For all-subjects plans: clear premiumSubjects so isSubjectPremium returns true for all

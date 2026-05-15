@@ -235,7 +235,7 @@ function AssemblingScreen({
         </div>
 
         <p className="text-white/20 text-xs mt-6">
-          Fetching from question bank + generating fresh AI questions...
+          Fetching from question bank + generating fresh Shiken Engine questions...
         </p>
       </div>
     </div>

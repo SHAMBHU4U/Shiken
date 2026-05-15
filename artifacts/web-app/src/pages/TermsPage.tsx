@@ -42,10 +42,10 @@ const SECTIONS: Section[] = [
   {
     id: "content",
     icon: "📚",
-    title: "Educational Content & AI-Generated Questions",
+    title: "Educational Content & Shiken Engine-Generated Questions",
     content: [
-      "SHIKEN provides AI-generated practice questions and explanations powered by the Google Gemini API.",
-      "While we strive for accuracy, AI-generated content may occasionally contain errors or incomplete explanations. We do not guarantee that all questions and answers are 100% correct.",
+      "SHIKEN provides practice questions and explanations powered by the Shiken Engine.",
+      "While we strive for accuracy, generated content may occasionally contain errors or incomplete explanations. We do not guarantee that all questions and answers are 100% correct.",
       "Questions are cached and reused across students to improve load times. This is normal and helps the app run faster.",
       "Official Bihar Board textbooks and past exam papers remain the authoritative source for exam preparation. SHIKEN is a supplement, not a replacement.",
     ],
@@ -140,7 +140,7 @@ const SECTIONS: Section[] = [
           "The app will be uninterrupted, error-free, or always available.",
           "Exam questions will match the actual Bihar Board exam.",
           "Using SHIKEN will guarantee passing or scoring any particular grade.",
-          "All AI-generated questions are 100% accurate.",
+          "All generated questions are 100% accurate.",
         ],
       },
       "Your success depends on your effort, understanding, and preparation. SHIKEN is a tool to aid learning, not a guarantee of success.",
