@@ -28,7 +28,7 @@ router.post("/translate", async (req, res) => {
   try {
     if (parsed.data.type === "toEnglish") {
       const { hindi } = parsed.data;
-      const prompt = `Translate the following Hindi question to English for a Bihar Board Class 10 student.
+      const prompt = `Translate the following Hindi question to English for a Board Class 10 student.
 
 STRICT RULES:
 - Return ONLY the translated English question text.
@@ -50,7 +50,7 @@ ${hindi}`;
 
     } else {
       const { english, options, subject } = parsed.data;
-      const prompt = `You are a Bihar Board exam translator. Translate this ${subject ?? "exam"} question and its options from English into simple Hindi (Devanagari).
+      const prompt = `You are a Board exam translator. Translate this ${subject ?? "exam"} question and its options from English into simple Hindi (Devanagari).
 
 English Question:
 ${english}
@@ -61,7 +61,7 @@ ${options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("\n")}
 STRICT RULES:
 - Return ONLY valid JSON, no markdown, no explanation.
 - Keep numbers, formulas, scientific symbols, and proper nouns unchanged.
-- Use simple Hindi that a Class 10/12 Bihar Board student easily understands.
+- Use simple Hindi that a Class 10/12 Board student easily understands.
 - JSON format exactly:
 {"hindi":"translated question here","optionsHindi":["option A Hindi","option B Hindi","option C Hindi","option D Hindi"]}`;
 

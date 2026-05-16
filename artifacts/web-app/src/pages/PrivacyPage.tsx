@@ -17,7 +17,7 @@ const SECTIONS: Section[] = [
     icon: "📋",
     title: "Introduction",
     content: [
-      "SHIKEN is a Bihar Board exam preparation platform. This Privacy Policy explains what information we collect when you use the app, how we use it, and the choices you have.",
+      "SHIKEN is a board and entrance exam preparation platform. This Privacy Policy explains what information we collect when you use the app, how we use it, and the choices you have.",
       "By using SHIKEN, you agree to the practices described in this policy. If you do not agree, please stop using the app.",
     ],
   },
@@ -101,7 +101,7 @@ const SECTIONS: Section[] = [
     icon: "🎓",
     title: "Students & Minors",
     content: [
-      "SHIKEN is designed for Bihar Board Class 10 students, who are typically 14–16 years old. We are aware that our primary users may be minors.",
+      "SHIKEN is designed for Class 10 and 12 board students, who are typically 14–18 years old. We are aware that our primary users may be minors.",
       "We do not knowingly collect sensitive personal information from minors beyond what is described in this policy. We do not run targeted advertising.",
       "Parents or guardians who believe their child's data has been collected inappropriately may contact us to request review or deletion.",
     ],

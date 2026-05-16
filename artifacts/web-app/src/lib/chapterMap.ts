@@ -1,5 +1,5 @@
 // ─── NCERT Chapter Map ─────────────────────────────────────────────────────────
-// Canonical NCERT chapter names for Bihar Board Class 10 and Class 12.
+// Canonical NCERT chapter names for Board Class 10 and Class 12.
 // Used to normalize raw chapter_name values from Firebase questions.
 
 type SubjectChapters = Record<string, string[]>;

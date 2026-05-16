@@ -28,13 +28,13 @@ router.post("/generate-comprehension", async (req, res) => {
       "स्वास्थ्य और स्वच्छता का जीवन में महत्त्व",
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
-    prompt = `आप बिहार बोर्ड कक्षा 10 हिंदी परीक्षा के विशेषज्ञ हैं।
+    prompt = `आप बोर्ड कक्षा 10 हिंदी परीक्षा के विशेषज्ञ हैं।
 विषय "${topic}" पर एक अपठित गद्यांश बनाइए जिसमें EXACTLY ${count} बहुविकल्पीय प्रश्न हों।
 
 गद्यांश की आवश्यकताएँ:
 - 180-220 शब्द
 - सरल और शुद्ध हिंदी, कक्षा 10 स्तर
-- Bihar Board BSEB परीक्षा-शैली
+- Board BSEB परीक्षा-शैली
 
 प्रश्नों की आवश्यकताएँ:
 - सभी प्रश्न केवल गद्यांश पर आधारित हों
@@ -49,13 +49,13 @@ Return ONLY this JSON (no markdown, no explanation):
       "परिश्रमस्य फलम्", "मातृभूमिः स्वर्गादपि गरीयसी",
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
-    prompt = `You are a Bihar Board Class 10 Sanskrit exam expert.
+    prompt = `You are a Board Class 10 Sanskrit exam expert.
 Create ONE unseen Sanskrit गद्यांश (prose passage) on: "${topic}"
 With EXACTLY ${count} MCQ questions based strictly on the passage.
 
 Passage requirements:
 - 150-200 words in simple Sanskrit (easy Class 10 BSEB level)
-- Use simple Sanskrit vocabulary suitable for Bihar Board students
+- Use simple Sanskrit vocabulary suitable for Board students
 
 Question requirements:
 - Strictly passage-based
@@ -73,7 +73,7 @@ Return ONLY this JSON (no markdown, no explanation):
       "environmental pollution and its effects",
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
-    prompt = `You are a Bihar Board Class 10 English exam expert.
+    prompt = `You are a Board Class 10 English exam expert.
 Create ONE unseen comprehension passage on: "${topic}"
 With EXACTLY ${count} MCQ questions strictly based on the passage.
 

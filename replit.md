@@ -1,8 +1,8 @@
-# SHIKEN — Bihar Board Quiz App
+# SHIKEN — Board & Entrance Test App
 
 ## Overview
 
-pnpm workspace monorepo. The main product is **SHIKEN**, a student quiz app for Bihar Board exam prep. It lives in `artifacts/web-app`.
+pnpm workspace monorepo. The main product is **SHIKEN**, a student quiz app for Board and Entrance exam prep. It lives in `artifacts/web-app`.
 
 ## Stack
 

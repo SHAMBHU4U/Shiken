@@ -58,7 +58,7 @@ export default function ReferralPage() {
   }
 
   async function shareReferral() {
-    const text = `Join SHIKEN — Bihar Board exam prep app! Use my referral code ${myCode} and start learning. ${shareUrl}`;
+    const text = `Join SHIKEN — Board & Entrance exam prep app! Use my referral code ${myCode} and start learning. ${shareUrl}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: "SHIKEN Referral", text, url: shareUrl });

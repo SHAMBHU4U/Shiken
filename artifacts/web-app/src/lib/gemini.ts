@@ -33,7 +33,7 @@ function buildPrompt(params: {
     ? { answer: `Correct Answer: ${correctAnswer}`, solution: "Solution:", formula: "Formula / Theory:", notes: "Remember:" }
     : { answer: `सही जवाब: ${correctAnswer}`, solution: "हल:", formula: "सूत्र / सिद्धांत:", notes: "याद रखो:" };
 
-  return `तुम Bihar Board Class 10 के ${subject} teacher हो। एक student पहली बार यह topic पढ़ रहा है — उसे clearly समझाओ।
+  return `तुम Board Class 10 के ${subject} teacher हो। एक student पहली बार यह topic पढ़ रहा है — उसे clearly समझाओ।
 
 Question: ${questionLine}
 
@@ -105,13 +105,13 @@ export async function generateComprehension(
       "स्वास्थ्य और स्वच्छता का जीवन में महत्त्व",
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
-    prompt = `आप बिहार बोर्ड कक्षा 10 हिंदी परीक्षा के विशेषज्ञ हैं।
+    prompt = `आप बोर्ड कक्षा 10 हिंदी परीक्षा के विशेषज्ञ हैं।
 विषय "${topic}" पर एक अपठित गद्यांश बनाइए जिसमें EXACTLY ${count} बहुविकल्पीय प्रश्न हों।
 
 गद्यांश की आवश्यकताएँ:
 - 180-220 शब्द
 - सरल और शुद्ध हिंदी, कक्षा 10 स्तर
-- Bihar Board BSEB परीक्षा-शैली
+- Board परीक्षा-शैली
 
 प्रश्नों की आवश्यकताएँ:
 - सभी प्रश्न केवल गद्यांश पर आधारित हों
@@ -131,13 +131,13 @@ Note: For Hindi subject, put the Hindi Devanagari question in BOTH the "english"
       "मातृभूमिः स्वर्गादपि गरीयसी",
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
-    prompt = `You are a Bihar Board Class 10 Sanskrit exam expert.
+    prompt = `You are a Board Class 10 Sanskrit exam expert.
 Create ONE unseen Sanskrit गद्यांश (prose passage) on: "${topic}"
 With EXACTLY ${count} MCQ questions based strictly on the passage.
 
 Passage requirements:
 - 150-200 words in simple Sanskrit (easy Class 10 BSEB level)
-- Use simple Sanskrit vocabulary suitable for Bihar Board students
+- Use simple Sanskrit vocabulary suitable for Board students
 
 Question requirements:
 - Strictly passage-based
@@ -156,7 +156,7 @@ Return ONLY this JSON (no markdown, no explanation):
       "environmental pollution and its effects",
     ];
     const topic = topics[Math.floor(Math.random() * topics.length)];
-    prompt = `You are a Bihar Board Class 10 English exam expert.
+    prompt = `You are a Board Class 10 English exam expert.
 Create ONE unseen comprehension passage on: "${topic}"
 With EXACTLY ${count} MCQ questions strictly based on the passage.
 
@@ -205,14 +205,14 @@ Return ONLY this JSON (no markdown, no explanation):
   };
 }
 
-// Hindi grammar chapters for Bihar Board Class 10
+// Hindi grammar chapters for Board Class 10
 const HINDI_GRAMMAR_CHAPTERS = [
   "वर्ण विचार", "संज्ञा", "सर्वनाम", "क्रिया", "विशेषण",
   "संधि", "समास", "काल", "कारक",
   "मुहावरे", "लोकोक्तियाँ", "शुद्ध-अशुद्ध वाक्य", "एक शब्द",
 ];
 
-// Sanskrit grammar chapters for Bihar Board Class 10
+// Sanskrit grammar chapters for Board Class 10
 const SANSKRIT_GRAMMAR_CHAPTERS = [
   "संधि", "समास", "प्रकरणम्", "प्रत्यय", "शब्दरूप", "धातुरूप", "वाक्य रचना",
 ];
@@ -238,9 +238,9 @@ export async function generateQuestions(
     : chapter;
 
   const prompt = isHindi
-    ? `तुम Bihar Board Class 10 Hindi Vyakaran (व्याकरण) के expert हो।
+    ? `तुम Board Class 10 Hindi Vyakaran (व्याकरण) के expert हो।
 
-"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो Bihar Board Class 10 परीक्षा के लिए उपयुक्त हों।
+"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो Board Class 10 परीक्षा के लिए उपयुक्त हों।
 
 STRICT RULES:
 - Return ONLY a valid JSON array — no markdown, no code fences.
@@ -255,9 +255,9 @@ STRICT RULES:
 JSON format (return ONLY this):
 [{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`
     : isSanskrit
-    ? `तुम Bihar Board Class 10 Sanskrit Vyakaran (व्याकरण) के expert हो।
+    ? `तुम Board Class 10 Sanskrit Vyakaran (व्याकरण) के expert हो।
 
-"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो BSEB Class 10 परीक्षा के लिए उपयुक्त हों।
+"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो Board Class 10 परीक्षा के लिए उपयुक्त हों।
 
 STRICT RULES:
 - Return ONLY a valid JSON array — no markdown, no code fences।
@@ -270,9 +270,9 @@ STRICT RULES:
 
 JSON format (return ONLY this):
 [{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`
-    : `You are an expert Bihar Board exam question creator for ${subject}.
+    : `You are an expert Board exam question creator for ${subject}.
 
-Generate exactly ${count} multiple-choice questions on the topic: "${effectiveChapter}" for Bihar Board Class 10 level.
+Generate exactly ${count} multiple-choice questions on the topic: "${effectiveChapter}" for Board Class 10 level.
 
 STRICT RULES:
 - Return ONLY a valid JSON array. No markdown, no explanation, no code fences.
@@ -335,7 +335,7 @@ export async function parsePDFQuestions(
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-  const prompt = `You are an expert at extracting multiple-choice questions from Bihar Board Class 10 exam papers.
+  const prompt = `You are an expert at extracting multiple-choice questions from Board Class 10 exam papers.
 
 Extract ALL multiple-choice questions from this PDF document.
 Subject: ${subject}
@@ -413,7 +413,7 @@ export async function translateQuestionFull(
   if (!API_KEY) throw new Error("Shiken Engine API key not set");
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-  const prompt = `You are a Bihar Board exam translator. Translate this ${subject} question and its options from English into simple Hindi (Devanagari).
+  const prompt = `You are a Board exam translator. Translate this ${subject} question and its options from English into simple Hindi (Devanagari).
 
 English Question:
 ${english}
@@ -424,7 +424,7 @@ ${options.map((o, i) => `${String.fromCharCode(65 + i)}. ${o}`).join("\n")}
 STRICT RULES:
 - Return ONLY valid JSON, no markdown, no explanation.
 - Keep numbers, formulas, scientific symbols, and proper nouns unchanged.
-- Use simple Hindi that a Class 10/12 Bihar Board student easily understands.
+- Use simple Hindi that a Class 10/12 Board student easily understands.
 - JSON format exactly:
 {"hindi":"translated question here","optionsHindi":["option A Hindi","option B Hindi","option C Hindi","option D Hindi"]}`;
 
@@ -452,7 +452,7 @@ export async function translateToEnglish(hindiText: string): Promise<string> {
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-  const prompt = `Translate the following Hindi question to English for a Bihar Board Class 10 student.
+  const prompt = `Translate the following Hindi question to English for a Board Class 10 student.
 
 STRICT RULES:
 - Return ONLY the translated English question text.

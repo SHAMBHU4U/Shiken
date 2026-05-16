@@ -1,6 +1,7 @@
 {
   "short_name": "Shiken",
-  "name": "Shiken Exam Prep",
+  "name": "Shiken - Board & Entrance Test",
+  "description": "Board और Entrance की तैयारी, अब Shiken की ज़िम्मेदारी। Smart tests, bilingual questions, AI explanations, and premium exam prep.",
   "icons": [
     {
       "src": "/shiken-logo.png",

@@ -667,7 +667,7 @@ const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
   },
   c10: {
     label: "Class 10",
-    labelHindi: "बिहार बोर्ड दसवीं",
+    labelHindi: "बोर्ड दसवीं",
     classId: "10",
     badge: "📚",
     accent: "#f59e0b",
@@ -675,7 +675,7 @@ const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
   },
   c12: {
     label: "Class 12",
-    labelHindi: "बिहार बोर्ड बारहवीं",
+    labelHindi: "बोर्ड बारहवीं",
     classId: "12",
     badge: "🎓",
     accent: "#8b5cf6",
@@ -758,7 +758,7 @@ function SubjectCard({
         </motion.div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">
-            {classId === "entrance" ? "Entrance Exam" : `Bihar Board Class ${classId ?? "10"}`}
+            {classId === "entrance" ? "Entrance Exam" : `Board Class ${classId ?? "10"}`}
           </p>
           <h3 className="text-xl font-black text-white leading-tight">{subject.label}</h3>
           <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}cc` }}>{subject.labelHindi}</p>

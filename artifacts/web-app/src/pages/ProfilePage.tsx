@@ -284,8 +284,8 @@ function AuthForm() {
           </h1>
           <p className="text-white/40 text-sm">
             {tab === "in"
-              ? "Bihar Board परीक्षा की तैयारी करो · Shiken Engine"
-              : "Class 10 & 12 · Bihar Board · Shiken Engine"}
+              ? "Board & Entrance की तैयारी, अब Shiken की ज़िम्मेदारी"
+              : "Class 10 & 12 · Board & Entrance · Shiken Engine"}
           </p>
         </div>
 

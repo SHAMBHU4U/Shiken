@@ -47,7 +47,7 @@ const SECTIONS: Section[] = [
       "SHIKEN provides practice questions and explanations powered by the Shiken Engine.",
       "While we strive for accuracy, generated content may occasionally contain errors or incomplete explanations. We do not guarantee that all questions and answers are 100% correct.",
       "Questions are cached and reused across students to improve load times. This is normal and helps the app run faster.",
-      "Official Bihar Board textbooks and past exam papers remain the authoritative source for exam preparation. SHIKEN is a supplement, not a replacement.",
+      "Official board textbooks and past exam papers remain the authoritative source for exam preparation. SHIKEN is a supplement, not a replacement.",
     ],
   },
   {
@@ -138,7 +138,7 @@ const SECTIONS: Section[] = [
         type: "list",
         items: [
           "The app will be uninterrupted, error-free, or always available.",
-          "Exam questions will match the actual Bihar Board exam.",
+          "Exam questions will match the actual board exam.",
           "Using SHIKEN will guarantee passing or scoring any particular grade.",
           "All generated questions are 100% accurate.",
         ],
@@ -311,7 +311,7 @@ export default function TermsPage() {
               {CONTACT_EMAIL}
             </a>
           </p>
-          <p className="text-white/20 text-xs mt-1">SHIKEN — Bihar Board Class 10 Exam Prep</p>
+          <p className="text-white/20 text-xs mt-1">SHIKEN — Board &amp; Entrance Exam Prep</p>
         </motion.div>
 
       </div>

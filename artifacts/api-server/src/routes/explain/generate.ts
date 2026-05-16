@@ -30,9 +30,9 @@ router.post("/generate-questions", async (req, res) => {
     : parsed.data.chapter;
 
   const prompt = isHindi
-    ? `तुम Bihar Board Class 10 Hindi Vyakaran (व्याकरण) के expert हो।
+    ? `तुम Board Class 10 Hindi Vyakaran (व्याकरण) के expert हो।
 
-"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो Bihar Board Class 10 परीक्षा के लिए उपयुक्त हों।
+"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो Board Class 10 परीक्षा के लिए उपयुक्त हों।
 
 STRICT RULES:
 - Return ONLY a valid JSON array — no markdown, no code fences.
@@ -46,9 +46,9 @@ STRICT RULES:
 
 JSON format (return ONLY this):
 [{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`
-    : `You are an expert Bihar Board exam question creator for ${subject}.
+    : `You are an expert Board exam question creator for ${subject}.
 
-Generate exactly ${count} multiple-choice questions on the topic: "${effectiveChapter}" for Bihar Board Class 10 level.
+Generate exactly ${count} multiple-choice questions on the topic: "${effectiveChapter}" for Board Class 10 level.
 
 STRICT RULES:
 - Return ONLY a valid JSON array. No markdown, no explanation, no code fences.

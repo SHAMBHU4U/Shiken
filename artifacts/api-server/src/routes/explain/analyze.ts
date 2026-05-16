@@ -39,7 +39,7 @@ router.post("/analyze-test", async (req, res) => {
     ? `Chapter: ${chapter}`
     : `AI Practice: ${chapter}`;
 
-  const prompt = `तुम एक sharp और honest Bihar Board Class 10 ${subject} teacher हो। Student का result देखकर 8-10 lines में सीधी बात करो।
+  const prompt = `तुम एक sharp और honest Board Class 10 ${subject} teacher हो। Student का result देखकर 8-10 lines में सीधी बात करो।
 
 Result: ${score}/${total} (${pct}%) — ${context}
 गलत: ${wrong.length} question${wrong.length !== 1 ? "s" : ""}

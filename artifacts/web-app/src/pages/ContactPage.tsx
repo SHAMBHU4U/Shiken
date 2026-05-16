@@ -140,7 +140,7 @@ export default function ContactPage() {
               {
                 icon: "📚",
                 title: "6 Core Subjects",
-                desc: "Maths, Science, Social Science, Hindi, English, and Sanskrit — all Bihar Board syllabus.",
+                desc: "Maths, Science, Social Science, Hindi, English, and Sanskrit — all board syllabus.",
               },
               {
                 icon: "🤖",
@@ -150,7 +150,7 @@ export default function ContactPage() {
               {
                 icon: "📝",
                 title: "Shiken Engine-Generated Question Banks",
-                desc: "Fresh practice questions are generated on-demand by Shiken Engine, aligned with the Bihar Board pattern.",
+                desc: "Fresh practice questions are generated on-demand by Shiken Engine, aligned with the board exam pattern.",
               },
               {
                 icon: "📊",

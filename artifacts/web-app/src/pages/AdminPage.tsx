@@ -2001,7 +2001,7 @@ function PDFImportPanel() {
           <>
             <span className="text-3xl mb-2">📂</span>
             <p className="text-white/50 text-sm font-semibold">Drop PDF here or tap to browse</p>
-            <p className="text-white/20 text-xs mt-1">Bihar Board question paper / practice set</p>
+            <p className="text-white/20 text-xs mt-1">Board / Entrance question paper / practice set</p>
           </>
         )}
       </div>

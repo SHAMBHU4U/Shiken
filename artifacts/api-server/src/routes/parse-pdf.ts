@@ -19,7 +19,7 @@ router.post("/parse-pdf", async (req, res) => {
 
   const { pdfBase64, subject, chapter } = parsed.data;
 
-  const prompt = `You are an expert at extracting multiple-choice questions from Bihar Board Class 10 exam papers.
+  const prompt = `You are an expert at extracting multiple-choice questions from Board Class 10 exam papers.
 
 Extract ALL multiple-choice questions from this PDF document.
 Subject: ${subject}
