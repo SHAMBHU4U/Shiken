@@ -11,12 +11,26 @@ const GRADE_COLOR = (p: number) =>
 const SUBJECT_ICONS: Record<string, string> = {
   maths: "📐", english: "📖", hindi: "🔤",
   science: "🔬", social: "🌍", sanskrit: "📜",
+  "class12/physics": "⚡", "class12/chemistry": "🧪", "class12/biology": "🌿",
+  "class12/maths": "📐", "class12/social": "🌍", "class12/hindi": "🔤", "class12/english": "📖",
+  "entrance_exams/jee/physics": "⚡", "entrance_exams/jee/chemistry": "🧪", "entrance_exams/jee/maths": "📐",
+  "entrance_exams/neet/physics": "⚡", "entrance_exams/neet/chemistry": "🧪", "entrance_exams/neet/biology": "🌿",
 };
 
 const SUBJECT_LABELS: Record<string, string> = {
   maths: "Maths", english: "English", hindi: "Hindi",
   science: "Science", social: "Social Science", sanskrit: "Sanskrit",
+  "class12/physics": "Physics", "class12/chemistry": "Chemistry", "class12/biology": "Biology",
+  "class12/maths": "Maths", "class12/social": "Social", "class12/hindi": "Hindi", "class12/english": "English",
+  "entrance_exams/jee/physics": "JEE Physics", "entrance_exams/jee/chemistry": "JEE Chemistry", "entrance_exams/jee/maths": "JEE Maths",
+  "entrance_exams/neet/physics": "NEET Physics", "entrance_exams/neet/chemistry": "NEET Chemistry", "entrance_exams/neet/biology": "NEET Biology",
 };
+
+function inferCategory(subject: string): "c10" | "c12" | "entrance" {
+  if (subject.startsWith("entrance_exams/")) return "entrance";
+  if (subject.startsWith("class12/")) return "c12";
+  return "c10";
+}
 
 interface LeaderEntry {
   uid: string;
@@ -27,9 +41,10 @@ interface LeaderEntry {
   bestSubject: string;
   isPremium: boolean;
   lastActive: number;
+  category: "c10" | "c12" | "entrance";
 }
 
-async function fetchFullLeaderboard(): Promise<LeaderEntry[]> {
+async function fetchLeaderboardByCategory(category: "c10" | "c12" | "entrance"): Promise<LeaderEntry[]> {
   try {
     const [actRes, usersRes] = await Promise.all([
       fetch(`${DB_URL}/userActivity.json`),
@@ -41,16 +56,21 @@ async function fetchFullLeaderboard(): Promise<LeaderEntry[]> {
 
     return (Object.entries(actData as Record<string, {
       meta?: { deviceId?: string; username?: string; lastActive?: number };
-      sessions?: Record<string, { pct: number; subject: string }>;
+      sessions?: Record<string, { pct: number; subject: string; category?: string }>;
     }>)
       .map(([uid, u]) => {
         const sessions = u.sessions ? Object.values(u.sessions) : [];
-        if (sessions.length < 1) return null;
-        const avgPct = Math.round(sessions.reduce((s, r) => s + r.pct, 0) / sessions.length);
-        const subjectCount = new Set(sessions.map((s) => s.subject)).size;
+        // Filter to only sessions in the requested category
+        const catSessions = sessions.filter((s) => {
+          const cat = s.category ?? inferCategory(s.subject);
+          return cat === category;
+        });
+        if (catSessions.length < 1) return null;
+        const avgPct = Math.round(catSessions.reduce((s, r) => s + r.pct, 0) / catSessions.length);
+        const subjectCount = new Set(catSessions.map((s) => s.subject)).size;
 
         const subjectScores: Record<string, number[]> = {};
-        sessions.forEach((s) => {
+        catSessions.forEach((s) => {
           if (!subjectScores[s.subject]) subjectScores[s.subject] = [];
           subjectScores[s.subject].push(s.pct);
         });
@@ -64,11 +84,12 @@ async function fetchFullLeaderboard(): Promise<LeaderEntry[]> {
           uid,
           username: u.meta?.username?.trim() || "Anonymous",
           avgPct,
-          totalSessions: sessions.length,
+          totalSessions: catSessions.length,
           subjectCount,
           bestSubject,
           isPremium,
           lastActive: u.meta?.lastActive ?? 0,
+          category,
         } as LeaderEntry;
       })
       .filter(Boolean) as LeaderEntry[])
@@ -78,7 +99,14 @@ async function fetchFullLeaderboard(): Promise<LeaderEntry[]> {
   }
 }
 
+type Category = "c10" | "c12" | "entrance";
 type Filter = "all" | "premium";
+
+const CATEGORY_META: Record<Category, { label: string; emoji: string; accent: string }> = {
+  c10: { label: "Class 10", emoji: "📚", accent: "#8b5cf6" },
+  c12: { label: "Class 12", emoji: "🎓", accent: "#06b6d4" },
+  entrance: { label: "JEE / NEET", emoji: "🧩", accent: "#f59e0b" },
+};
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
@@ -86,22 +114,24 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
+  const [category, setCategory] = useState<Category>("c10");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
-    fetchFullLeaderboard().then((data) => {
+    setLoading(true);
+    fetchLeaderboardByCategory(category).then((data) => {
       setEntries(data);
       setLoading(false);
       setLastRefresh(new Date());
     });
     const t = setInterval(() => {
-      fetchFullLeaderboard().then((data) => {
+      fetchLeaderboardByCategory(category).then((data) => {
         setEntries(data);
         setLastRefresh(new Date());
       });
     }, 60_000);
     return () => clearInterval(t);
-  }, []);
+  }, [category]);
 
   const myUid = user?.uid ?? "";
   const filtered = filter === "premium" ? entries.filter((e) => e.isPremium) : entries;
@@ -134,7 +164,7 @@ export default function LeaderboardPage() {
           </motion.div>
           <h1 className="text-white font-black text-2xl tracking-tight mb-1">Leaderboard</h1>
           <p className="text-white/30 text-xs">
-            Top students ranked by average score · updates every minute
+            {CATEGORY_META[category].label} rankings by average score · updates every minute
           </p>
         </motion.div>
 
@@ -179,6 +209,30 @@ export default function LeaderboardPage() {
             </div>
           </motion.div>
         )}
+
+        {/* Category Tabs */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-3 gap-2 mb-3"
+        >
+          {(["c10", "c12", "entrance"] as Category[]).map((c) => {
+            const meta = CATEGORY_META[c];
+            const isActive = category === c;
+            return (
+              <button key={c} onClick={() => setCategory(c)}
+                className="py-2 rounded-xl text-xs font-bold transition-all"
+                style={{
+                  background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
+                  color: isActive ? meta.accent : "rgba(255,255,255,0.40)",
+                }}>
+                {meta.emoji} {meta.label}
+              </button>
+            );
+          })}
+        </motion.div>
 
         <motion.div
           initial={{ opacity: 0 }}
@@ -242,7 +296,7 @@ export default function LeaderboardPage() {
             </motion.div>
           ) : (
             <motion.div
-              key={`list-${filter}`}
+              key={`list-${category}-${filter}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
