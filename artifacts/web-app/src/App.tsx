@@ -6,6 +6,7 @@ import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence
 import { auth } from "@/firebase";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { useSubscription } from "@/hooks/useSubscription";
 import SubjectPage from "@/pages/SubjectPage";
 import AdminPage from "@/pages/AdminPage";
 import ProgressPage from "@/pages/ProgressPage";
@@ -782,6 +783,178 @@ function SubjectCard({
   );
 }
 
+// ─── Full Mock Test Card (JEE / NEET dashboard) ──────────────────────────────
+
+function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
+  const [, navigate] = useLocation();
+  const { isPremium } = useSubscription();
+
+  const isJee = goal === "jee";
+  const accent1 = isJee ? "#3b82f6" : "#10b981";
+  const accent2 = isJee ? "#8b5cf6" : "#06b6d4";
+  const accent3 = isJee ? "#06b6d4" : "#22c55e";
+  const subjects = isJee
+    ? ["Physics", "Chemistry", "Maths"]
+    : ["Physics", "Chemistry", "Biology"];
+  const subAccents = isJee ? [accent1, accent2, accent3] : [accent1, accent2, accent3];
+  const examLabel = goal.toUpperCase();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
+      className="mb-2"
+    >
+      <style>{`
+        @keyframes shimmer-mock {
+          0% { transform: translateX(-150%); }
+          100% { transform: translateX(350%); }
+        }
+        @keyframes glow-pulse-mock {
+          0%, 100% { box-shadow: 0 0 24px ${accent1}44, 0 0 48px ${accent2}22, 0 8px 32px rgba(0,0,0,0.55); }
+          50% { box-shadow: 0 0 48px ${accent1}77, 0 0 80px ${accent2}44, 0 8px 32px rgba(0,0,0,0.55); }
+        }
+        @keyframes sparkle {
+          0%, 100% { opacity: 0.15; transform: scale(0.8); }
+          50% { opacity: 0.9; transform: scale(1.3); }
+        }
+      `}</style>
+
+      <motion.button
+        whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.015, y: -4 }}
+        onClick={() => navigate(`/mock-test/${goal}${isPremium ? "" : "?demo=true"}`)}
+        className="relative w-full overflow-hidden rounded-2xl p-6 text-left cursor-pointer"
+        style={{
+          background: `linear-gradient(135deg, ${accent1}22 0%, ${accent2}18 55%, ${accent3}12 100%)`,
+          border: `1.5px solid ${accent1}55`,
+          animation: "glow-pulse-mock 2.5s ease-in-out infinite",
+        }}
+      >
+        {/* Shimmer sweep */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl" style={{ zIndex: 1 }}>
+          <div
+            className="absolute inset-y-0 w-[40%]"
+            style={{
+              background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.10), rgba(255,255,255,0.15), rgba(255,255,255,0.10), transparent)`,
+              animation: "shimmer-mock 2.4s ease-in-out infinite",
+            }}
+          />
+        </div>
+
+        {/* Sparkle dots */}
+        {[
+          { top: 10, right: 14, delay: 0 },
+          { top: 24, right: 30, delay: 0.4 },
+          { top: 8, right: 48, delay: 0.8 },
+          { top: 32, right: 12, delay: 0.6 },
+        ].map((s, i) => (
+          <span
+            key={i}
+            className="absolute text-white text-xs pointer-events-none"
+            style={{
+              top: s.top,
+              right: s.right,
+              zIndex: 2,
+              animation: `sparkle ${1.4 + i * 0.3}s ease-in-out infinite`,
+              animationDelay: `${s.delay}s`,
+            }}
+          >
+            {i % 2 === 0 ? "✦" : "✧"}
+          </span>
+        ))}
+
+        <div className="relative z-10">
+          {/* Top row: icon + title + badge */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+                style={{
+                  background: `${accent1}20`,
+                  border: `1.5px solid ${accent1}45`,
+                  boxShadow: `0 4px 16px ${accent1}30`,
+                }}
+              >
+                {isJee ? "⚙️" : "🩺"}
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5"
+                  style={{ color: isPremium ? "#fbbf24" : "rgba(255,255,255,0.45)" }}>
+                  {isPremium ? "👑 Premium Access" : "🆓 Free Demo Available"}
+                </p>
+                <h3 className="text-2xl font-black text-white leading-tight">
+                  Full Mock Test
+                </h3>
+              </div>
+            </div>
+            <div
+              className="px-3 py-1 rounded-full text-[11px] font-black text-white shrink-0"
+              style={{
+                background: `linear-gradient(135deg, ${accent1}, ${accent2})`,
+                boxShadow: `0 2px 12px ${accent1}70`,
+              }}
+            >
+              {examLabel}
+            </div>
+          </div>
+
+          {/* Subject pills */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            {subjects.map((sub, i) => (
+              <span
+                key={sub}
+                className="px-3 py-1 rounded-lg text-[12px] font-bold"
+                style={{
+                  background: `${subAccents[i]}20`,
+                  color: subAccents[i],
+                  border: `1px solid ${subAccents[i]}45`,
+                }}
+              >
+                {sub}
+              </span>
+            ))}
+          </div>
+
+          {/* Stats row + CTA */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-white/55 text-xs">
+                {isPremium
+                  ? `📋 ${isJee ? "90 Qs · 3 sections" : "200 Qs · 3 sections"}`
+                  : "📋 5 Qs × 3 subjects · Demo"}
+              </span>
+              <span className="text-white/40 text-xs">
+                {isPremium
+                  ? `⏱ ${isJee ? "3 hours" : "3 hours"}`
+                  : "⏱ 15 min · Free trial"}
+              </span>
+            </div>
+            <motion.div
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-black text-white"
+              style={{
+                background: `linear-gradient(135deg, ${accent1}, ${accent2})`,
+                boxShadow: `0 2px 16px ${accent1}60`,
+              }}
+              animate={{
+                boxShadow: [
+                  `0 2px 16px ${accent1}60`,
+                  `0 4px 28px ${accent1}99`,
+                  `0 2px 16px ${accent1}60`,
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              {isPremium ? "Start →" : "Try Demo →"}
+            </motion.div>
+          </div>
+        </div>
+      </motion.button>
+    </motion.div>
+  );
+}
+
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
 function NavIcon({ id, active }: { id: string; active: boolean }) {
@@ -1024,41 +1197,16 @@ function Dashboard() {
             Subject चुनो और शुरू करो
           </motion.p>
 
-          {/* ── Full Mock Test CTA (JEE / NEET only) ──────────────── */}
-          {(goal === "jee" || goal === "neet") && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.45, duration: 0.5 }}
-              className="mt-4 mb-2"
-            >
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => navigate(`/mock-test/${goal}`)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-white text-xs"
-                style={{
-                  background: goal === "jee"
-                    ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
-                    : "linear-gradient(135deg, #10b981, #3b82f6)",
-                  boxShadow: goal === "jee"
-                    ? "0 4px 24px rgba(59,130,246,0.45)"
-                    : "0 4px 24px rgba(16,185,129,0.45)",
-                }}
-              >
-                <span className="text-base">{goal === "jee" ? "⚙️" : "🩺"}</span>
-                Full Mock Test — {goal === "jee" ? "PCM" : "PCB"} · {goal.toUpperCase()}
-                <span className="opacity-70 ml-1">
-                  {goal === "jee" ? "90 Qs · 3hr" : "200 Qs · 3hr"}
-                </span>
-              </motion.button>
-            </motion.div>
-          )}
         </motion.div>
 
         <AnnouncementBanner />
         <StreakReminderBanner onPractice={() => {
           document.getElementById("subject-cards")?.scrollIntoView({ behavior: "smooth" });
         }} />
+
+        {(goal === "jee" || goal === "neet") && (
+          <FullMockCard goal={goal} />
+        )}
 
         <div id="subject-cards" className="flex flex-col gap-4">
           {activeSubjects.map((subject, index) => (

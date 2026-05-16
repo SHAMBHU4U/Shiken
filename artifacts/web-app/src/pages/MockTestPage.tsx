@@ -4,6 +4,7 @@ import { useParams, useLocation } from "wouter";
 import { db } from "@/firebase";
 import { ref, get, set } from "firebase/database";
 import MathText from "@/components/MathText";
+import { useSubscription } from "@/hooks/useSubscription";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -440,13 +441,203 @@ function ResultScreen({
   );
 }
 
+// ─── Demo Upgrade Screen ──────────────────────────────────────────────────────
+
+function DemoUpgradeScreen({
+  examType,
+  subjects,
+  allQuestions,
+  answers,
+  onHome,
+}: {
+  examType: ExamType;
+  subjects: SubjectCfg[];
+  allQuestions: MockQuestion[];
+  answers: Record<string, UserAnswer>;
+  onHome: () => void;
+}) {
+  const [, navigate] = useLocation();
+  const isJee = examType === "jee";
+  const accent = isJee ? "#3b82f6" : "#10b981";
+  const accent2 = isJee ? "#8b5cf6" : "#06b6d4";
+
+  const totalCorrect = allQuestions.filter((q) => {
+    const a = answers[q.id];
+    if (q.section === "B") {
+      if (!a?.numericalInput?.trim()) return false;
+      return Math.abs(parseFloat(a.numericalInput) - parseFloat(q.correctNumerical ?? "NaN")) < 0.01;
+    }
+    return a?.selectedIndex === q.answerIndex;
+  }).length;
+
+  const pct = allQuestions.length > 0 ? Math.round((totalCorrect / allQuestions.length) * 100) : 0;
+
+  return (
+    <div className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-12" style={{ background: "#07080f" }}>
+      <style>{`
+        @keyframes pulse-glow-upgrade {
+          0%, 100% { box-shadow: 0 0 30px ${accent}44, 0 8px 40px rgba(0,0,0,0.6); }
+          50% { box-shadow: 0 0 60px ${accent}88, 0 8px 40px rgba(0,0,0,0.6); }
+        }
+      `}</style>
+      <div className="w-full max-w-md">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-6">
+          <div className="text-5xl mb-3">🎯</div>
+          <h1 className="text-white font-black text-2xl mb-1">Demo Complete!</h1>
+          <p className="text-white/40 text-sm">आपने {allQuestions.length} प्रश्न पूरे किए • Demo Finished</p>
+        </motion.div>
+
+        {/* Score card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-2xl p-5 mb-4"
+          style={{
+            background: `linear-gradient(135deg, ${accent}18, ${accent2}12)`,
+            border: `1.5px solid ${accent}40`,
+            animation: "pulse-glow-upgrade 2.5s ease-in-out infinite",
+          }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-white/60 text-sm">Your Demo Score</span>
+            <span className="text-3xl font-black" style={{ color: accent }}>{totalCorrect}/{allQuestions.length}</span>
+          </div>
+          <div className="w-full h-2 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})` }}
+              initial={{ width: 0 }}
+              animate={{ width: `${pct}%` }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+            />
+          </div>
+          <div className="flex justify-between mt-1.5 text-xs text-white/40">
+            <span>Correct: {totalCorrect}</span>
+            <span>{pct}% accuracy</span>
+            <span>Wrong: {allQuestions.length - totalCorrect}</span>
+          </div>
+        </motion.div>
+
+        {/* Per-subject breakdown */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="flex flex-col gap-2 mb-6"
+        >
+          {subjects.map((sub) => {
+            const qs = allQuestions.filter((q) => q.subject === sub.id);
+            const correct = qs.filter((q) => answers[q.id]?.selectedIndex === q.answerIndex).length;
+            return (
+              <div
+                key={sub.id}
+                className="flex items-center justify-between px-4 py-2.5 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+              >
+                <span className="text-white/70 text-sm">{sub.emoji} {sub.label}</span>
+                <span className="font-black text-sm" style={{ color: sub.accent }}>{correct}/{qs.length}</span>
+              </div>
+            );
+          })}
+        </motion.div>
+
+        {/* Upgrade CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-2xl p-5 mb-4"
+          style={{
+            background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06))",
+            border: "1.5px solid rgba(251,191,36,0.35)",
+          }}
+        >
+          <div className="flex items-start gap-3 mb-4">
+            <span className="text-2xl">👑</span>
+            <div>
+              <p className="text-white font-black text-base leading-tight mb-1">Unlock Full Mock Test</p>
+              <p className="text-white/50 text-xs leading-relaxed">
+                {isJee
+                  ? "90 questions · PCM · 3 hours · Real JEE pattern with Section A + Section B"
+                  : "200 questions · PCB · 3 hours · Real NEET pattern with Physics, Chemistry & Biology"}
+              </p>
+            </div>
+          </div>
+          <ul className="flex flex-col gap-1.5 mb-4">
+            {[
+              "Full 90/200 question mock test",
+              "Chapter-wise & subject-wise tests",
+              "AI-generated practice questions",
+              "Detailed performance analysis",
+              "Unlimited attempts",
+            ].map((item) => (
+              <li key={item} className="flex items-center gap-2 text-xs text-white/65">
+                <span style={{ color: "#fbbf24" }}>✓</span> {item}
+              </li>
+            ))}
+          </ul>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate("/pricing")}
+            className="w-full py-3.5 rounded-xl font-black text-sm text-black"
+            style={{
+              background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
+              boxShadow: "0 4px 20px rgba(251,191,36,0.5)",
+            }}
+            animate={{
+              boxShadow: [
+                "0 4px 20px rgba(251,191,36,0.5)",
+                "0 4px 32px rgba(251,191,36,0.85)",
+                "0 4px 20px rgba(251,191,36,0.5)",
+              ],
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            👑 Subscribe to Premium — Unlock Full Mock
+          </motion.button>
+        </motion.div>
+
+        {/* Retry demo / Home */}
+        <div className="flex gap-3">
+          <button
+            onClick={onHome}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold border text-white/50 transition-colors"
+            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.10)" }}
+          >
+            ← Back to Home
+          </button>
+          <button
+            onClick={() => navigate(`/mock-test/${examType}?demo=true`)}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all"
+            style={{
+              background: `${accent}18`,
+              borderColor: `${accent}40`,
+              color: accent,
+            }}
+          >
+            Retry Demo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main MockTestPage ────────────────────────────────────────────────────────
+
+const DEMO_QUESTIONS_PER_SUBJECT = 5;
 
 export default function MockTestPage() {
   const params = useParams<{ examType: string }>();
   const [, navigate] = useLocation();
   const examType: ExamType = params.examType === "jee" ? "jee" : "neet";
   const cfg = EXAM_CONFIG[examType];
+  const { isPremium } = useSubscription();
+
+  // Demo mode: if ?demo=true is in URL and user is not premium
+  const isDemo = new URLSearchParams(window.location.search).get("demo") === "true" && !isPremium;
+  const demoTimeSec = cfg.subjects.length * DEMO_QUESTIONS_PER_SUBJECT * 60; // 1 min per question
 
   // Phase
   const [phase, setPhase] = useState<"assembling" | "quiz" | "result">("assembling");
@@ -461,7 +652,7 @@ export default function MockTestPage() {
   const [activeSubject, setActiveSubject] = useState(cfg.subjects[0].id);
   const [currentIdxBySubject, setCurrentIdxBySubject] = useState<Record<string, number>>({});
   const [answers, setAnswers] = useState<Record<string, UserAnswer>>({});
-  const [timeLeft, setTimeLeft] = useState(3 * 60 * 60);
+  const [timeLeft, setTimeLeft] = useState(isDemo ? demoTimeSec : 3 * 60 * 60);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [langMode, setLangMode] = useState<"both" | "en" | "hi">("both");
   const assemblyRef = useRef(false);
@@ -474,66 +665,83 @@ export default function MockTestPage() {
     const collected: MockQuestion[] = [];
 
     for (const sub of cfg.subjects) {
-      const total = sub.sectionA + sub.sectionB;
-      setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: 0, total } }));
+      const targetCount = isDemo ? DEMO_QUESTIONS_PER_SUBJECT : sub.sectionA + sub.sectionB;
+      setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: 0, total: targetCount } }));
 
       try {
-        // ── Section A (MCQ) ──────────────────────────────────────────────────
-        let sectionAQuestions: MockQuestion[] = [];
-        if (sub.sectionA > 0) {
+        if (isDemo) {
+          // ── Demo mode: 5 MCQ questions from cache or API ────────────────────
           const cached = await loadFromCache(examType, sub.id, "A");
-          const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionA * 0.5)));
-          const needGen = sub.sectionA - fromCache.length;
+          const fromCache = shuffled(cached).slice(0, Math.min(cached.length, DEMO_QUESTIONS_PER_SUBJECT));
+          const needGen = DEMO_QUESTIONS_PER_SUBJECT - fromCache.length;
 
-          setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: fromCache.length, total } }));
+          setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: fromCache.length, total: targetCount } }));
 
           let generated: MockQuestion[] = [];
           if (needGen > 0) {
-            generated = await generateFromAPI(examType, sub.id, "A", needGen);
-            if (generated.length > 0) {
-              await saveToCache(examType, sub.id, "A", generated);
-            }
+            try {
+              generated = await generateFromAPI(examType, sub.id, "A", needGen);
+              if (generated.length > 0) await saveToCache(examType, sub.id, "A", generated);
+            } catch { /* ignore generation errors in demo */ }
           }
 
-          sectionAQuestions = shuffled([...fromCache, ...generated])
-            .slice(0, sub.sectionA)
+          const demoQs = shuffled([...fromCache, ...generated])
+            .slice(0, DEMO_QUESTIONS_PER_SUBJECT)
             .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "A" as Section }));
-        }
 
-        // ── Section B (Numerical — JEE only) ─────────────────────────────────
-        let sectionBQuestions: MockQuestion[] = [];
-        if (sub.sectionB > 0) {
-          const cached = await loadFromCache(examType, sub.id, "B");
-          const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionB * 0.5)));
-          const needGen = sub.sectionB - fromCache.length;
+          collected.push(...demoQs);
+          setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "done", loaded: demoQs.length, total: targetCount } }));
+        } else {
+          // ── Full test mode ────────────────────────────────────────────────────
+          let sectionAQuestions: MockQuestion[] = [];
+          if (sub.sectionA > 0) {
+            const cached = await loadFromCache(examType, sub.id, "A");
+            const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionA * 0.5)));
+            const needGen = sub.sectionA - fromCache.length;
 
-          let generated: MockQuestion[] = [];
-          if (needGen > 0) {
-            generated = await generateFromAPI(examType, sub.id, "B", needGen);
-            if (generated.length > 0) {
-              await saveToCache(examType, sub.id, "B", generated);
+            setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: fromCache.length, total: targetCount } }));
+
+            let generated: MockQuestion[] = [];
+            if (needGen > 0) {
+              generated = await generateFromAPI(examType, sub.id, "A", needGen);
+              if (generated.length > 0) await saveToCache(examType, sub.id, "A", generated);
             }
+
+            sectionAQuestions = shuffled([...fromCache, ...generated])
+              .slice(0, sub.sectionA)
+              .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "A" as Section }));
           }
 
-          sectionBQuestions = shuffled([...fromCache, ...generated])
-            .slice(0, sub.sectionB)
-            .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "B" as Section }));
-        }
+          let sectionBQuestions: MockQuestion[] = [];
+          if (sub.sectionB > 0) {
+            const cached = await loadFromCache(examType, sub.id, "B");
+            const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionB * 0.5)));
+            const needGen = sub.sectionB - fromCache.length;
 
-        const subjectQuestions = [...sectionAQuestions, ...sectionBQuestions];
-        collected.push(...subjectQuestions);
-        setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "done", loaded: subjectQuestions.length, total } }));
+            let generated: MockQuestion[] = [];
+            if (needGen > 0) {
+              generated = await generateFromAPI(examType, sub.id, "B", needGen);
+              if (generated.length > 0) await saveToCache(examType, sub.id, "B", generated);
+            }
+
+            sectionBQuestions = shuffled([...fromCache, ...generated])
+              .slice(0, sub.sectionB)
+              .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "B" as Section }));
+          }
+
+          const subjectQuestions = [...sectionAQuestions, ...sectionBQuestions];
+          collected.push(...subjectQuestions);
+          setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "done", loaded: subjectQuestions.length, total: targetCount } }));
+        }
       } catch (err) {
         console.error(`Assembly failed for ${sub.id}:`, err);
-        setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "error", loaded: 0, total } }));
+        setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "error", loaded: 0, total: targetCount } }));
       }
     }
 
     setAllQuestions(collected);
-
-    // Auto-start quiz after a short pause
     setTimeout(() => setPhase("quiz"), 800);
-  }, [examType]);
+  }, [examType, isDemo]);
 
   useEffect(() => { assembleTest(); }, [assembleTest]);
 
@@ -624,6 +832,17 @@ export default function MockTestPage() {
   }
 
   if (phase === "result") {
+    if (isDemo) {
+      return (
+        <DemoUpgradeScreen
+          examType={examType}
+          subjects={cfg.subjects}
+          allQuestions={allQuestions}
+          answers={answers}
+          onHome={() => navigate("/")}
+        />
+      );
+    }
     return (
       <ResultScreen
         examType={examType}
@@ -676,9 +895,16 @@ export default function MockTestPage() {
           </button>
         </div>
 
+        {/* Demo banner */}
+        {isDemo && (
+          <div className="flex items-center justify-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20">
+            <span className="text-amber-400 text-[11px] font-bold">🆓 Demo Mode — {DEMO_QUESTIONS_PER_SUBJECT} Qs/subject · Subscribe to unlock full test</span>
+          </div>
+        )}
+
         {/* Exam info row */}
         <div className="flex items-center justify-between px-4 pb-2">
-          <span className="text-white/40 text-[11px]">{cfg.examName} · {allQuestions.length} Questions</span>
+          <span className="text-white/40 text-[11px]">{cfg.examName} · {allQuestions.length} Questions{isDemo ? " (Demo)" : ""}</span>
           <button onClick={() => setLangMode((m) => m === "both" ? "en" : m === "en" ? "hi" : "both")}
             className="text-white/30 hover:text-white/60 text-[11px] transition-colors px-2 py-0.5 rounded-lg border border-white/10">
             {langMode === "both" ? "A/अ" : langMode === "en" ? "A" : "अ"}
