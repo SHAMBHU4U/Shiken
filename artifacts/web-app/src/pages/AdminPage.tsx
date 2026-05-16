@@ -1795,7 +1795,7 @@ function QuestionsBankPanel() {
 
 // ─── PDF Import Panel ─────────────────────────────────────────────────────────
 
-const PDF_SUBJECTS: Record<"c10" | "c12", Array<{ id: string; label: string; icon: string; accent: string; path: string }>> = {
+const PDF_SUBJECTS: Record<"c10" | "c12" | "entrance", Array<{ id: string; label: string; icon: string; accent: string; path: string; exam?: "jee" | "neet" }>> = {
   c10: [
     { id: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", path: "maths" },
     { id: "english",  label: "English",        icon: "📖", accent: "#8b5cf6", path: "english" },
@@ -1813,6 +1813,14 @@ const PDF_SUBJECTS: Record<"c10" | "c12", Array<{ id: string; label: string; ico
     { id: "hindi12",   label: "Hindi",     icon: "🔤", accent: "#f97316", path: "class12/hindi" },
     { id: "english12", label: "English",   icon: "📖", accent: "#8b5cf6", path: "class12/english" },
   ],
+  entrance: [
+    { id: "jee_physics",    label: "JEE Physics",    icon: "⚡", accent: "#3b82f6", path: "entrance_exams/jee/physics",    exam: "jee" },
+    { id: "jee_chemistry",  label: "JEE Chemistry",  icon: "🧪", accent: "#10b981", path: "entrance_exams/jee/chemistry",  exam: "jee" },
+    { id: "jee_maths",      label: "JEE Maths",      icon: "📐", accent: "#06b6d4", path: "entrance_exams/jee/maths",      exam: "jee" },
+    { id: "neet_physics",   label: "NEET Physics",   icon: "⚡", accent: "#3b82f6", path: "entrance_exams/neet/physics",   exam: "neet" },
+    { id: "neet_chemistry", label: "NEET Chemistry", icon: "🧪", accent: "#10b981", path: "entrance_exams/neet/chemistry", exam: "neet" },
+    { id: "neet_biology",   label: "NEET Biology",   icon: "🌿", accent: "#22c55e", path: "entrance_exams/neet/biology",   exam: "neet" },
+  ],
 };
 
 function readFileAsBase64(file: File): Promise<string> {
@@ -1827,7 +1835,7 @@ function readFileAsBase64(file: File): Promise<string> {
 type ImportStep = "idle" | "reading" | "parsing" | "preview" | "saving" | "done";
 
 function PDFImportPanel() {
-  const [classId,   setClassId]     = useState<"c10" | "c12">("c10");
+  const [classId,   setClassId]     = useState<"c10" | "c12" | "entrance">("c10");
   const [subjectId, setSubjectId]   = useState("english");
   const [chapter,   setChapter]     = useState("");
   const [file,      setFile]        = useState<File | null>(null);
@@ -1922,13 +1930,13 @@ function PDFImportPanel() {
       <div className="flex flex-col gap-3 mb-4">
         <div>
           <p className="text-white/40 text-xs font-semibold mb-1.5">Class</p>
-          <div className="grid grid-cols-2 gap-2">
-            {(["c10", "c12"] as const).map((id) => {
+          <div className="grid grid-cols-3 gap-2">
+            {(["c10", "c12", "entrance"] as const).map((id) => {
               const meta = CLASS_UPLOAD_META[id];
               const isActive = classId === id;
               return (
                 <button key={id} onClick={() => { setClassId(id); setStep("idle"); setQuestions([]); }} disabled={busy}
-                  className="py-2 px-3 rounded-xl text-xs font-bold transition-all"
+                  className="py-2 px-2 rounded-xl text-xs font-bold transition-all"
                   style={{
                     background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
                     border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
@@ -2112,7 +2120,7 @@ function PDFImportPanel() {
 
 // ─── Upload Panel ─────────────────────────────────────────────────────────────
 
-const CLASS_UPLOAD_SUBJECTS: Record<"c10" | "c12", Record<string, { label: string; path: string; accent: string }>> = {
+const CLASS_UPLOAD_SUBJECTS: Record<"c10" | "c12" | "entrance", Record<string, { label: string; path: string; accent: string; exam?: "jee" | "neet" }>> = {
   c10: {
     maths:    { label: "Maths",          path: "maths",          accent: "#06b6d4" },
     english:  { label: "English",        path: "english",        accent: "#8b5cf6" },
@@ -2130,15 +2138,24 @@ const CLASS_UPLOAD_SUBJECTS: Record<"c10" | "c12", Record<string, { label: strin
     hindi12:   { label: "Hindi",     path: "class12/hindi",     accent: "#f97316" },
     english12: { label: "English",   path: "class12/english",   accent: "#8b5cf6" },
   },
+  entrance: {
+    jee_physics:    { label: "JEE Physics",    path: "entrance_exams/jee/physics",    accent: "#3b82f6", exam: "jee" },
+    jee_chemistry:  { label: "JEE Chemistry",  path: "entrance_exams/jee/chemistry",  accent: "#10b981", exam: "jee" },
+    jee_maths:      { label: "JEE Maths",      path: "entrance_exams/jee/maths",      accent: "#06b6d4", exam: "jee" },
+    neet_physics:   { label: "NEET Physics",   path: "entrance_exams/neet/physics",   accent: "#3b82f6", exam: "neet" },
+    neet_chemistry: { label: "NEET Chemistry", path: "entrance_exams/neet/chemistry", accent: "#10b981", exam: "neet" },
+    neet_biology:   { label: "NEET Biology",   path: "entrance_exams/neet/biology",   accent: "#22c55e", exam: "neet" },
+  },
 };
 
 const CLASS_UPLOAD_META = {
   c10: { label: "Class 10", accent: "#8b5cf6" },
   c12: { label: "Class 12", accent: "#06b6d4" },
+  entrance: { label: "JEE / NEET", accent: "#f59e0b" },
 } as const;
 
 function UploadPanel() {
-  const [classId, setClassId] = useState<"c10" | "c12">("c10");
+  const [classId, setClassId] = useState<"c10" | "c12" | "entrance">("c10");
   const [subjectId, setSubjectId] = useState("maths");
   const [mode, setMode]   = useState<"single" | "bulk">("single");
   const [chapter, setChapter] = useState("");
@@ -2149,10 +2166,17 @@ function UploadPanel() {
   const [bulkJson, setBulkJson] = useState("");
   const [status, setStatus] = useState<{ type: "idle" | "ok" | "err"; msg: string }>({ type: "idle", msg: "" });
   const [saving, setSaving] = useState(false);
+  const [testType, setTestType] = useState<"full" | "subject" | "chapter">("chapter");
+  const [year, setYear] = useState("");
+  const [mockSet, setMockSet] = useState("");
+  const [isNumerical, setIsNumerical] = useState(false);
+  const [numericalAnswer, setNumericalAnswer] = useState("");
 
   const subjects = CLASS_UPLOAD_SUBJECTS[classId];
   const subject = subjects[subjectId] ?? Object.values(subjects)[0];
   const accent  = subject?.accent ?? "#8b5cf6";
+  const isEntrance = classId === "entrance";
+  const examTag = isEntrance ? (subject as { exam?: "jee" | "neet" }).exam : undefined;
 
   useEffect(() => {
     const firstSubject = Object.keys(subjects)[0];
@@ -2161,19 +2185,58 @@ function UploadPanel() {
     }
   }, [classId, subjectId, subjects]);
 
-  async function uploadQuestions(questions: Array<{ english: string; hindi: string; options: string[]; answerIndex: number; chapter: string }>) {
+  function buildTestId() {
+    if (!isEntrance) return undefined;
+    const parts: string[] = [examTag ?? "entrance", testType];
+    if (testType === "full") {
+      if (year.trim()) parts.push(year.trim());
+      if (mockSet.trim()) parts.push(`set${mockSet.trim()}`);
+    } else if (chapter.trim()) {
+      parts.push(chapter.trim().replace(/\s+/g, "_").toLowerCase());
+    }
+    return parts.join("_");
+  }
+
+  async function uploadQuestions(
+    questions: Array<{
+      english: string;
+      hindi: string;
+      options: string[];
+      answerIndex: number;
+      chapter: string;
+      numericalValue?: string;
+    }>
+  ) {
     setSaving(true);
     setStatus({ type: "idle", msg: "" });
     const dbPath = subject.path.toLowerCase();
+    const testId = buildTestId();
     let successCount = 0;
     for (const q of questions) {
-      const payload = {
+      const payload: Record<string, unknown> = {
         question_english: q.english,
         question_hindi:   q.hindi,
-        options: { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] },
-        correct_answer: ["A","B","C","D"][q.answerIndex] ?? "A",
         chapter_name: q.chapter || "General",
       };
+      if (isEntrance) {
+        payload.exam = examTag;
+        payload.test_type = testType;
+        payload.test_id = testId;
+        if (testType === "full") {
+          if (year.trim()) payload.year = year.trim();
+          if (mockSet.trim()) payload.mock_set = Number(mockSet.trim());
+        }
+        if (q.numericalValue !== undefined) {
+          payload.is_numerical = true;
+          payload.numerical_answer = q.numericalValue;
+        } else {
+          payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
+          payload.correct_answer = ["A","B","C","D"][q.answerIndex] ?? "A";
+        }
+      } else {
+        payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
+        payload.correct_answer = ["A","B","C","D"][q.answerIndex] ?? "A";
+      }
       try {
         await push(ref(db, dbPath), payload);
         successCount++;
@@ -2181,23 +2244,44 @@ function UploadPanel() {
     }
     setSaving(false);
     if (successCount === questions.length) {
-      setStatus({ type: "ok", msg: `✅ ${successCount} question${successCount !== 1 ? "s" : ""} uploaded to "${subject.path}"!` });
+      setStatus({ type: "ok", msg: `✅ ${successCount} question${successCount !== 1 ? "s" : ""} uploaded to "${subject.path}"${testId ? ` (tag: ${testId})` : ""}!` });
     } else {
       setStatus({ type: "err", msg: `⚠️ ${successCount}/${questions.length} uploaded. Check your Firebase rules.` });
     }
   }
 
   async function handleSingleUpload() {
-    if (!qEn.trim() || opts.some(o => !o.trim()) || !chapter.trim()) {
-      setStatus({ type: "err", msg: "Please fill in all fields (Question, all 4 options, chapter)." });
+    if (!qEn.trim() || (!isNumerical && opts.some(o => !o.trim())) || !chapter.trim()) {
+      const missing = isNumerical ? "Question + chapter + numerical answer" : "Question + all 4 options + chapter";
+      setStatus({ type: "err", msg: `Please fill in all fields (${missing}).` });
       return;
     }
-    await uploadQuestions([{ english: qEn.trim(), hindi: qHi.trim(), options: opts.map(o => o.trim()), answerIndex: correct, chapter: chapter.trim() }]);
-    setQEn(""); setQHi(""); setOpts(["","","",""]); setCorrect(0);
+    if (isNumerical && !numericalAnswer.trim()) {
+      setStatus({ type: "err", msg: "Please provide the numerical answer value." });
+      return;
+    }
+    await uploadQuestions([{
+      english: qEn.trim(),
+      hindi: qHi.trim(),
+      options: opts.map(o => o.trim()),
+      answerIndex: correct,
+      chapter: chapter.trim(),
+      numericalValue: isNumerical ? numericalAnswer.trim() : undefined,
+    }]);
+    setQEn(""); setQHi(""); setOpts(["","","",""]); setCorrect(0); setNumericalAnswer("");
   }
 
   async function handleBulkUpload() {
-    let parsed: Array<{ english: string; hindi?: string; options: string[]; answerIndex?: number; correct_answer?: string; chapter?: string }>;
+    let parsed: Array<{
+      english: string;
+      hindi?: string;
+      options?: string[];
+      answerIndex?: number;
+      correct_answer?: string;
+      chapter?: string;
+      numerical_answer?: string;
+      is_numerical?: boolean;
+    }>;
     try {
       parsed = JSON.parse(bulkJson);
       if (!Array.isArray(parsed)) throw new Error("Not an array");
@@ -2205,16 +2289,24 @@ function UploadPanel() {
       setStatus({ type: "err", msg: "Invalid JSON. Must be an array of question objects." });
       return;
     }
-    const qs = parsed.map(q => ({
-      english:    String(q.english ?? ""),
-      hindi:      String(q.hindi ?? ""),
-      options:    (Array.isArray(q.options) ? q.options : []).map(String).slice(0, 4),
-      answerIndex: typeof q.answerIndex === "number" ? q.answerIndex
-        : (typeof q.correct_answer === "string" ? "ABCD".indexOf(q.correct_answer.toUpperCase()) : 0),
-      chapter:    String(q.chapter ?? "General"),
-    })).filter(q => q.english && q.options.length === 4);
+    const qs = parsed.map(q => {
+      const isNum = isEntrance && (q.is_numerical === true || q.numerical_answer !== undefined);
+      return {
+        english:    String(q.english ?? ""),
+        hindi:      String(q.hindi ?? ""),
+        options:    isNum ? [] : (Array.isArray(q.options) ? q.options : []).map(String).slice(0, 4),
+        answerIndex: typeof q.answerIndex === "number" ? q.answerIndex
+          : (typeof q.correct_answer === "string" ? "ABCD".indexOf(q.correct_answer.toUpperCase()) : 0),
+        chapter:    String(q.chapter ?? "General"),
+        numericalValue: isNum ? String(q.numerical_answer ?? "") : undefined,
+      };
+    }).filter(q => {
+      if (!q.english) return false;
+      if (q.numericalValue !== undefined) return true;
+      return q.options.length === 4;
+    });
     if (qs.length === 0) {
-      setStatus({ type: "err", msg: "No valid questions found. Each must have english, options (4 items)." });
+      setStatus({ type: "err", msg: "No valid questions found. Each must have english text and either 4 options or numerical_answer." });
       return;
     }
     await uploadQuestions(qs);
@@ -2224,16 +2316,16 @@ function UploadPanel() {
   return (
     <div className="flex flex-col gap-5">
         <div>
-          <p className="text-white/40 text-xs mb-2">Select class:</p>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            {(["c10", "c12"] as const).map((id) => {
+          <p className="text-white/40 text-xs mb-2">Select category:</p>
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {(["c10", "c12", "entrance"] as const).map((id) => {
               const meta = CLASS_UPLOAD_META[id];
               const isActive = classId === id;
               return (
                 <button
                   key={id}
                   onClick={() => setClassId(id)}
-                  className="py-2 px-3 rounded-xl text-xs font-semibold transition-all"
+                  className="py-2 px-2 rounded-xl text-xs font-semibold transition-all"
                   style={{
                     background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
                     border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
@@ -2245,6 +2337,46 @@ function UploadPanel() {
               );
             })}
           </div>
+
+          {isEntrance && (
+            <>
+              <p className="text-white/40 text-xs mb-2">Test Type:</p>
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {([
+                  { id: "full" as const, label: "Full-Length Mock" },
+                  { id: "subject" as const, label: "Subject-wise" },
+                  { id: "chapter" as const, label: "Chapter-wise" },
+                ]).map((t) => {
+                  const isActive = testType === t.id;
+                  return (
+                    <button key={t.id} onClick={() => setTestType(t.id)}
+                      className="py-2 px-2 rounded-xl text-xs font-semibold transition-all"
+                      style={{
+                        background: isActive ? `${accent}25` : "rgba(255,255,255,0.05)",
+                        border: `1px solid ${isActive ? accent : "rgba(0,0,0,0.08)"}`,
+                        color: isActive ? accent : "rgba(255,255,255,0.40)",
+                      }}>
+                      {t.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {testType === "full" && (
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">Year (e.g. 2025)</p>
+                    <input value={year} onChange={e => setYear(e.target.value)} placeholder="2025"
+                      className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none" />
+                  </div>
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">Mock Set #</p>
+                    <input value={mockSet} onChange={e => setMockSet(e.target.value)} placeholder="1"
+                      className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none" />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           <p className="text-white/40 text-xs mb-2">Select subject:</p>
           <div className="grid grid-cols-2 gap-2">
@@ -2261,6 +2393,20 @@ function UploadPanel() {
             ))}
           </div>
         </div>
+
+      {isEntrance && examTag === "jee" && (
+        <div className="flex items-center gap-2">
+          <button onClick={() => setIsNumerical(v => !v)}
+            className="w-5 h-5 rounded border transition-all flex items-center justify-center"
+            style={{
+              borderColor: isNumerical ? accent : "rgba(255,255,255,0.15)",
+              background: isNumerical ? `${accent}30` : "transparent",
+            }}>
+            {isNumerical && <span style={{ color: accent, fontSize: 12 }}>✓</span>}
+          </button>
+          <span className="text-white/60 text-xs">JEE Numerical Question (integer / decimal answer, no options)</span>
+        </div>
+      )}
 
       <div className="flex gap-2">
         {(["single", "bulk"] as const).map((m) => (
@@ -2285,7 +2431,7 @@ function UploadPanel() {
           </div>
           <div>
             <p className="text-white/40 text-xs mb-1">Question (English)</p>
-            <textarea value={qEn} onChange={e => setQEn(e.target.value)} rows={2} placeholder="Question in English..."
+            <textarea value={qEn} onChange={e => setQEn(e.target.value)} rows={2} placeholder="Question in English... (supports $...$ KaTeX)"
               className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none resize-none" />
           </div>
           <div>
@@ -2293,19 +2439,29 @@ function UploadPanel() {
             <textarea value={qHi} onChange={e => setQHi(e.target.value)} rows={2} placeholder="प्रश्न हिंदी में..."
               className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none resize-none" />
           </div>
-          {["A","B","C","D"].map((ltr, i) => (
-            <div key={ltr} className="flex items-center gap-2">
-              <button onClick={() => setCorrect(i)}
-                className="w-7 h-7 rounded-lg text-xs font-black shrink-0 transition-all"
-                style={{ background: correct === i ? `${accent}30` : "rgba(255,255,255,0.06)", color: correct === i ? accent : "rgba(255,255,255,0.28)", border: `1px solid ${correct === i ? accent : "rgba(255,255,255,0.10)"}` }}>
-                {ltr}
-              </button>
-              <input value={opts[i]} onChange={e => setOpts(opts.map((o, j) => j === i ? e.target.value : o))}
-                placeholder={`Option ${ltr}`}
-                className="flex-1 px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none" />
+          {isNumerical ? (
+            <div>
+              <p className="text-white/40 text-xs mb-1">Numerical Answer</p>
+              <input value={numericalAnswer} onChange={e => setNumericalAnswer(e.target.value)} placeholder="e.g. 3.14 or 42"
+                className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none" />
             </div>
-          ))}
-          <p className="text-white/30 text-xs">Tap A/B/C/D button to mark correct answer. Currently: <span style={{ color: accent }}>{["A","B","C","D"][correct]}</span></p>
+          ) : (
+            <>
+              {["A","B","C","D"].map((ltr, i) => (
+                <div key={ltr} className="flex items-center gap-2">
+                  <button onClick={() => setCorrect(i)}
+                    className="w-7 h-7 rounded-lg text-xs font-black shrink-0 transition-all"
+                    style={{ background: correct === i ? `${accent}30` : "rgba(255,255,255,0.06)", color: correct === i ? accent : "rgba(255,255,255,0.28)", border: `1px solid ${correct === i ? accent : "rgba(255,255,255,0.10)"}` }}>
+                    {ltr}
+                  </button>
+                  <input value={opts[i]} onChange={e => setOpts(opts.map((o, j) => j === i ? e.target.value : o))}
+                    placeholder={`Option ${ltr}`}
+                    className="flex-1 px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none" />
+                </div>
+              ))}
+              <p className="text-white/30 text-xs">Tap A/B/C/D button to mark correct answer. Currently: <span style={{ color: accent }}>{["A","B","C","D"][correct]}</span></p>
+            </>
+          )}
           <motion.button onClick={handleSingleUpload} disabled={saving} whileTap={{ scale: 0.97 }}
             className="w-full py-3 rounded-xl font-bold text-sm"
             style={{ background: saving ? "rgba(255,255,255,0.06)" : `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>
@@ -2317,10 +2473,21 @@ function UploadPanel() {
       {mode === "bulk" && (
         <div className="flex flex-col gap-3">
           <p className="text-white/40 text-xs leading-relaxed">
-            Paste a JSON array. Each item: <span className="text-white/60 font-mono text-xs">{"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter"{"}"}</span>
+            Paste a JSON array. Each item:
+            <span className="text-white/60 font-mono text-xs block mt-1">
+              {"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter"{"}"}
+            </span>
+            {isEntrance && (
+              <span className="text-white/50 font-mono text-xs block mt-1">
+                For numerical: add {"{"}"is_numerical":true,"numerical_answer":"3.14"{"}"}
+              </span>
+            )}
           </p>
           <textarea value={bulkJson} onChange={e => setBulkJson(e.target.value)} rows={10}
-            placeholder={`[\n  {\n    "english": "What is 2+2?",\n    "hindi": "2+2 क्या है?",\n    "options": ["3","4","5","6"],\n    "answerIndex": 1,\n    "chapter": "Numbers"\n  }\n]`}
+            placeholder={isEntrance
+              ? `[\n  {\n    "english": "If $\\\\vec{a} = 2\\\\hat{i} + 3\\\\hat{j}$, find $|\\\\vec{a}|$",\n    "hindi": "...",\n    "options": ["3","4","5","13"],\n    "answerIndex": 2,\n    "chapter": "Vectors",\n    "is_numerical": false\n  },\n  {\n    "english": "Find the value of $\\\\pi$ to 2 decimals",\n    "numerical_answer": "3.14",\n    "is_numerical": true,\n    "chapter": "Numbers"\n  }\n]`
+              : `[\n  {\n    "english": "What is 2+2?",\n    "hindi": "2+2 क्या है?",\n    "options": ["3","4","5","6"],\n    "answerIndex": 1,\n    "chapter": "Numbers"\n  }\n]`
+            }
             className="w-full px-3 py-2 rounded-xl text-xs text-white/80 font-mono bg-white/5 border border-white/10 outline-none resize-none" />
           <motion.button onClick={handleBulkUpload} disabled={saving} whileTap={{ scale: 0.97 }}
             className="w-full py-3 rounded-xl font-bold text-sm"
@@ -2789,7 +2956,7 @@ function AnnouncementsPanel() {
 
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
-const ALL_ADMIN_SUBJECTS = [...ALL_SUBJECTS, ...ALL_C12_SUBJECTS];
+const ALL_ADMIN_SUBJECTS = [...ALL_SUBJECTS, ...ALL_C12_SUBJECTS, ...ENTRANCE_SUBJECTS];
 
 export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [, navigate] = useLocation();
@@ -2799,8 +2966,8 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [reviewSubject, setReviewSubject] = useState<AdminSubject | null>(null);
-  const [overviewClass, setOverviewClass] = useState<"c10" | "c12">("c10");
-  const [aiClass, setAiClass] = useState<"c10" | "c12">("c10");
+  const [overviewClass, setOverviewClass] = useState<"c10" | "c12" | "entrance">("c10");
+  const [aiClass, setAiClass] = useState<"c10" | "c12" | "entrance">("c10");
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
     return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "coupons", "announcements"] as const).find(t => t === p) ?? "overview";
@@ -2824,8 +2991,14 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  const visibleOverviewSubjects = overviewClass === "c10" ? ALL_SUBJECTS : ALL_C12_SUBJECTS;
-  const visibleAiSubjects = aiClass === "c10" ? ALL_SUBJECTS : ALL_C12_SUBJECTS;
+  const visibleOverviewSubjects =
+    overviewClass === "c10" ? ALL_SUBJECTS :
+    overviewClass === "c12" ? ALL_C12_SUBJECTS :
+    ENTRANCE_SUBJECTS;
+  const visibleAiSubjects =
+    aiClass === "c10" ? ALL_SUBJECTS :
+    aiClass === "c12" ? ALL_C12_SUBJECTS :
+    ENTRANCE_SUBJECTS;
 
   const totalQuestions = ALL_ADMIN_SUBJECTS.reduce((sum, s) => sum + (subjectData[s.id]?.status === "loaded" ? subjectData[s.id].count : 0), 0);
   const loadedCount   = ALL_ADMIN_SUBJECTS.filter((s) => subjectData[s.id]?.status === "loaded").length;
@@ -2956,9 +3129,10 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "overview" && (
             <motion.div key="overview" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.25 }}>
               {/* Class toggle */}
-              <div className="grid grid-cols-2 gap-2 mb-4">
-                {(["c10", "c12"] as const).map((cls) => {
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {(["c10", "c12", "entrance"] as const).map((cls) => {
                   const isActive = overviewClass === cls;
+                  const label = cls === "c10" ? "Class 10" : cls === "c12" ? "Class 12" : "JEE / NEET";
                   return (
                     <button key={cls} onClick={() => setOverviewClass(cls)}
                       className="py-2 rounded-xl text-xs font-bold transition-all"
@@ -2967,7 +3141,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
                         border: `1px solid ${isActive ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.08)"}`,
                         color: isActive ? "#a78bfa" : "rgba(255,255,255,0.35)",
                       }}>
-                      {cls === "c10" ? "Class 10" : "Class 12"}
+                      {label}
                     </button>
                   );
                 })}
@@ -2986,9 +3160,10 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
               {!reviewSubject ? (
                 <div>
                   {/* Class toggle */}
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    {(["c10", "c12"] as const).map((cls) => {
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {(["c10", "c12", "entrance"] as const).map((cls) => {
                       const isActive = aiClass === cls;
+                      const label = cls === "c10" ? "Class 10" : cls === "c12" ? "Class 12" : "JEE / NEET";
                       return (
                         <button key={cls} onClick={() => setAiClass(cls)}
                           className="py-2 rounded-xl text-xs font-bold transition-all"
@@ -2997,7 +3172,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
                             border: `1px solid ${isActive ? "rgba(139,92,246,0.5)" : "rgba(255,255,255,0.08)"}`,
                             color: isActive ? "#a78bfa" : "rgba(255,255,255,0.35)",
                           }}>
-                          {cls === "c10" ? "Class 10" : "Class 12"}
+                          {label}
                         </button>
                       );
                     })}
