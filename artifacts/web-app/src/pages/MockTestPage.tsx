@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useLocation } from "wouter";
-import { db } from "@/firebase";
-import { ref, get, set } from "firebase/database";
+import { db, auth } from "@/firebase";
+import { ref, get, set, push } from "firebase/database";
 import MathText from "@/components/MathText";
 import { useSubscription } from "@/hooks/useSubscription";
+import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -155,6 +156,53 @@ function formatTime(sec: number) {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function getDeviceId(): string {
+  const KEY = "shiken_device_id";
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = "u_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
+function saveMockScore(
+  examType: ExamType,
+  allQuestions: MockQuestion[],
+  answers: Record<string, UserAnswer>,
+  maxMarks: number
+) {
+  try {
+    const uid = auth.currentUser?.uid;
+    const deviceId = uid ?? getDeviceId();
+    const safeId = deviceId.replace(/[.#$/[\]]/g, "_");
+
+    let totalScore = 0;
+    for (const sub of EXAM_CONFIG[examType].subjects) {
+      const qs = allQuestions.filter((q) => q.subject === sub.id);
+      for (const q of qs) {
+        totalScore += scoreQuestion(q, answers[q.id]);
+      }
+    }
+    const pct = maxMarks > 0 ? Math.round((totalScore / maxMarks) * 100) : 0;
+
+    push(ref(db, `userActivity/${safeId}/mockScores`), {
+      examType,
+      score: totalScore,
+      maxMarks,
+      pct,
+      timestamp: Date.now(),
+    }).catch(() => { /* offline */ });
+
+    const username = localStorage.getItem("shiken_username") || "";
+    set(ref(db, `userActivity/${safeId}/meta`), {
+      lastActive: Date.now(),
+      deviceId,
+      ...(username ? { username } : {}),
+    }).catch(() => { /* offline */ });
+  } catch { /* never block result screen */ }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function AssemblingScreen({
@@ -259,6 +307,10 @@ function ResultScreen({
   onHome: () => void;
 }) {
   const cfg = EXAM_CONFIG[examType];
+
+  useEffect(() => {
+    saveMockScore(examType, allQuestions, answers, cfg.maxMarks);
+  }, []);
 
   const bySubject = Object.fromEntries(
     subjects.map((sub) => {
@@ -460,6 +512,11 @@ function DemoUpgradeScreen({
   const isJee = examType === "jee";
   const accent = isJee ? "#3b82f6" : "#10b981";
   const accent2 = isJee ? "#8b5cf6" : "#06b6d4";
+
+  useEffect(() => {
+    const cfg = EXAM_CONFIG[examType];
+    saveMockScore(examType, allQuestions, answers, cfg.maxMarks);
+  }, []);
 
   const totalCorrect = allQuestions.filter((q) => {
     const a = answers[q.id];

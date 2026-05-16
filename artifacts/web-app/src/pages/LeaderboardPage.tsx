@@ -41,10 +41,10 @@ interface LeaderEntry {
   bestSubject: string;
   isPremium: boolean;
   lastActive: number;
-  category: "c10" | "c12" | "entrance";
+  category: "c10" | "c12" | "jee" | "neet";
 }
 
-async function fetchLeaderboardByCategory(category: "c10" | "c12" | "entrance"): Promise<LeaderEntry[]> {
+async function fetchLeaderboardByCategory(category: "c10" | "c12" | "jee" | "neet"): Promise<LeaderEntry[]> {
   try {
     const [actRes, usersRes] = await Promise.all([
       fetch(`${DB_URL}/userActivity.json`),
@@ -56,18 +56,26 @@ async function fetchLeaderboardByCategory(category: "c10" | "c12" | "entrance"):
 
     return (Object.entries(actData as Record<string, {
       meta?: { deviceId?: string; username?: string; lastActive?: number };
-      sessions?: Record<string, { pct: number; subject: string; category?: string }>;
+      sessions?: Record<string, { pct: number; subject: string; category?: string; timestamp?: number }>;
+      mockScores?: Record<string, { examType: string; pct: number; score: number; maxMarks: number; timestamp: number }>;
     }>)
       .map(([uid, u]) => {
+        const mockScores = u.mockScores ? Object.values(u.mockScores) : [];
+        const mockForCat = mockScores.filter((m) => m.examType === category);
         const sessions = u.sessions ? Object.values(u.sessions) : [];
-        // Filter to only sessions in the requested category
         const catSessions = sessions.filter((s) => {
           const cat = s.category ?? inferCategory(s.subject);
+          if (category === "jee" || category === "neet") return false;
           return cat === category;
         });
-        if (catSessions.length < 1) return null;
-        const avgPct = Math.round(catSessions.reduce((s, r) => s + r.pct, 0) / catSessions.length);
-        const subjectCount = new Set(catSessions.map((s) => s.subject)).size;
+        const allEntries: { pct: number; subject?: string; timestamp?: number }[] = [
+          ...mockForCat.map((m) => ({ pct: m.pct, subject: undefined, timestamp: m.timestamp })),
+          ...catSessions.map((s) => ({ pct: s.pct, subject: s.subject, timestamp: s.timestamp })),
+        ];
+        if (allEntries.length < 1) return null;
+
+        const avgPct = Math.round(allEntries.reduce((s, r) => s + r.pct, 0) / allEntries.length);
+        const subjectCount = new Set(catSessions.map((s) => s.subject).filter(Boolean)).size;
 
         const subjectScores: Record<string, number[]> = {};
         catSessions.forEach((s) => {
@@ -84,7 +92,7 @@ async function fetchLeaderboardByCategory(category: "c10" | "c12" | "entrance"):
           uid,
           username: u.meta?.username?.trim() || "Anonymous",
           avgPct,
-          totalSessions: catSessions.length,
+          totalSessions: allEntries.length,
           subjectCount,
           bestSubject,
           isPremium,
@@ -99,13 +107,14 @@ async function fetchLeaderboardByCategory(category: "c10" | "c12" | "entrance"):
   }
 }
 
-type Category = "c10" | "c12" | "entrance";
+type Category = "c10" | "c12" | "jee" | "neet";
 type Filter = "all" | "premium";
 
 const CATEGORY_META: Record<Category, { label: string; emoji: string; accent: string }> = {
   c10: { label: "Class 10", emoji: "📚", accent: "#8b5cf6" },
   c12: { label: "Class 12", emoji: "🎓", accent: "#06b6d4" },
-  entrance: { label: "JEE / NEET", emoji: "🧩", accent: "#f59e0b" },
+  jee: { label: "JEE", emoji: "⚡", accent: "#3b82f6" },
+  neet: { label: "NEET", emoji: "🌿", accent: "#10b981" },
 };
 
 export default function LeaderboardPage() {
@@ -114,7 +123,7 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
-  const [category, setCategory] = useState<Category>("c10");
+  const [category, setCategory] = useState<Category>("jee");
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
@@ -215,9 +224,9 @@ export default function LeaderboardPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="grid grid-cols-3 gap-2 mb-3"
+          className="grid grid-cols-4 gap-2 mb-3"
         >
-          {(["c10", "c12", "entrance"] as Category[]).map((c) => {
+          {(["c10", "c12", "jee", "neet"] as Category[]).map((c) => {
             const meta = CATEGORY_META[c];
             const isActive = category === c;
             return (
