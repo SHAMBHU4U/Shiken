@@ -2512,6 +2512,193 @@ function UploadPanel() {
   );
 }
 
+
+// ─── Full Mock Upload Panel ──────────────────────────────────────────────────────────────────
+
+const FULL_MOCK_META = {
+  jee:  { label: "JEE", accent: "#3b82f6", dbPath: "jee_full_mock" },
+  neet: { label: "NEET", accent: "#10b981", dbPath: "neet_full_mock" },
+} as const;
+
+interface FullMockQuestion {
+  english: string;
+  hindi?: string;
+  options?: string[];
+  answerIndex?: number;
+  correct_answer?: string;
+  chapter?: string;
+  numerical_answer?: string;
+  is_numerical?: boolean;
+  subject?: string; // e.g. "physics", "chemistry", "maths"
+}
+
+function FullMockUploadPanel() {
+  const [exam, setExam] = useState<"jee" | "neet">("jee");
+  const [testName, setTestName] = useState("");
+  const [bulkJson, setBulkJson] = useState("");
+  const [status, setStatus] = useState<{ type: "idle" | "ok" | "err"; msg: string }>({ type: "idle", msg: "" });
+  const [saving, setSaving] = useState(false);
+
+  const meta = FULL_MOCK_META[exam];
+
+  async function handleUpload() {
+    let parsed: FullMockQuestion[];
+    try {
+      parsed = JSON.parse(bulkJson);
+      if (!Array.isArray(parsed)) throw new Error("Not an array");
+    } catch {
+      setStatus({ type: "err", msg: "Invalid JSON. Must be an array of question objects." });
+      return;
+    }
+
+    const test_id = testName.trim() || `${exam}_full_${Date.now()}`;
+
+    const qs = parsed.map((q) => {
+      const isNum = q.is_numerical === true || q.numerical_answer !== undefined;
+      const opts = isNum ? [] : (Array.isArray(q.options) ? q.options : []).map(String).slice(0, 4);
+      const answerIdx = typeof q.answerIndex === "number"
+        ? q.answerIndex
+        : (typeof q.correct_answer === "string" ? "ABCD".indexOf(q.correct_answer.toUpperCase()) : 0);
+      return {
+        english: String(q.english ?? ""),
+        hindi: String(q.hindi ?? ""),
+        options: opts,
+        answerIndex: answerIdx,
+        chapter: String(q.chapter ?? "General"),
+        subject: String(q.subject ?? ""),
+        numericalValue: isNum ? String(q.numerical_answer ?? "") : undefined,
+      };
+    }).filter((q) => {
+      if (!q.english) return false;
+      if (q.numericalValue !== undefined) return true;
+      return q.options.length === 4;
+    });
+
+    if (qs.length === 0) {
+      setStatus({ type: "err", msg: "No valid questions found. Each must have english text and either 4 options or numerical_answer." });
+      return;
+    }
+
+    setSaving(true);
+    setStatus({ type: "idle", msg: "" });
+    let successCount = 0;
+    for (const q of qs) {
+      const payload: Record<string, unknown> = {
+        question_english: q.english,
+        question_hindi: q.hindi,
+        chapter_name: q.chapter,
+        exam,
+        test_type: "full",
+        test_id,
+      };
+      if (q.subject) payload.subject = q.subject;
+      if (q.numericalValue !== undefined) {
+        payload.is_numerical = true;
+        payload.numerical_answer = q.numericalValue;
+      } else {
+        payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
+        payload.correct_answer = ["A", "B", "C", "D"][q.answerIndex] ?? "A";
+      }
+      try {
+        await push(ref(db, meta.dbPath), payload);
+        successCount++;
+      } catch { /* skip failed */ }
+    }
+    setSaving(false);
+    if (successCount === qs.length) {
+      setStatus({ type: "ok", msg: `\u2705 ${successCount} questions uploaded to ${meta.label} Full Mock (${test_id})!` });
+      setBulkJson("");
+    } else {
+      setStatus({ type: "err", msg: `\u26a0\ufe0f ${successCount}/${qs.length} uploaded. Check Firebase rules.` });
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <div>
+        <p className="text-white/40 text-xs mb-2">Select exam:</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {(["jee", "neet"] as const).map((id) => {
+            const m = FULL_MOCK_META[id];
+            const isActive = exam === id;
+            return (
+              <button
+                key={id}
+                onClick={() => setExam(id)}
+                className="py-2 px-2 rounded-xl text-xs font-semibold transition-all"
+                style={{
+                  background: isActive ? `${m.accent}25` : "rgba(255,255,255,0.05)",
+                  border: `1px solid ${isActive ? m.accent : "rgba(0,0,0,0.08)"}`,
+                  color: isActive ? m.accent : "rgba(255,255,255,0.40)",
+                }}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="text-white/40 text-xs mb-1">Test name / ID (optional)</p>
+        <input
+          value={testName}
+          onChange={(e) => setTestName(e.target.value)}
+          placeholder="e.g. JEE Main 2026 Mock 1"
+          className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none mb-3"
+        />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <p className="text-white/40 text-xs leading-relaxed">
+          Paste a JSON array of full mock questions.
+          <span className="text-white/60 font-mono text-xs block mt-1">
+            {"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter","subject"{"}"}
+          </span>
+          <span className="text-white/50 font-mono text-xs block mt-1">
+            For numerical: add {"{"}"is_numerical":true,"numerical_answer":"3.14"{"}"}
+          </span>
+          <span className="text-white/40 font-mono text-xs block mt-1">
+            Optional: {"{"}"subject":"physics"{"}"} to tag the subject per question.
+          </span>
+        </p>
+        <textarea
+          value={bulkJson}
+          onChange={(e) => setBulkJson(e.target.value)}
+          rows={12}
+          placeholder={`[\n  {\n    "english": "If $\\\\vec{a} = 2\\\\hat{i} + 3\\\\hat{j}$, find $|\\\\vec{a}|$",\n    "hindi": "...",\n    "options": ["3","4","5","13"],\n    "answerIndex": 2,\n    "chapter": "Vectors",\n    "subject": "maths"\n  },\n  {\n    "english": "Find the value of $\\\\pi$ to 2 decimals",\n    "numerical_answer": "3.14",\n    "is_numerical": true,\n    "chapter": "Numbers",\n    "subject": "maths"\n  }\n]`}
+          className="w-full px-3 py-2 rounded-xl text-xs text-white/80 font-mono bg-white/5 border border-white/10 outline-none resize-none"
+        />
+        <motion.button
+          onClick={handleUpload}
+          disabled={saving}
+          whileTap={{ scale: 0.97 }}
+          className="w-full py-3 rounded-xl font-bold text-sm"
+          style={{
+            background: saving ? "rgba(255,255,255,0.06)" : `${meta.accent}25`,
+            color: meta.accent,
+            border: `1px solid ${meta.accent}40`,
+          }}
+        >
+          {saving ? "Uploading\u2026" : `\ud83d\udce4 Upload Full ${meta.label} Mock`}
+        </motion.button>
+      </div>
+
+      {status.type !== "idle" && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-3 rounded-xl text-sm text-center font-semibold"
+          style={{
+            background: status.type === "ok" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.1)",
+            border: `1px solid ${status.type === "ok" ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.25)"}`,
+            color: status.type === "ok" ? "#10b981" : "#ef4444",
+          }}
+        >
+          {status.msg}
+        </motion.div>
+      )}
+    </div>
+  );
+}
 // ─── Coupons Panel ────────────────────────────────────────────────────────────
 
 interface CouponRecord {
@@ -2970,9 +3157,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [aiClass, setAiClass] = useState<"c10" | "c12" | "entrance">("c10");
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "coupons", "announcements"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "fullmock", "coupons", "announcements"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "coupons" | "announcements">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "fullmock" | "coupons" | "announcements">(initialTab);
   const jumpRef = useRef<HTMLDivElement | null>(null);
   const [pendingBadge, setPendingBadge] = useState(0);
 
@@ -3092,6 +3279,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "pdf",       icon: "📄", label: "PDF Import",badge: 0 },
             { id: "bank",      icon: "📚", label: "Q Bank",    badge: 0 },
             { id: "upload",        icon: "📤", label: "Upload",    badge: 0 },
+            { id: "fullmock",      icon: "🏁", label: "Full Mock", badge: 0 },
             { id: "coupons",       icon: "🏷️", label: "Coupons",   badge: 0 },
             { id: "announcements", icon: "📣", label: "Announce",   badge: 0 },
           ] as const).map(({ id, icon, label, badge }) => {
@@ -3246,6 +3434,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "upload" && (
             <motion.div key="upload" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <UploadPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "fullmock" && (
+            <motion.div key="fullmock" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <FullMockUploadPanel />
             </motion.div>
           )}
 
