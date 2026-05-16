@@ -87,8 +87,8 @@ const PLANS = [
   {
     id: "jee_neet_yearly",
     name: "JEE/NEET Yearly Pro",
-    price: "₹499",
-    amount: 499,
+    price: "₹399",
+    amount: 399,
     days: 365,
     period: "1 year",
     perMonth: "₹42/माह",

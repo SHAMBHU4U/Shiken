@@ -197,6 +197,19 @@ const class12SubjectMeta: Record<string, { label: string; labelHindi: string; ic
   english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "📖", accent: "#8b5cf6", path: "class12/english"   },
 };
 
+const entranceSubjectMeta: Record<string, Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }>> = {
+  jee: {
+    physics:   { label: "JEE Physics",    labelHindi: "भौतिकी",          icon: "⚡", accent: "#3b82f6", path: "entrance_exams/jee/physics"    },
+    chemistry: { label: "JEE Chemistry",  labelHindi: "रसायन विज्ञान",   icon: "⚗️", accent: "#10b981", path: "entrance_exams/jee/chemistry"  },
+    maths:     { label: "JEE Maths",      labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "entrance_exams/jee/maths"      },
+  },
+  neet: {
+    physics:   { label: "NEET Physics",   labelHindi: "भौतिकी",          icon: "⚡", accent: "#3b82f6", path: "entrance_exams/neet/physics"   },
+    chemistry: { label: "NEET Chemistry", labelHindi: "रसायन विज्ञान",   icon: "⚗️", accent: "#10b981", path: "entrance_exams/neet/chemistry" },
+    biology:   { label: "NEET Biology",   labelHindi: "जीव विज्ञान",     icon: "🌿", accent: "#22c55e", path: "entrance_exams/neet/biology"   },
+  },
+};
+
 interface Question {
   english: string;
   hindi: string;
@@ -1717,11 +1730,14 @@ type Screen = "loading" | "mode-select" | "mini-chapter-select" | "chapter-selec
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
   const [location, navigate] = useLocation();
-  const classId = location.startsWith("/c12/") ? "12" : "10";
+  const entranceType = location.startsWith("/jee/") ? "jee" : location.startsWith("/neet/") ? "neet" : null;
+  const classId = entranceType ? "entrance" : location.startsWith("/c12/") ? "12" : "10";
   const subject = params.subject ?? "";
-  const meta    = classId === "12"
-    ? (class12SubjectMeta[subject] ?? subjectMeta[subject])
-    : subjectMeta[subject];
+  const meta    = entranceType
+    ? (entranceSubjectMeta[entranceType][subject] ?? entranceSubjectMeta.jee[subject] ?? subjectMeta[subject])
+    : classId === "12"
+      ? (class12SubjectMeta[subject] ?? subjectMeta[subject])
+      : subjectMeta[subject];
   const fullTestKey = `shiken_free_full_used_${classId}_${subject}`;
 
   // All questions fetched from Firebase (or demo)
@@ -2456,7 +2472,7 @@ export default function SubjectPage() {
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
         {showChoosePlan && (
           <ChoosePlanOverlay
-            goal={classId === "12" ? "c12" : "c10"}
+            goal={entranceType ? (entranceType as "jee" | "neet") : classId === "12" ? "c12" : "c10"}
             onClose={() => setShowChoosePlan(false)}
           />
         )}

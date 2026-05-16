@@ -623,6 +623,18 @@ const class12Subjects = [
   { id: "english",   label: "English",        labelHindi: "अंग्रेज़ी",        gradient: "from-violet-500/30 to-purple-700/30",border: "border-violet-400/30",  accent: "#8b5cf6" },
 ];
 
+const entranceSubjects = [
+  { id: "physics",   label: "JEE Physics",    labelHindi: "भौतिकी",          gradient: "from-blue-500/30 to-indigo-600/30",   border: "border-blue-400/30",    accent: "#3b82f6" },
+  { id: "chemistry", label: "JEE Chemistry",  labelHindi: "रसायन विज्ञान",   gradient: "from-emerald-500/30 to-teal-600/30", border: "border-emerald-400/30", accent: "#10b981" },
+  { id: "maths",     label: "JEE Maths",      labelHindi: "गणित",            gradient: "from-cyan-500/30 to-blue-600/30",    border: "border-cyan-400/30",    accent: "#06b6d4" },
+];
+
+const neetSubjects = [
+  { id: "physics",   label: "NEET Physics",   labelHindi: "भौतिकी",          gradient: "from-blue-500/30 to-indigo-600/30",   border: "border-blue-400/30",    accent: "#3b82f6" },
+  { id: "chemistry", label: "NEET Chemistry", labelHindi: "रसायन विज्ञान",   gradient: "from-emerald-500/30 to-teal-600/30", border: "border-emerald-400/30", accent: "#10b981" },
+  { id: "biology",   label: "NEET Biology",   labelHindi: "जीव विज्ञान",     gradient: "from-green-500/30 to-lime-600/30",   border: "border-green-400/30",   accent: "#22c55e" },
+];
+
 const CLASS_KEY = "shiken_class";
 
 // ─── Goal → subjects mapping ──────────────────────────────────────────────────
@@ -630,7 +642,7 @@ const CLASS_KEY = "shiken_class";
 type GoalConfig = {
   label: string;
   labelHindi: string;
-  classId: "10" | "12";
+  classId: "10" | "12" | "entrance";
   badge: string;
   accent: string;
   subjectIds: string[];
@@ -640,7 +652,7 @@ const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
   neet: {
     label: "NEET",
     labelHindi: "मेडिकल प्रवेश",
-    classId: "12",
+    classId: "entrance",
     badge: "🩺",
     accent: "#10b981",
     subjectIds: ["physics", "chemistry", "biology"],
@@ -648,7 +660,7 @@ const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
   jee: {
     label: "JEE Main",
     labelHindi: "इंजीनियरिंग प्रवेश",
-    classId: "12",
+    classId: "entrance",
     badge: "⚙️",
     accent: "#3b82f6",
     subjectIds: ["physics", "chemistry", "maths"],
@@ -745,7 +757,9 @@ function SubjectCard({
           <SubjectIcon id={subject.id} color={subject.accent} />
         </motion.div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">Bihar Board Class {classId ?? "10"}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">
+            {classId === "entrance" ? "Entrance Exam" : `Bihar Board Class ${classId ?? "10"}`}
+          </p>
           <h3 className="text-xl font-black text-white leading-tight">{subject.label}</h3>
           <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}cc` }}>{subject.labelHindi}</p>
         </div>
@@ -889,7 +903,11 @@ function Dashboard() {
   const [, navigate] = useLocation();
   const { goal, clearGoal } = useAuth();
   const goalCfg = goal ? GOAL_CONFIG[goal] : GOAL_CONFIG.c10;
-  const allSubjectPool = goalCfg.classId === "12" ? class12Subjects : subjects;
+  const allSubjectPool =
+    goal === "jee" ? entranceSubjects :
+    goal === "neet" ? neetSubjects :
+    goalCfg.classId === "entrance" ? entranceSubjects :
+    goalCfg.classId === "12" ? class12Subjects : subjects;
   const activeSubjects = allSubjectPool.filter((s) => goalCfg.subjectIds.includes(s.id));
 
   return (
@@ -968,35 +986,6 @@ function Dashboard() {
             <span className="text-white/20 group-hover:text-white/50 text-[10px] transition-colors ml-0.5">✎</span>
           </motion.button>
 
-          {/* ── Full Mock Test CTA (JEE / NEET only) ──────────────── */}
-          {(goal === "jee" || goal === "neet") && (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-              className="mb-2"
-            >
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => navigate(`/mock-test/${goal}`)}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-white text-sm"
-                style={{
-                  background: goal === "jee"
-                    ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
-                    : "linear-gradient(135deg, #10b981, #3b82f6)",
-                  boxShadow: goal === "jee"
-                    ? "0 4px 24px rgba(59,130,246,0.45)"
-                    : "0 4px 24px rgba(16,185,129,0.45)",
-                }}
-              >
-                <span className="text-lg">{goal === "jee" ? "⚙️" : "🩺"}</span>
-                Full Mock Test — {goal.toUpperCase()}
-                <span className="text-[10px] font-semibold opacity-70 ml-1">
-                  {goal === "jee" ? "90 Qs · 3hr" : "200 Qs · 3hr"}
-                </span>
-              </motion.button>
-            </motion.div>
-          )}
 
           {/* ── SHIKEN title ───────────────────────────────────────── */}
           <motion.h1
@@ -1034,6 +1023,36 @@ function Dashboard() {
           >
             Subject चुनो और शुरू करो
           </motion.p>
+
+          {/* ── Full Mock Test CTA (JEE / NEET only) ──────────────── */}
+          {(goal === "jee" || goal === "neet") && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.45, duration: 0.5 }}
+              className="mt-4 mb-2"
+            >
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate(`/mock-test/${goal}`)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-white text-xs"
+                style={{
+                  background: goal === "jee"
+                    ? "linear-gradient(135deg, #3b82f6, #8b5cf6)"
+                    : "linear-gradient(135deg, #10b981, #3b82f6)",
+                  boxShadow: goal === "jee"
+                    ? "0 4px 24px rgba(59,130,246,0.45)"
+                    : "0 4px 24px rgba(16,185,129,0.45)",
+                }}
+              >
+                <span className="text-base">{goal === "jee" ? "⚙️" : "🩺"}</span>
+                Full Mock Test — {goal === "jee" ? "PCM" : "PCB"} · {goal.toUpperCase()}
+                <span className="opacity-70 ml-1">
+                  {goal === "jee" ? "90 Qs · 3hr" : "200 Qs · 3hr"}
+                </span>
+              </motion.button>
+            </motion.div>
+          )}
         </motion.div>
 
         <AnnouncementBanner />
@@ -1048,7 +1067,10 @@ function Dashboard() {
               subject={subject}
               index={index}
               classId={goalCfg.classId}
-              onClick={() => navigate(`/c${goalCfg.classId}/${subject.id}`)}
+              onClick={() => {
+                const route = goal === "jee" ? `/jee/${subject.id}` : goal === "neet" ? `/neet/${subject.id}` : `/c${goalCfg.classId === "entrance" ? "12" : goalCfg.classId}/${subject.id}`;
+                navigate(route);
+              }}
             />
           ))}
         </div>
@@ -1163,6 +1185,8 @@ function AppRoutes() {
           <Route path="/terms" component={TermsPage} />
           <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
           <Route path="/mock-test/:examType" component={MockTestPage} />
+          <Route path="/jee/:subject" component={SubjectPage} />
+          <Route path="/neet/:subject" component={SubjectPage} />
           <Route path="/c10/:subject" component={SubjectPage} />
           <Route path="/c12/:subject" component={SubjectPage} />
           <Route path="/:subject" component={SubjectPage} />
