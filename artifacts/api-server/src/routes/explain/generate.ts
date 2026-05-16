@@ -73,7 +73,7 @@ JSON format (return ONLY this, nothing else):
 
   try {
     const response = await genai.models.generateContent({
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         maxOutputTokens: 4096,

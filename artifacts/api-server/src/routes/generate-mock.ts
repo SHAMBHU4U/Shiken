@@ -4,6 +4,32 @@ import { genai } from "../lib/gemini";
 
 const router = Router();
 
+// ─── JSON helpers ─────────────────────────────────────────────────────────────
+
+function extractJsonObjects(text: string): Record<string, unknown>[] {
+  const objects: Record<string, unknown>[] = [];
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (text[i] === "}") {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        const slice = text.slice(start, i + 1)
+          .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
+          .replace(/,(\s*[}\]])/g, "$1");
+        try {
+          objects.push(JSON.parse(slice));
+        } catch { /* skip bad object */ }
+        start = -1;
+      }
+    }
+  }
+  return objects;
+}
+
 // ─── Topic banks ──────────────────────────────────────────────────────────────
 
 const JEE_TOPICS: Record<string, string[]> = {
@@ -105,7 +131,7 @@ function pickTopics(bank: string[], count: number): string {
 
 // ─── Route ────────────────────────────────────────────────────────────────────
 
-router.post("/api/generate-mock-questions", async (req, res) => {
+router.post("/generate-mock-questions", async (req, res) => {
   try {
     const { examType, subject, section, count } = req.body as {
       examType: "jee" | "neet";
@@ -192,26 +218,69 @@ Return ONLY a valid JSON array. No markdown. No code fences. No explanation.
     }
 
     const response = await genai.models.generateContent({
-      model: "gemini-2.0-flash-lite",
+      model: "gemini-2.5-flash",
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
         temperature: 0.7,
         responseMimeType: "application/json",
       },
     });
 
-    const raw = (response.text ?? "").trim();
-    let questions: unknown[];
+    const rawText = (response.text ?? "").trim();
+    let raw = rawText;
+    // Strip markdown fences
+    raw = raw.replace(/^```json\s*/, "").replace(/\s*```$/, "").trim();
+
+    let parsed: unknown;
+    let parseError = "";
     try {
-      questions = JSON.parse(raw);
-    } catch {
-      const match = raw.match(/\[[\s\S]*\]/);
-      questions = match ? JSON.parse(match[0]) : [];
+      parsed = JSON.parse(raw);
+    } catch (e1) {
+      parseError = String(e1);
+      // Try to extract JSON array/object from the response, handling Gemini quirks
+      const match = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (match) {
+        let cleaned = match[0]
+          // Fix common Gemini escape issues
+          .replace(/\\\n/g, "\\n")
+          .replace(/\\\t/g, "\\t")
+          .replace(/\\"/g, '\\"')
+          .replace(/\\'/g, "'")
+          // Remove unescaped control chars
+          .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
+          // Remove trailing commas before ] or }
+          .replace(/,(\s*[}\]])/g, "$1");
+        try {
+          parsed = JSON.parse(cleaned);
+          parseError = "";
+        } catch (e2) {
+          parseError += " | fallback: " + String(e2);
+          parsed = null;
+        }
+      } else {
+        parsed = null;
+      }
     }
 
-    if (!Array.isArray(questions) || questions.length === 0) {
-      return res.status(500).json({ error: "AI returned no questions" });
+    // Gemini sometimes returns a single object instead of an array for count=1
+    let questions: unknown[];
+    if (Array.isArray(parsed)) {
+      questions = parsed;
+    } else if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      questions = [parsed];
+    } else {
+      questions = [];
+    }
+
+    // Last-resort: try to extract individual objects from truncated responses
+    if (questions.length === 0 && rawText.includes("{") && rawText.includes("}")) {
+      questions = extractJsonObjects(rawText);
+    }
+
+    if (questions.length === 0) {
+      console.error("generate-mock: empty questions. raw length:", rawText.length, "parseError:", parseError, "raw preview:", rawText.slice(0, 200));
+      return res.status(500).json({ error: "AI returned no questions", detail: parseError || "empty array" });
     }
 
     // Validate and clean

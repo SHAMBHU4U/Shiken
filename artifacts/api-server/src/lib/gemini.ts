@@ -29,7 +29,7 @@ export const genai = new Proxy({} as GoogleGenAI, {
   },
 });
 
-const MODEL = "gemini-2.0-flash-lite";
+const MODEL = "gemini-2.5-flash";
 
 export function sseHeaders(res: import("express").Response) {
   res.setHeader("Content-Type", "text/event-stream");
