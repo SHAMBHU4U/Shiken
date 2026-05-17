@@ -4,6 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const ADMIN_PASSWORD = "#Shiken@468%";
 
+function toChapterSlug(chapter: string): string {
+  return chapter.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "general";
+}
+
 const SUBJECTS = [
   { id: "maths",          dbPath: "maths",           label: "Maths (गणित)",            accent: "#06b6d4", schema: "maths" },
   { id: "science",        dbPath: "science",         label: "Science (विज्ञान)",         accent: "#10b981", schema: "science" },
@@ -219,7 +226,8 @@ function QuestionForm() {
     try {
       const payload = buildPayload(form);
       const subj = SUBJECTS.find((s) => s.id === form.subject)!;
-      const path = `${DB_URL}/${subj.dbPath}.json`;
+      const chSlug = toChapterSlug(form.chapter || "general");
+      const path = `${DB_URL}/${subj.dbPath}/${chSlug}.json`;
       const res = await fetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

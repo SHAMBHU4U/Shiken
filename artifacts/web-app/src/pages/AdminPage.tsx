@@ -481,6 +481,13 @@ function RatingsPanel() {
   );
 }
 
+function toChapterSlug(chapter: string): string {
+  return chapter.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "general";
+}
+
 const ALL_SUBJECTS = [
   { id: "maths",    dbPath: "maths",          label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20" },
   { id: "english",  dbPath: "english",        label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
@@ -538,7 +545,22 @@ async function fetchCount(dbPath: string): Promise<SubjectInfo> {
     if (typeof data !== "object") {
       return { count: 0, status: "error", error: `Unexpected type: ${typeof data}` };
     }
-    const count = Object.keys(data).length;
+    const isQuestion = (v: unknown): boolean => {
+      if (typeof v !== "object" || v === null) return false;
+      const q = v as Record<string, unknown>;
+      return !!(q.english || q.question || q.question_english);
+    };
+    const vals = Object.values(data as Record<string, unknown>);
+    let count = 0;
+    if (vals.length > 0 && isQuestion(vals[0])) {
+      count = vals.length;
+    } else {
+      for (const chapterNode of vals) {
+        if (typeof chapterNode === "object" && chapterNode !== null) {
+          count += Object.keys(chapterNode as object).length;
+        }
+      }
+    }
     return { count, status: count === 0 ? "empty" : "loaded" };
   } catch (e) {
     return { count: 0, status: "error", error: String(e) };
@@ -562,26 +584,58 @@ async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
   const data = snap.exists() ? snap.val() as Record<string, unknown> : null;
   if (!data || typeof data !== "object") return [];
 
+  const isAIChapter = (ch: string, slug: string) =>
+    ch === "AI Generated" || ch === "Shiken Generated" || ch === "Engine Generated" ||
+    ch === "shiken generated" || slug === "shiken_generated";
+
+  const isQuestionLike = (v: unknown): boolean => {
+    if (typeof v !== "object" || v === null) return false;
+    const q = v as Record<string, unknown>;
+    return !!(q.english || q.question || q.question_english);
+  };
+
   const results: AIQuestion[] = [];
-  for (const [key, raw] of Object.entries(data)) {
-    const q = raw as Record<string, unknown>;
-    const chapter = String(q.chapter ?? q.chapter_name ?? "");
-    if (chapter !== "AI Generated" && chapter !== "Shiken Generated" && chapter !== "Engine Generated") continue;
+  const firstVal = Object.values(data)[0];
 
-    let opts: string[] = [];
-    if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
-
-    const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
-    const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
-
-    results.push({
-      key,
-      english: String(q.english ?? q.question_english ?? q.question ?? ""),
-      hindi: String(q.hindi ?? q.question_hindi ?? ""),
-      options: opts,
-      correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
-      chapter,
-    });
+  if (isQuestionLike(firstVal)) {
+    for (const [key, raw] of Object.entries(data)) {
+      const q = raw as Record<string, unknown>;
+      const chapter = String(q.chapter ?? q.chapter_name ?? "");
+      if (!isAIChapter(chapter, "")) continue;
+      let opts: string[] = [];
+      if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
+      const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
+      const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
+      results.push({
+        key,
+        english: String(q.english ?? q.question_english ?? q.question ?? ""),
+        hindi: String(q.hindi ?? q.question_hindi ?? ""),
+        options: opts,
+        correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
+        chapter,
+      });
+    }
+  } else {
+    for (const [chapterSlug, chapterNode] of Object.entries(data)) {
+      if (typeof chapterNode !== "object" || chapterNode === null) continue;
+      for (const [pushId, raw] of Object.entries(chapterNode as Record<string, unknown>)) {
+        const q = raw as Record<string, unknown>;
+        const chapter = String(q.chapter ?? q.chapter_name ?? chapterSlug.replace(/_/g, " ") ?? "");
+        if (!isAIChapter(chapter, chapterSlug)) continue;
+        let opts: string[] = [];
+        if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
+        const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
+        const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
+        results.push({
+          key: `${chapterSlug}/${pushId}`,
+          english: String(q.english ?? q.question_english ?? q.question ?? ""),
+          hindi: String(q.hindi ?? q.question_hindi ?? ""),
+          options: opts,
+          correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
+          chapter: chapter || "Shiken Generated",
+        });
+      }
+    }
   }
   return results;
 }
@@ -1886,8 +1940,9 @@ function PDFImportPanel() {
     setStep("saving"); setSavedCount(0);
     let saved = 0;
     for (const q of questions) {
+      const chSlug = toChapterSlug(chapter.trim() || "General");
       try {
-        await push(ref(db, path), {
+        await push(ref(db, `${path}/${chSlug}`), {
           english:      q.english,
           hindi:        q.hindi,
           options:      q.options,
@@ -2237,8 +2292,9 @@ function UploadPanel() {
         payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
         payload.correct_answer = ["A","B","C","D"][q.answerIndex] ?? "A";
       }
+      const chSlug = toChapterSlug(q.chapter || "General");
       try {
-        await push(ref(db, dbPath), payload);
+        await push(ref(db, `${dbPath}/${chSlug}`), payload);
         successCount++;
       } catch { /* skip failed */ }
     }
@@ -2599,8 +2655,9 @@ function FullMockUploadPanel() {
         payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
         payload.correct_answer = ["A", "B", "C", "D"][q.answerIndex] ?? "A";
       }
+      const chSlug = toChapterSlug(q.chapter || "General");
       try {
-        await push(ref(db, meta.dbPath), payload);
+        await push(ref(db, `${meta.dbPath}/${chSlug}`), payload);
         successCount++;
       } catch { /* skip failed */ }
     }
@@ -2954,6 +3011,155 @@ const ANN_TYPE_META: Record<AnnouncementRecord["type"], { label: string; color: 
   success: { label: "Success", color: "#10b981", bg: "rgba(16,185,129,0.1)",  icon: "✅" },
 };
 
+function MigrationPanel() {
+  const [classId, setClassId] = useState<"c10" | "c12" | "entrance">("c10");
+  const [running, setRunning] = useState(false);
+  const [status, setStatus] = useState<{ type: "idle" | "ok" | "err"; msg: string }>({ type: "idle", msg: "" });
+  const [log, setLog] = useState<string[]>([]);
+
+  const subjects =
+    classId === "c10" ? ALL_SUBJECTS :
+    classId === "c12" ? ALL_C12_SUBJECTS :
+    ENTRANCE_SUBJECTS;
+
+  function pushLog(line: string) {
+    setLog((prev) => [...prev, line]);
+  }
+
+  async function runMigration() {
+    setRunning(true);
+    setStatus({ type: "idle", msg: "" });
+    setLog([]);
+
+    let totalMigrated = 0;
+    let totalSkipped  = 0;
+
+    for (const subj of subjects) {
+      pushLog(`🔍  Scanning ${subj.dbPath} …`);
+      try {
+        const snap = await get(ref(db, subj.dbPath));
+        const data = snap.exists() ? (snap.val() as Record<string, unknown>) : null;
+        if (!data) {
+          pushLog(`  ⚠️  ${subj.label}: empty — skipped`);
+          continue;
+        }
+
+        const isQuestionLike = (v: unknown): boolean => {
+          if (typeof v !== "object" || v === null) return false;
+          const q = v as Record<string, unknown>;
+          return !!(q.english || q.question || q.question_english);
+        };
+
+        const vals = Object.values(data);
+        if (vals.length === 0) {
+          pushLog(`  ⚠️  ${subj.label}: empty — skipped`);
+          continue;
+        }
+
+        if (!isQuestionLike(vals[0])) {
+          pushLog(`  ✅  ${subj.label}: already nested — skipped`);
+          continue;
+        }
+
+        const byChapter: Record<string, Record<string, unknown>[]> = {};
+        for (const [key, raw] of Object.entries(data)) {
+          const q = raw as Record<string, unknown>;
+          if (!isQuestionLike(q)) continue;
+          const rawChapter = String(q.chapter ?? q.chapter_name ?? "General");
+          const chSlug = toChapterSlug(rawChapter);
+          if (!byChapter[chSlug]) byChapter[chSlug] = [];
+          byChapter[chSlug].push({ ...q, __oldKey: key });
+        }
+
+        let migrated = 0;
+        let skipped  = 0;
+        for (const [chSlug, questions] of Object.entries(byChapter)) {
+          for (const q of questions) {
+            const { __oldKey, ...payload } = q;
+            try {
+              await push(ref(db, `${subj.dbPath}/${chSlug}`), payload);
+              await remove(ref(db, `${subj.dbPath}/${String(__oldKey)}`));
+              migrated++;
+            } catch {
+              skipped++;
+            }
+          }
+        }
+        totalMigrated += migrated;
+        totalSkipped  += skipped;
+        pushLog(`  ✅  ${subj.label}: ${migrated} migrated, ${skipped} skipped`);
+      } catch (e) {
+        pushLog(`  ❌  ${subj.label}: error — ${String(e)}`);
+      }
+    }
+
+    setRunning(false);
+    if (totalMigrated === 0 && totalSkipped === 0) {
+      setStatus({ type: "ok", msg: "All subjects already migrated or empty. Nothing to do." });
+    } else {
+      setStatus({ type: "ok", msg: `✅ Done! ${totalMigrated} migrated, ${totalSkipped} skipped.` });
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xl">🚚</span>
+        <h2 className="text-white font-bold text-base">Firebase Migration</h2>
+      </div>
+      <p className="text-white/40 text-xs">
+        Reads old flat <code className="bg-white/10 px-1 rounded text-white/50">&#123;pushId: question&#125;</code> structures and rewrites each question under its chapter-slug node, then deletes the old flat copy. Run once per class.
+      </p>
+
+      <div className="grid grid-cols-3 gap-2">
+        {(["c10", "c12", "entrance"] as const).map((id) => (
+          <button key={id} onClick={() => setClassId(id)}
+            className="py-2 rounded-xl text-xs font-bold transition-all"
+            style={{
+              background: classId === id ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${classId === id ? "rgba(139,92,246,0.4)" : "rgba(255,255,255,0.08)"}`,
+              color: classId === id ? "#a78bfa" : "rgba(255,255,255,0.4)",
+            }}>
+            {id === "c10" ? "Class 10" : id === "c12" ? "Class 12" : "JEE/NEET"}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+        <p className="text-white/30 text-xs mb-2">Subjects that will be scanned:</p>
+        <div className="flex flex-wrap gap-1.5">
+          {subjects.map((s) => (
+            <span key={s.id} className="px-2 py-0.5 rounded-lg text-[10px] font-bold"
+              style={{ background: s.accent + "18", color: s.accent, border: `1px solid ${s.accent}30` }}>
+              {s.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <motion.button onClick={runMigration} whileTap={{ scale: 0.97 }} disabled={running}
+        className="w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-40 transition-all"
+        style={{ background: "linear-gradient(135deg, #8b5cf6, #06b6d4)", boxShadow: "0 4px 20px rgba(139,92,246,0.35)" }}>
+        {running ? "Migrating…" : "Run Migration"}
+      </motion.button>
+
+      {status.msg && (
+        <div className={`text-xs font-medium rounded-xl px-3 py-2 ${status.type === "err" ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"}`}>
+          {status.msg}
+        </div>
+      )}
+
+      {log.length > 0 && (
+        <div className="bg-black/30 border border-white/10 rounded-xl p-3 font-mono text-[11px] text-white/60 max-h-64 overflow-y-auto whitespace-pre-wrap">
+          {log.map((line, i) => (
+            <div key={i} className="leading-relaxed">{line}</div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AnnouncementsPanel() {
   const [announcements, setAnnouncements] = useState<AnnouncementRecord[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -3157,9 +3363,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [aiClass, setAiClass] = useState<"c10" | "c12" | "entrance">("c10");
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "fullmock", "coupons", "announcements"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "fullmock", "coupons", "migrate", "announcements"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "fullmock" | "coupons" | "announcements">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "fullmock" | "coupons" | "migrate" | "announcements">(initialTab);
   const jumpRef = useRef<HTMLDivElement | null>(null);
   const [pendingBadge, setPendingBadge] = useState(0);
 
@@ -3281,6 +3487,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "upload",        icon: "📤", label: "Upload",    badge: 0 },
             { id: "fullmock",      icon: "🏁", label: "Full Mock", badge: 0 },
             { id: "coupons",       icon: "🏷️", label: "Coupons",   badge: 0 },
+            { id: "migrate",       icon: "🚚", label: "Migrate",   badge: 0 },
             { id: "announcements", icon: "📣", label: "Announce",   badge: 0 },
           ] as const).map(({ id, icon, label, badge }) => {
             const isActive = activeTab === id;
@@ -3446,6 +3653,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "coupons" && (
             <motion.div key="coupons" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <CouponsPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "migrate" && (
+            <motion.div key="migrate" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <MigrationPanel />
             </motion.div>
           )}
 

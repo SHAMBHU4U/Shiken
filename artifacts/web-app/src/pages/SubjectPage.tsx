@@ -392,13 +392,6 @@ function pick<T>(arr: T[], n: number): T[] {
   return shuffle(arr).slice(0, n);
 }
 
-function toChapterSlug(chapter: string): string {
-  return chapter.trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "general";
-}
-
 // Resolves the correct answer index across all Firebase schemas
 function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number {
   const raw = q.correct_answer ?? q.correctAnswer ?? q.answer;
@@ -433,15 +426,46 @@ function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number 
   return textIdx >= 0 ? textIdx : 0;
 }
 
+function toChapterSlug(chapter: string): string {
+  return chapter.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "general";
+}
+
 function parseQuestions(data: unknown, subject = "", classId = "10"): Question[] {
   if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
 
-  const raw =
-    typeof data === "object" && data !== null && !Array.isArray(data)
-      ? Object.values(data as Record<string, unknown>)
-      : Array.isArray(data) ? data : [];
+  const dataObj = data as Record<string, unknown>;
 
-  return (raw as Record<string, unknown>[]).map((q) => {
+  const isQuestionLike = (v: unknown): boolean => {
+    if (typeof v !== "object" || v === null) return false;
+    const q = v as Record<string, unknown>;
+    return !!(q.english || q.question || q.question_english || q.hindi);
+  };
+
+  const pairs: Array<[Record<string, unknown>, string | undefined]> = [];
+
+  const firstVal = Object.values(dataObj)[0];
+  if (isQuestionLike(firstVal)) {
+    for (const v of Object.values(dataObj)) {
+      if (typeof v === "object" && v !== null) {
+        pairs.push([v as Record<string, unknown>, undefined]);
+      }
+    }
+  } else {
+    for (const [chapterSlug, chapterNode] of Object.entries(dataObj)) {
+      if (typeof chapterNode === "object" && chapterNode !== null) {
+        for (const v of Object.values(chapterNode as Record<string, unknown>)) {
+          if (isQuestionLike(v)) {
+            pairs.push([v as Record<string, unknown>, chapterSlug.replace(/_/g, " ")]);
+          }
+        }
+      }
+    }
+  }
+
+  return pairs.map(([q, chapterHint]) => {
     // ── Options ──────────────────────────────────────────────────────────────
     let opts: string[] = [];
     if (Array.isArray(q.options)) {
@@ -486,7 +510,7 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     }
 
     // ── Chapter ───────────────────────────────────────────────────────────────
-    const rawChapter = String(q.chapter ?? q.chapter_name ?? "General");
+    const rawChapter = String(q.chapter ?? q.chapter_name ?? chapterHint ?? "General");
     const chapter = normalizeChapter(subject, classId, rawChapter);
 
     return { english, hindi, options: opts, answerIndex, chapter };
@@ -2064,12 +2088,13 @@ export default function SubjectPage() {
         (q) => q.english && !existingSet.has(q.english.toLowerCase().trim().slice(0, 80))
       );
       for (const q of newOnes) {
-        await push(subjectRef, {
+        const chSlug = toChapterSlug(q.chapter || "Shiken Generated");
+        await push(ref(db, `${dbPath}/${chSlug}`), {
           english: q.english,
           hindi: q.hindi || "",
           options: q.options,
           correctAnswer: q.answerIndex,
-          chapter: "Shiken Generated",
+          chapter: q.chapter || "Shiken Generated",
         });
       }
     } catch { /* non-critical — DB save failed, quiz continues */ }
