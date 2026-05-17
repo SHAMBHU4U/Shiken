@@ -4,20 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const ADMIN_PASSWORD = "#Shiken@468%";
 
-function toChapterSlug(chapter: string): string {
-  return chapter.trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
-    .replace(/^_+|_+$/g, "") || "general";
-}
-
 const SUBJECTS = [
-  { id: "maths",          dbPath: "questions/class10/maths",           label: "Maths (गणित)",            accent: "#06b6d4", schema: "maths" },
-  { id: "science",        dbPath: "questions/class10/science",         label: "Science (विज्ञान)",         accent: "#10b981", schema: "science" },
-  { id: "english",        dbPath: "questions/class10/english",         label: "English (अंग्रेज़ी)",       accent: "#8b5cf6", schema: "english" },
-  { id: "hindi",          dbPath: "questions/class10/hindi",           label: "Hindi (हिंदी)",             accent: "#f97316", schema: "hindi" },
-  { id: "social_science", dbPath: "questions/class10/social_science",  label: "Social Science (सामाजिक विज्ञान)", accent: "#f59e0b", schema: "social" },
-  { id: "sanskrit",       dbPath: "questions/class10/sanskrit",        label: "Sanskrit (संस्कृत)",        accent: "#ec4899", schema: "social" },
+  { id: "maths",          dbPath: "maths",           label: "Maths (गणित)",            accent: "#06b6d4", schema: "maths" },
+  { id: "science",        dbPath: "science",         label: "Science (विज्ञान)",         accent: "#10b981", schema: "science" },
+  { id: "english",        dbPath: "english",         label: "English (अंग्रेज़ी)",       accent: "#8b5cf6", schema: "english" },
+  { id: "hindi",          dbPath: "hindi",           label: "Hindi (हिंदी)",             accent: "#f97316", schema: "hindi" },
+  { id: "social_science", dbPath: "social science",  label: "Social Science (सामाजिक विज्ञान)", accent: "#f59e0b", schema: "social" },
+  { id: "sanskrit",       dbPath: "sanskrit",        label: "Sanskrit (संस्कृत)",        accent: "#ec4899", schema: "social" },
 ];
 
 const OPTIONS = ["A", "B", "C", "D"] as const;
@@ -226,8 +219,7 @@ function QuestionForm() {
     try {
       const payload = buildPayload(form);
       const subj = SUBJECTS.find((s) => s.id === form.subject)!;
-      const chapterSlug = toChapterSlug(form.chapter || "general");
-      const path = `${DB_URL}/${subj.dbPath}/${chapterSlug}.json`;
+      const path = `${DB_URL}/${subj.dbPath}.json`;
       const res = await fetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
