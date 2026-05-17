@@ -481,23 +481,30 @@ function RatingsPanel() {
   );
 }
 
+function toChapterSlug(chapter: string): string {
+  return chapter.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "general";
+}
+
 const ALL_SUBJECTS = [
-  { id: "maths",    dbPath: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20" },
-  { id: "english",  dbPath: "english",  label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
-  { id: "hindi",    dbPath: "hindi",    label: "Hindi",           icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
-  { id: "science",  dbPath: "science",  label: "Science",         icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
-  { id: "social",   dbPath: "social science", label: "Social Science",  icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20" },
-  { id: "sanskrit", dbPath: "sanskrit", label: "Sanskrit",        icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",    border: "border-pink-400/20" },
+  { id: "maths",    dbPath: "questions/class10/maths",          label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20" },
+  { id: "english",  dbPath: "questions/class10/english",        label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "hindi",    dbPath: "questions/class10/hindi",          label: "Hindi",           icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "science",  dbPath: "questions/class10/science",        label: "Science",         icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
+  { id: "social",   dbPath: "questions/class10/social_science", label: "Social Science",  icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20" },
+  { id: "sanskrit", dbPath: "questions/class10/sanskrit",       label: "Sanskrit",        icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",    border: "border-pink-400/20" },
 ];
 
 const ALL_C12_SUBJECTS = [
-  { id: "c12_physics",   dbPath: "class12/physics",   label: "Physics",   icon: "⚡", accent: "#3b82f6", gradient: "from-blue-500/20 to-indigo-600/20",    border: "border-blue-400/20" },
-  { id: "c12_chemistry", dbPath: "class12/chemistry", label: "Chemistry", icon: "🧪", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
-  { id: "c12_biology",   dbPath: "class12/biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", gradient: "from-green-500/20 to-lime-600/20",    border: "border-green-400/20" },
-  { id: "c12_maths",     dbPath: "class12/maths",     label: "Maths",     icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",     border: "border-cyan-400/20" },
-  { id: "c12_social",    dbPath: "class12/social",    label: "Social",    icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20",  border: "border-amber-400/20" },
-  { id: "c12_hindi",     dbPath: "class12/hindi",     label: "Hindi",     icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
-  { id: "c12_english",   dbPath: "class12/english",   label: "English",   icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "c12_physics",   dbPath: "questions/class12/physics",   label: "Physics",   icon: "⚡", accent: "#3b82f6", gradient: "from-blue-500/20 to-indigo-600/20",    border: "border-blue-400/20" },
+  { id: "c12_chemistry", dbPath: "questions/class12/chemistry", label: "Chemistry", icon: "🧪", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
+  { id: "c12_biology",   dbPath: "questions/class12/biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", gradient: "from-green-500/20 to-lime-600/20",    border: "border-green-400/20" },
+  { id: "c12_maths",     dbPath: "questions/class12/maths",     label: "Maths",     icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",     border: "border-cyan-400/20" },
+  { id: "c12_social",    dbPath: "questions/class12/social",    label: "Social",    icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20",  border: "border-amber-400/20" },
+  { id: "c12_hindi",     dbPath: "questions/class12/hindi",     label: "Hindi",     icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "c12_english",   dbPath: "questions/class12/english",   label: "English",   icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
 ];
 
 const ENTRANCE_SUBJECTS = [
@@ -532,13 +539,26 @@ async function fetchCount(dbPath: string): Promise<SubjectInfo> {
   try {
     const snap = await get(ref(db, dbPath));
     const data = snap.exists() ? snap.val() : null;
-    if (data === null || data === true || data === false) {
-      return { count: data === null ? 0 : 1, status: data === null ? "empty" : "error", error: data !== null ? "Invalid data (not an object)" : undefined };
-    }
+    if (data === null) return { count: 0, status: "empty" };
     if (typeof data !== "object") {
       return { count: 0, status: "error", error: `Unexpected type: ${typeof data}` };
     }
-    const count = Object.keys(data).length;
+    const isQuestion = (v: unknown): boolean => {
+      if (typeof v !== "object" || v === null) return false;
+      const q = v as Record<string, unknown>;
+      return !!(q.english || q.question || q.question_english);
+    };
+    const vals = Object.values(data as Record<string, unknown>);
+    let count = 0;
+    if (vals.length > 0 && isQuestion(vals[0])) {
+      count = vals.length;
+    } else {
+      for (const chapterNode of vals) {
+        if (typeof chapterNode === "object" && chapterNode !== null) {
+          count += Object.keys(chapterNode as object).length;
+        }
+      }
+    }
     return { count, status: count === 0 ? "empty" : "loaded" };
   } catch (e) {
     return { count: 0, status: "error", error: String(e) };
@@ -562,26 +582,60 @@ async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
   const data = snap.exists() ? snap.val() as Record<string, unknown> : null;
   if (!data || typeof data !== "object") return [];
 
+  const isAIChapter = (ch: string, slug: string) =>
+    ch === "AI Generated" || ch === "Shiken Generated" || ch === "Engine Generated" ||
+    ch === "shiken generated" || slug === "shiken_generated";
+
+  const isQuestionLike = (v: unknown): boolean => {
+    if (typeof v !== "object" || v === null) return false;
+    const q = v as Record<string, unknown>;
+    return !!(q.english || q.question || q.question_english);
+  };
+
   const results: AIQuestion[] = [];
-  for (const [key, raw] of Object.entries(data)) {
-    const q = raw as Record<string, unknown>;
-    const chapter = String(q.chapter ?? q.chapter_name ?? "");
-    if (chapter !== "AI Generated" && chapter !== "Shiken Generated" && chapter !== "Engine Generated") continue;
+  const firstVal = Object.values(data)[0];
 
-    let opts: string[] = [];
-    if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
-
-    const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
-    const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
-
-    results.push({
-      key,
-      english: String(q.english ?? q.question_english ?? q.question ?? ""),
-      hindi: String(q.hindi ?? q.question_hindi ?? ""),
-      options: opts,
-      correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
-      chapter,
-    });
+  if (isQuestionLike(firstVal)) {
+    // Old flat structure: { pushId: question }
+    for (const [key, raw] of Object.entries(data)) {
+      const q = raw as Record<string, unknown>;
+      const chapter = String(q.chapter ?? q.chapter_name ?? "");
+      if (!isAIChapter(chapter, "")) continue;
+      let opts: string[] = [];
+      if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
+      const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
+      const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
+      results.push({
+        key,
+        english: String(q.english ?? q.question_english ?? q.question ?? ""),
+        hindi: String(q.hindi ?? q.question_hindi ?? ""),
+        options: opts,
+        correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
+        chapter,
+      });
+    }
+  } else {
+    // New nested structure: { chapterSlug: { pushId: question } }
+    for (const [chapterSlug, chapterNode] of Object.entries(data)) {
+      if (typeof chapterNode !== "object" || chapterNode === null) continue;
+      for (const [pushId, raw] of Object.entries(chapterNode as Record<string, unknown>)) {
+        const q = raw as Record<string, unknown>;
+        const chapter = String(q.chapter ?? q.chapter_name ?? chapterSlug.replace(/_/g, " ") ?? "");
+        if (!isAIChapter(chapter, chapterSlug)) continue;
+        let opts: string[] = [];
+        if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
+        const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
+        const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
+        results.push({
+          key: `${chapterSlug}/${pushId}`,
+          english: String(q.english ?? q.question_english ?? q.question ?? ""),
+          hindi: String(q.hindi ?? q.question_hindi ?? ""),
+          options: opts,
+          correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
+          chapter: chapter || "Shiken Generated",
+        });
+      }
+    }
   }
   return results;
 }
@@ -1797,21 +1851,21 @@ function QuestionsBankPanel() {
 
 const PDF_SUBJECTS: Record<"c10" | "c12" | "entrance", Array<{ id: string; label: string; icon: string; accent: string; path: string; exam?: "jee" | "neet" }>> = {
   c10: [
-    { id: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", path: "maths" },
-    { id: "english",  label: "English",        icon: "📖", accent: "#8b5cf6", path: "english" },
-    { id: "hindi",    label: "Hindi",          icon: "🔤", accent: "#f97316", path: "hindi" },
-    { id: "science",  label: "Science",        icon: "🔬", accent: "#10b981", path: "science" },
-    { id: "social",   label: "Social Science", icon: "🌍", accent: "#f59e0b", path: "social science" },
-    { id: "sanskrit", label: "Sanskrit",       icon: "📜", accent: "#ec4899", path: "sanskrit" },
+    { id: "maths",    label: "Maths",          icon: "📐", accent: "#06b6d4", path: "questions/class10/maths" },
+    { id: "english",  label: "English",        icon: "📖", accent: "#8b5cf6", path: "questions/class10/english" },
+    { id: "hindi",    label: "Hindi",          icon: "🔤", accent: "#f97316", path: "questions/class10/hindi" },
+    { id: "science",  label: "Science",        icon: "🔬", accent: "#10b981", path: "questions/class10/science" },
+    { id: "social",   label: "Social Science", icon: "🌍", accent: "#f59e0b", path: "questions/class10/social_science" },
+    { id: "sanskrit", label: "Sanskrit",       icon: "📜", accent: "#ec4899", path: "questions/class10/sanskrit" },
   ],
   c12: [
-    { id: "physics",   label: "Physics",   icon: "⚡", accent: "#3b82f6", path: "class12/physics" },
-    { id: "chemistry", label: "Chemistry", icon: "🧪", accent: "#10b981", path: "class12/chemistry" },
-    { id: "biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", path: "class12/biology" },
-    { id: "maths12",   label: "Maths",     icon: "📐", accent: "#06b6d4", path: "class12/maths" },
-    { id: "social12",  label: "Social",    icon: "🌍", accent: "#f59e0b", path: "class12/social" },
-    { id: "hindi12",   label: "Hindi",     icon: "🔤", accent: "#f97316", path: "class12/hindi" },
-    { id: "english12", label: "English",   icon: "📖", accent: "#8b5cf6", path: "class12/english" },
+    { id: "physics",   label: "Physics",   icon: "⚡", accent: "#3b82f6", path: "questions/class12/physics" },
+    { id: "chemistry", label: "Chemistry", icon: "🧪", accent: "#10b981", path: "questions/class12/chemistry" },
+    { id: "biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", path: "questions/class12/biology" },
+    { id: "maths12",   label: "Maths",     icon: "📐", accent: "#06b6d4", path: "questions/class12/maths" },
+    { id: "social12",  label: "Social",    icon: "🌍", accent: "#f59e0b", path: "questions/class12/social" },
+    { id: "hindi12",   label: "Hindi",     icon: "🔤", accent: "#f97316", path: "questions/class12/hindi" },
+    { id: "english12", label: "English",   icon: "📖", accent: "#8b5cf6", path: "questions/class12/english" },
   ],
   entrance: [
     { id: "jee_physics",    label: "JEE Physics",    icon: "⚡", accent: "#3b82f6", path: "entrance_exams/jee/physics",    exam: "jee" },
@@ -1883,11 +1937,12 @@ function PDFImportPanel() {
 
   async function handleSave() {
     const path = activeSub.path;
+    const chapterSlug = toChapterSlug(chapter.trim() || "general");
     setStep("saving"); setSavedCount(0);
     let saved = 0;
     for (const q of questions) {
       try {
-        await push(ref(db, path), {
+        await push(ref(db, `${path}/${chapterSlug}`), {
           english:      q.english,
           hindi:        q.hindi,
           options:      q.options,
@@ -2122,21 +2177,21 @@ function PDFImportPanel() {
 
 const CLASS_UPLOAD_SUBJECTS: Record<"c10" | "c12" | "entrance", Record<string, { label: string; path: string; accent: string; exam?: "jee" | "neet" }>> = {
   c10: {
-    maths:    { label: "Maths",          path: "maths",          accent: "#06b6d4" },
-    english:  { label: "English",        path: "english",        accent: "#8b5cf6" },
-    hindi:    { label: "Hindi",          path: "hindi",          accent: "#f97316" },
-    science:  { label: "Science",        path: "science",        accent: "#10b981" },
-    social:   { label: "Social Science", path: "social science", accent: "#f59e0b" },
-    sanskrit: { label: "Sanskrit",       path: "sanskrit",       accent: "#ec4899" },
+    maths:    { label: "Maths",          path: "questions/class10/maths",          accent: "#06b6d4" },
+    english:  { label: "English",        path: "questions/class10/english",        accent: "#8b5cf6" },
+    hindi:    { label: "Hindi",          path: "questions/class10/hindi",          accent: "#f97316" },
+    science:  { label: "Science",        path: "questions/class10/science",        accent: "#10b981" },
+    social:   { label: "Social Science", path: "questions/class10/social_science", accent: "#f59e0b" },
+    sanskrit: { label: "Sanskrit",       path: "questions/class10/sanskrit",       accent: "#ec4899" },
   },
   c12: {
-    physics:   { label: "Physics",   path: "class12/physics",   accent: "#3b82f6" },
-    chemistry: { label: "Chemistry", path: "class12/chemistry", accent: "#10b981" },
-    biology:   { label: "Biology",   path: "class12/biology",   accent: "#22c55e" },
-    maths12:   { label: "Maths",     path: "class12/maths",     accent: "#06b6d4" },
-    social12:  { label: "Social",    path: "class12/social",    accent: "#f59e0b" },
-    hindi12:   { label: "Hindi",     path: "class12/hindi",     accent: "#f97316" },
-    english12: { label: "English",   path: "class12/english",   accent: "#8b5cf6" },
+    physics:   { label: "Physics",   path: "questions/class12/physics",   accent: "#3b82f6" },
+    chemistry: { label: "Chemistry", path: "questions/class12/chemistry", accent: "#10b981" },
+    biology:   { label: "Biology",   path: "questions/class12/biology",   accent: "#22c55e" },
+    maths12:   { label: "Maths",     path: "questions/class12/maths",     accent: "#06b6d4" },
+    social12:  { label: "Social",    path: "questions/class12/social",    accent: "#f59e0b" },
+    hindi12:   { label: "Hindi",     path: "questions/class12/hindi",     accent: "#f97316" },
+    english12: { label: "English",   path: "questions/class12/english",   accent: "#8b5cf6" },
   },
   entrance: {
     jee_physics:    { label: "JEE Physics",    path: "entrance_exams/jee/physics",    accent: "#3b82f6", exam: "jee" },
@@ -2237,8 +2292,9 @@ function UploadPanel() {
         payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
         payload.correct_answer = ["A","B","C","D"][q.answerIndex] ?? "A";
       }
+      const chSlug = toChapterSlug(q.chapter || "general");
       try {
-        await push(ref(db, dbPath), payload);
+        await push(ref(db, `${dbPath}/${chSlug}`), payload);
         successCount++;
       } catch { /* skip failed */ }
     }
@@ -2516,8 +2572,8 @@ function UploadPanel() {
 // ─── Full Mock Upload Panel ──────────────────────────────────────────────────────────────────
 
 const FULL_MOCK_META = {
-  jee:  { label: "JEE", accent: "#3b82f6", dbPath: "jee_full_mock" },
-  neet: { label: "NEET", accent: "#10b981", dbPath: "neet_full_mock" },
+  jee:  { label: "JEE",  accent: "#3b82f6" },
+  neet: { label: "NEET", accent: "#10b981" },
 } as const;
 
 interface FullMockQuestion {
@@ -2599,14 +2655,17 @@ function FullMockUploadPanel() {
         payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
         payload.correct_answer = ["A", "B", "C", "D"][q.answerIndex] ?? "A";
       }
+      const subjectSlug = q.subject ? q.subject.toLowerCase().trim().replace(/\s+/g, "_") : "general";
+      const chSlug = toChapterSlug(q.chapter || "full_mock_test");
+      const writePath = `entrance_exams/${exam}/${subjectSlug}/${chSlug}`;
       try {
-        await push(ref(db, meta.dbPath), payload);
+        await push(ref(db, writePath), payload);
         successCount++;
       } catch { /* skip failed */ }
     }
     setSaving(false);
     if (successCount === qs.length) {
-      setStatus({ type: "ok", msg: `\u2705 ${successCount} questions uploaded to ${meta.label} Full Mock (${test_id})!` });
+      setStatus({ type: "ok", msg: `✅ ${successCount} questions uploaded to ${meta.label} Full Mock (${test_id})!` });
       setBulkJson("");
     } else {
       setStatus({ type: "err", msg: `\u26a0\ufe0f ${successCount}/${qs.length} uploaded. Check Firebase rules.` });

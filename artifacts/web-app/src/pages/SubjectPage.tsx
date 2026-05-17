@@ -179,22 +179,22 @@ const CHAPTER_ICONS: Record<string, string> = {
 function getChapterIcon(name: string) { return CHAPTER_ICONS[name] ?? "📂"; }
 
 const subjectMeta: Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }> = {
-  maths:   { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "maths"          },
-  english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "📖", accent: "#8b5cf6", path: "english"        },
-  hindi:   { label: "Hindi",          labelHindi: "हिंदी",             icon: "🔤", accent: "#f97316", path: "hindi"          },
-  science: { label: "Science",        labelHindi: "विज्ञान",           icon: "🔬", accent: "#10b981", path: "science"        },
-  social:  { label: "Social Science", labelHindi: "सामाजिक विज्ञान",  icon: "🌍", accent: "#f59e0b", path: "social science" },
-  sanskrit:{ label: "Sanskrit",       labelHindi: "संस्कृत",           icon: "📜", accent: "#ec4899", path: "sanskrit"       },
+  maths:   { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "questions/class10/maths"           },
+  english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "📖", accent: "#8b5cf6", path: "questions/class10/english"         },
+  hindi:   { label: "Hindi",          labelHindi: "हिंदी",             icon: "🔤", accent: "#f97316", path: "questions/class10/hindi"           },
+  science: { label: "Science",        labelHindi: "विज्ञान",           icon: "🔬", accent: "#10b981", path: "questions/class10/science"         },
+  social:  { label: "Social Science", labelHindi: "सामाजिक विज्ञान",  icon: "🌍", accent: "#f59e0b", path: "questions/class10/social_science"  },
+  sanskrit:{ label: "Sanskrit",       labelHindi: "संस्कृत",           icon: "📜", accent: "#ec4899", path: "questions/class10/sanskrit"        },
 };
 
 const class12SubjectMeta: Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }> = {
-  physics:   { label: "Physics",        labelHindi: "भौतिकी",          icon: "⚡", accent: "#3b82f6", path: "class12/physics"   },
-  chemistry: { label: "Chemistry",      labelHindi: "रसायन विज्ञान",   icon: "⚗️", accent: "#10b981", path: "class12/chemistry" },
-  biology:   { label: "Biology",        labelHindi: "जीव विज्ञान",     icon: "🌿", accent: "#22c55e", path: "class12/biology"   },
-  maths:     { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "class12/maths"     },
-  social:    { label: "Social Science", labelHindi: "सामाजिक विज्ञान", icon: "🌍", accent: "#f59e0b", path: "class12/social"    },
-  hindi:     { label: "Hindi",          labelHindi: "हिंदी",            icon: "🔤", accent: "#f97316", path: "class12/hindi"     },
-  english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "📖", accent: "#8b5cf6", path: "class12/english"   },
+  physics:   { label: "Physics",        labelHindi: "भौतिकी",          icon: "⚡", accent: "#3b82f6", path: "questions/class12/physics"   },
+  chemistry: { label: "Chemistry",      labelHindi: "रसायन विज्ञान",   icon: "⚗️", accent: "#10b981", path: "questions/class12/chemistry" },
+  biology:   { label: "Biology",        labelHindi: "जीव विज्ञान",     icon: "🌿", accent: "#22c55e", path: "questions/class12/biology"   },
+  maths:     { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "questions/class12/maths"     },
+  social:    { label: "Social Science", labelHindi: "सामाजिक विज्ञान", icon: "🌍", accent: "#f59e0b", path: "questions/class12/social"    },
+  hindi:     { label: "Hindi",          labelHindi: "हिंदी",            icon: "🔤", accent: "#f97316", path: "questions/class12/hindi"     },
+  english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "📖", accent: "#8b5cf6", path: "questions/class12/english"   },
 };
 
 const entranceSubjectMeta: Record<string, Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }>> = {
@@ -392,6 +392,13 @@ function pick<T>(arr: T[], n: number): T[] {
   return shuffle(arr).slice(0, n);
 }
 
+function toChapterSlug(chapter: string): string {
+  return chapter.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "general";
+}
+
 // Resolves the correct answer index across all Firebase schemas
 function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number {
   const raw = q.correct_answer ?? q.correctAnswer ?? q.answer;
@@ -427,12 +434,42 @@ function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number 
 }
 
 function parseQuestions(data: unknown, subject = "", classId = "10"): Question[] {
-  const raw =
-    typeof data === "object" && data !== null && !Array.isArray(data)
-      ? Object.values(data as Record<string, unknown>)
-      : Array.isArray(data) ? data : [];
+  if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
 
-  return (raw as Record<string, unknown>[]).map((q) => {
+  const dataObj = data as Record<string, unknown>;
+
+  // Detect if a value looks like a question entry
+  const isQuestionLike = (v: unknown): boolean => {
+    if (typeof v !== "object" || v === null) return false;
+    const q = v as Record<string, unknown>;
+    return !!(q.english || q.question || q.question_english || q.hindi);
+  };
+
+  // Collect [raw question object, optional chapter hint from slug]
+  const pairs: Array<[Record<string, unknown>, string | undefined]> = [];
+
+  const firstVal = Object.values(dataObj)[0];
+  if (isQuestionLike(firstVal)) {
+    // Old flat format: { pushId: question }
+    for (const v of Object.values(dataObj)) {
+      if (typeof v === "object" && v !== null) {
+        pairs.push([v as Record<string, unknown>, undefined]);
+      }
+    }
+  } else {
+    // New nested format: { chapterSlug: { pushId: question } }
+    for (const [chapterSlug, chapterNode] of Object.entries(dataObj)) {
+      if (typeof chapterNode === "object" && chapterNode !== null) {
+        for (const v of Object.values(chapterNode as Record<string, unknown>)) {
+          if (isQuestionLike(v)) {
+            pairs.push([v as Record<string, unknown>, chapterSlug.replace(/_/g, " ")]);
+          }
+        }
+      }
+    }
+  }
+
+  return pairs.map(([q, chapterHint]) => {
     // ── Options ──────────────────────────────────────────────────────────────
     let opts: string[] = [];
     if (Array.isArray(q.options)) {
@@ -467,21 +504,17 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     }
 
     // ── Normalize mislabeled fields ───────────────────────────────────────────
-    // Some subjects (e.g. English) store question text only in the `hindi` field.
-    // If english is empty and hindi contains no Devanagari script, it's an
-    // English question stored in the wrong field — move it to english.
     const devanagariRe = /[\u0900-\u097F]/;
     if (!english && hindi && !devanagariRe.test(hindi)) {
       english = hindi;
       hindi   = "";
     }
-    // If both fields are identical (Shiken Engine sometimes echoes same text), clear hindi.
     if (hindi && hindi === english) {
       hindi = "";
     }
 
     // ── Chapter ───────────────────────────────────────────────────────────────
-    const rawChapter = String(q.chapter ?? q.chapter_name ?? "General");
+    const rawChapter = String(q.chapter ?? q.chapter_name ?? chapterHint ?? "General");
     const chapter = normalizeChapter(subject, classId, rawChapter);
 
     return { english, hindi, options: opts, answerIndex, chapter };
@@ -2059,7 +2092,7 @@ export default function SubjectPage() {
         (q) => q.english && !existingSet.has(q.english.toLowerCase().trim().slice(0, 80))
       );
       for (const q of newOnes) {
-        await push(subjectRef, {
+        await push(ref(db, `${dbPath}/shiken_generated`), {
           english: q.english,
           hindi: q.hindi || "",
           options: q.options,
