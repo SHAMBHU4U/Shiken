@@ -200,6 +200,49 @@ function saveMockScore(
   } catch { /* never block result screen */ }
 }
 
+// ─── Mock Progress Persistence ────────────────────────────────────────────────
+
+interface SavedProgress {
+  examType: ExamType;
+  isDemo: boolean;
+  subjectStatus: Record<string, SubjectLoadState>;
+  questionsBySubject: Record<string, MockQuestion[]>;
+  currentIdxBySubject: Record<string, number>;
+  answers: Record<string, UserAnswer>;
+  timeLeft: number;
+  activeSubject: string;
+  savedAt: number;
+}
+
+function progressKey(examType: ExamType, isDemo: boolean) {
+  return `shiken_mock_progress_${examType}${isDemo ? "_demo" : ""}`;
+}
+
+function saveMockProgress(data: SavedProgress) {
+  try {
+    localStorage.setItem(progressKey(data.examType, data.isDemo), JSON.stringify(data));
+  } catch { /* quota exceeded */ }
+}
+
+function loadMockProgress(examType: ExamType, isDemo: boolean): SavedProgress | null {
+  try {
+    const raw = localStorage.getItem(progressKey(examType, isDemo));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedProgress;
+    if (parsed.examType !== examType || parsed.isDemo !== isDemo) return null;
+    // Discard if older than 24h
+    if (Date.now() - (parsed.savedAt ?? 0) > 24 * 60 * 60 * 1000) {
+      clearMockProgress(examType, isDemo);
+      return null;
+    }
+    return parsed;
+  } catch { return null; }
+}
+
+function clearMockProgress(examType: ExamType, isDemo: boolean) {
+  try { localStorage.removeItem(progressKey(examType, isDemo)); } catch { /* */ }
+}
+
 // ─── Subject Skeleton Loader ──────────────────────────────────────────────────
 
 function SubjectSkeletonLoader({ label, accent }: { label: string; accent: string }) {
@@ -672,21 +715,38 @@ export default function MockTestPage() {
   const isDemo = new URLSearchParams(window.location.search).get("demo") === "true" && !isPremium;
   const demoTimeSec = cfg.subjects.length * DEMO_QUESTIONS_PER_SUBJECT * 60;
 
+  // ── Try restore saved progress ──────────────────────────────────────────────
+  const saved = useRef(loadMockProgress(examType, isDemo));
+  const hasSave = !!saved.current;
+
   // ── Core state ───────────────────────────────────────────────────────────────
   const [phase, setPhase] = useState<"quiz" | "result">("quiz");
   const [loadKey, setLoadKey] = useState(0);
+  const [showResumeBanner, setShowResumeBanner] = useState(hasSave);
 
   // Per-subject lazy loading — questions arrive independently
   const [subjectStatus, setSubjectStatus] = useState<Record<string, SubjectLoadState>>(() =>
-    Object.fromEntries(cfg.subjects.map((s) => [s.id, "pending"]))
+    hasSave
+      ? saved.current!.subjectStatus
+      : Object.fromEntries(cfg.subjects.map((s) => [s.id, "pending"]))
   );
-  const [questionsBySubject, setQuestionsBySubject] = useState<Record<string, MockQuestion[]>>({});
+  const [questionsBySubject, setQuestionsBySubject] = useState<Record<string, MockQuestion[]>>(
+    () => (hasSave ? saved.current!.questionsBySubject : {})
+  );
 
   // Quiz UI state
-  const [activeSubject, setActiveSubject] = useState(cfg.subjects[0].id);
-  const [currentIdxBySubject, setCurrentIdxBySubject] = useState<Record<string, number>>({});
-  const [answers, setAnswers] = useState<Record<string, UserAnswer>>({});
-  const [timeLeft, setTimeLeft] = useState(isDemo ? demoTimeSec : 3 * 60 * 60);
+  const [activeSubject, setActiveSubject] = useState(() =>
+    hasSave ? saved.current!.activeSubject : cfg.subjects[0].id
+  );
+  const [currentIdxBySubject, setCurrentIdxBySubject] = useState<Record<string, number>>(
+    () => (hasSave ? saved.current!.currentIdxBySubject : {})
+  );
+  const [answers, setAnswers] = useState<Record<string, UserAnswer>>(
+    () => (hasSave ? saved.current!.answers : {})
+  );
+  const [timeLeft, setTimeLeft] = useState(
+    hasSave ? saved.current!.timeLeft : (isDemo ? demoTimeSec : 3 * 60 * 60)
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [langMode, setLangMode] = useState<"both" | "en" | "hi">("both");
 
@@ -824,6 +884,27 @@ export default function MockTestPage() {
     return () => clearInterval(interval);
   }, [phase]);
 
+  // ── Auto-save progress every 3s ───────────────────────────────────────────────
+
+  useEffect(() => {
+    if (phase !== "quiz") return;
+    const id = setInterval(() => {
+      saveMockProgress({
+        examType,
+        isDemo,
+        subjectStatus,
+        questionsBySubject,
+        currentIdxBySubject,
+        answers,
+        timeLeft,
+        activeSubject,
+        savedAt: Date.now(),
+      });
+    }, 3000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, examType, isDemo, subjectStatus, questionsBySubject, currentIdxBySubject, answers, timeLeft, activeSubject]);
+
   // ── Derived state ─────────────────────────────────────────────────────────────
 
   // Flat list for result screens
@@ -900,7 +981,7 @@ export default function MockTestPage() {
           subjects={cfg.subjects}
           allQuestions={allQuestions}
           answers={answers}
-          onHome={() => navigate("/")}
+          onHome={() => { clearMockProgress(examType, isDemo); navigate("/"); }}
         />
       );
     }
@@ -911,13 +992,14 @@ export default function MockTestPage() {
         allQuestions={allQuestions}
         answers={answers}
         onRetry={() => {
+          clearMockProgress(examType, isDemo);
           setAnswers({});
           setCurrentIdxBySubject({});
           setTimeLeft(3 * 60 * 60);
           setPhase("quiz");
           setLoadKey((k) => k + 1);
         }}
-        onHome={() => navigate("/")}
+        onHome={() => { clearMockProgress(examType, isDemo); navigate("/"); }}
       />
     );
   }
@@ -937,7 +1019,7 @@ export default function MockTestPage() {
 
         {/* Timer row */}
         <div className="flex items-center justify-between px-4 py-2">
-          <button onClick={() => navigate("/")} className="text-white/30 hover:text-white/60 text-xs transition-colors">
+          <button onClick={() => { clearMockProgress(examType, isDemo); navigate("/"); }} className="text-white/30 hover:text-white/60 text-xs transition-colors">
             ✕ Exit
           </button>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl"
@@ -945,13 +1027,40 @@ export default function MockTestPage() {
             <span className="text-[11px] font-bold" style={{ color: timerColor }}>⏱ {formatTime(timeLeft)}</span>
           </div>
           <button
-            onClick={() => setPhase("result")}
+            onClick={() => { clearMockProgress(examType, isDemo); setPhase("result"); }}
             className="text-xs font-bold px-3 py-1.5 rounded-xl text-white"
             style={{ background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", boxShadow: "0 2px 10px rgba(59,130,246,0.35)" }}
           >
             Submit →
           </button>
         </div>
+
+        {/* Resume banner */}
+        <AnimatePresence>
+          {showResumeBanner && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-emerald-400 text-[11px] font-bold">
+                  ↺ Resumed from last session — progress restored
+                </span>
+                <button
+                  onClick={() => {
+                    clearMockProgress(examType, isDemo);
+                    setShowResumeBanner(false);
+                  }}
+                  className="text-emerald-400/60 hover:text-emerald-400 text-[11px] underline"
+                >
+                  discard
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Demo banner */}
         {isDemo && (
