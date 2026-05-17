@@ -186,6 +186,27 @@ const PLANS = [
       "6 months access",
     ],
   },
+  {
+    id: "board_premium_6month",
+    name: "Board Premium (Class 10 / 12)",
+    price: "₹199",
+    amount: 199,
+    days: 180,
+    period: "6 months",
+    perMonth: "₹33/माह",
+    tag: "🔥 Best Value" as string | null,
+    accent: "#f59e0b",
+    emoji: "🎯",
+    singleSubject: false,
+    category: "class10_12" as const,
+    features: [
+      "Unlimited Chapter-wise Tests",
+      "Board Pattern Mock Tests",
+      "Previous Year Questions (PYQs)",
+      "Detailed AI Explanations",
+      "6 months full access",
+    ],
+  },
 ];
 
 const SUBJECT_OPTIONS = [
@@ -672,7 +693,7 @@ export default function PricingPage() {
                 style={{
                   background: plan.singleSubject && !subjectForPlan[plan.id]
                     ? "rgba(255,255,255,0.06)"
-                    : `linear-gradient(135deg, ${plan.accent}, ${plan.id === "c10_monthly" ? "#6366f1" : plan.id === "c10_6month" ? "#059669" : "#d97706"})`,
+                    : `linear-gradient(135deg, ${plan.accent}, ${plan.id === "c10_monthly" ? "#6366f1" : plan.id === "c10_6month" ? "#059669" : plan.id === "board_premium_6month" ? "#d97706" : "#d97706"})`,
                   color: plan.singleSubject && !subjectForPlan[plan.id] ? "rgba(255,255,255,0.20)" : "#000",
                   boxShadow: plan.singleSubject && !subjectForPlan[plan.id] ? "none" : `0 4px 20px ${plan.accent}40`,
                   cursor: plan.singleSubject && !subjectForPlan[plan.id] ? "not-allowed" : "pointer",
