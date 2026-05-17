@@ -1,17 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useLocation } from "wouter";
 import { db, auth } from "@/firebase";
 import { ref, get, set, push } from "firebase/database";
 import MathText from "@/components/MathText";
 import { useSubscription } from "@/hooks/useSubscription";
-import { useAuth } from "@/contexts/AuthContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ExamType = "jee" | "neet";
 type Section = "A" | "B";
-type AssemblyStatus = "pending" | "loading" | "done" | "error";
+type SubjectLoadState = "pending" | "loading" | "done" | "error";
 
 interface MockQuestion {
   id: string;
@@ -136,14 +135,12 @@ async function generateFromAPI(
 function scoreQuestion(q: MockQuestion, answer: UserAnswer | undefined): number {
   if (!answer) return 0;
   if (q.section === "B") {
-    // JEE Section B: +4 correct, 0 wrong (no negative per latest NTA guidelines)
     if (!answer.numericalInput?.trim()) return 0;
     const userVal = parseFloat(answer.numericalInput.trim());
     const correctVal = parseFloat(q.correctNumerical ?? "NaN");
     if (isNaN(userVal) || isNaN(correctVal)) return 0;
     return Math.abs(userVal - correctVal) < 0.01 ? 4 : 0;
   } else {
-    // MCQ: +4 correct, -1 incorrect
     if (answer.selectedIndex === undefined) return 0;
     return answer.selectedIndex === q.answerIndex ? 4 : -1;
   }
@@ -203,93 +200,79 @@ function saveMockScore(
   } catch { /* never block result screen */ }
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Subject Skeleton Loader ──────────────────────────────────────────────────
 
-function AssemblingScreen({
-  examName,
-  subjects,
-  progress,
-}: {
-  examName: string;
-  subjects: SubjectCfg[];
-  progress: Record<string, { status: AssemblyStatus; loaded: number; total: number }>;
-}) {
-  const allDone = subjects.every((s) => progress[s.id]?.status === "done" || progress[s.id]?.status === "error");
-
+function SubjectSkeletonLoader({ label, accent }: { label: string; accent: string }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 gap-8" style={{ background: "#07080f" }}>
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
-          style={{ background: "radial-gradient(circle, #3b82f6, transparent)" }} />
+    <div className="max-w-lg mx-auto px-4 py-6">
+      <style>{`
+        @keyframes sk-shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+        .sk-pulse {
+          position: relative;
+          overflow: hidden;
+        }
+        .sk-pulse::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.07) 50%, transparent 100%);
+          animation: sk-shimmer 1.6s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Q number + flag skeleton */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="sk-pulse h-3 w-20 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+        <div className="sk-pulse h-5 w-5 rounded-lg" style={{ background: "rgba(255,255,255,0.06)" }} />
       </div>
 
-      <div className="relative z-10 w-full max-w-md text-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: allDone ? 0 : Infinity, ease: "linear" }}
-          className="w-16 h-16 rounded-2xl mx-auto mb-6 flex items-center justify-center text-3xl"
-          style={{ background: "rgba(59,130,246,0.15)", border: "1.5px solid rgba(59,130,246,0.4)" }}
-        >
-          📋
-        </motion.div>
-
-        <h2 className="text-white font-black text-xl mb-1">Assembling Mock Test</h2>
-        <p className="text-white/40 text-sm mb-6">
-          Assembling Full Length Mock Test based on latest NTA pattern...
-        </p>
-
-        <div className="flex flex-col gap-3">
-          {subjects.map((sub) => {
-            const p = progress[sub.id] ?? { status: "pending", loaded: 0, total: sub.sectionA + sub.sectionB };
-            return (
-              <div
-                key={sub.id}
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
-              >
-                <span className="text-xl w-8 text-center">{sub.emoji}</span>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-white text-sm font-semibold">{sub.label}</span>
-                    <span className="text-white/40 text-xs">
-                      {p.status === "done" ? `${p.total} questions` :
-                       p.status === "loading" ? `${p.loaded}/${p.total}...` :
-                       p.status === "error" ? "Error" : "Waiting..."}
-                    </span>
-                  </div>
-                  <div className="w-full h-1 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
-                    <motion.div
-                      className="h-full rounded-full"
-                      style={{ background: sub.accent }}
-                      animate={{ width: p.status === "done" ? "100%" : p.status === "loading" ? `${Math.max(15, (p.loaded / p.total) * 100)}%` : "0%" }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  </div>
-                </div>
-                <span className="text-lg shrink-0">
-                  {p.status === "done" ? "✅" :
-                   p.status === "loading" ? (
-                     <motion.span
-                       animate={{ rotate: 360 }}
-                       transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                       className="inline-block w-5 h-5 rounded-full border-2 border-transparent"
-                       style={{ borderTopColor: sub.accent, borderRightColor: `${sub.accent}50` }}
-                     />
-                   ) :
-                   p.status === "error" ? "⚠️" : "⏳"}
-                </span>
-              </div>
-            );
-          })}
+      {/* Question text box skeleton */}
+      <div className="mb-6 p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <div className="flex flex-col gap-2.5">
+          <div className="sk-pulse h-3 w-full rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <div className="sk-pulse h-3 w-5/6 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
+          <div className="sk-pulse h-3 w-3/4 rounded-full" style={{ background: "rgba(255,255,255,0.06)" }} />
+          <div className="sk-pulse h-3 w-2/3 rounded-full mt-1" style={{ background: "rgba(255,255,255,0.05)" }} />
         </div>
+      </div>
 
-        <p className="text-white/20 text-xs mt-6">
-          Fetching from question bank + generating fresh Shiken Engine questions...
-        </p>
+      {/* Option skeletons */}
+      <div className="flex flex-col gap-2.5">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="p-4 rounded-2xl"
+            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", opacity: 1 - i * 0.12 }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="sk-pulse w-7 h-7 rounded-lg shrink-0" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <div className="sk-pulse h-3 rounded-full flex-1" style={{ background: "rgba(255,255,255,0.07)", width: `${72 - i * 8}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Loading label */}
+      <div className="mt-8 flex flex-col items-center gap-3">
+        <div className="flex items-center gap-2">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-4 h-4 rounded-full border-2 border-transparent"
+            style={{ borderTopColor: accent, borderRightColor: `${accent}55` }}
+          />
+          <p className="text-white/30 text-xs font-medium">Assembling {label} questions in background…</p>
+        </div>
+        <p className="text-white/15 text-[11px]">Timer is running — you can answer other subjects</p>
       </div>
     </div>
   );
 }
+
+// ─── Result Screen ────────────────────────────────────────────────────────────
 
 function ResultScreen({
   examType,
@@ -327,9 +310,8 @@ function ResultScreen({
           if (s > 0) correct++;
           else if (s < 0) incorrect++;
           else {
-            // JEE numerical wrong = 0, not incorrect
             if (q.section === "A") incorrect++;
-            else skipped++; // treated as skipped for display
+            else skipped++;
           }
         } else {
           skipped++;
@@ -365,7 +347,7 @@ function ResultScreen({
           <p className="text-white/40 text-sm">परिणाम • Result</p>
         </motion.div>
 
-        {/* Score ring */}
+        {/* Score */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -460,7 +442,6 @@ function ResultScreen({
           })}
         </div>
 
-        {/* Marking scheme info */}
         <div className="rounded-2xl p-4 mb-6"
           style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="text-white/30 text-xs text-center">
@@ -544,7 +525,6 @@ function DemoUpgradeScreen({
           <p className="text-white/40 text-sm">आपने {allQuestions.length} प्रश्न पूरे किए • Demo Finished</p>
         </motion.div>
 
-        {/* Score card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -576,7 +556,6 @@ function DemoUpgradeScreen({
           </div>
         </motion.div>
 
-        {/* Per-subject breakdown */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -599,7 +578,6 @@ function DemoUpgradeScreen({
           })}
         </motion.div>
 
-        {/* Upgrade CTA */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -655,7 +633,6 @@ function DemoUpgradeScreen({
           </motion.button>
         </motion.div>
 
-        {/* Retry demo / Home */}
         <div className="flex gap-3">
           <button
             onClick={onHome}
@@ -692,117 +669,149 @@ export default function MockTestPage() {
   const cfg = EXAM_CONFIG[examType];
   const { isPremium } = useSubscription();
 
-  // Demo mode: if ?demo=true is in URL and user is not premium
   const isDemo = new URLSearchParams(window.location.search).get("demo") === "true" && !isPremium;
-  const demoTimeSec = cfg.subjects.length * DEMO_QUESTIONS_PER_SUBJECT * 60; // 1 min per question
+  const demoTimeSec = cfg.subjects.length * DEMO_QUESTIONS_PER_SUBJECT * 60;
 
-  // Phase
-  const [phase, setPhase] = useState<"assembling" | "quiz" | "result">("assembling");
+  // ── Core state ───────────────────────────────────────────────────────────────
+  const [phase, setPhase] = useState<"quiz" | "result">("quiz");
+  const [loadKey, setLoadKey] = useState(0);
 
-  // Assembly
-  const [assemblyProgress, setAssemblyProgress] = useState<
-    Record<string, { status: AssemblyStatus; loaded: number; total: number }>
-  >({});
-  const [allQuestions, setAllQuestions] = useState<MockQuestion[]>([]);
+  // Per-subject lazy loading — questions arrive independently
+  const [subjectStatus, setSubjectStatus] = useState<Record<string, SubjectLoadState>>(() =>
+    Object.fromEntries(cfg.subjects.map((s) => [s.id, "pending"]))
+  );
+  const [questionsBySubject, setQuestionsBySubject] = useState<Record<string, MockQuestion[]>>({});
 
-  // Quiz
+  // Quiz UI state
   const [activeSubject, setActiveSubject] = useState(cfg.subjects[0].id);
   const [currentIdxBySubject, setCurrentIdxBySubject] = useState<Record<string, number>>({});
   const [answers, setAnswers] = useState<Record<string, UserAnswer>>({});
   const [timeLeft, setTimeLeft] = useState(isDemo ? demoTimeSec : 3 * 60 * 60);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [langMode, setLangMode] = useState<"both" | "en" | "hi">("both");
-  const assemblyRef = useRef(false);
 
-  // ── Assembly logic ──────────────────────────────────────────────────────────
+  // Stable ref to the per-subject loader (reassigned each loadKey cycle)
+  const loaderRef = useRef<((sub: SubjectCfg) => Promise<void>) | null>(null);
 
-  const assembleTest = useCallback(async () => {
-    if (assemblyRef.current) return;
-    assemblyRef.current = true;
-    const collected: MockQuestion[] = [];
+  // ── Lazy subject loader ───────────────────────────────────────────────────────
 
-    for (const sub of cfg.subjects) {
-      const targetCount = isDemo ? DEMO_QUESTIONS_PER_SUBJECT : sub.sectionA + sub.sectionB;
-      setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: 0, total: targetCount } }));
+  useEffect(() => {
+    // Reset per-subject state for this load cycle
+    setSubjectStatus(Object.fromEntries(cfg.subjects.map((s) => [s.id, "pending"])));
+    setQuestionsBySubject({});
+
+    let cancelled = false;
+
+    async function loadSubject(sub: SubjectCfg) {
+      if (cancelled) return;
+      setSubjectStatus((prev) => ({ ...prev, [sub.id]: "loading" }));
 
       try {
+        let qs: MockQuestion[] = [];
+
         if (isDemo) {
-          // ── Demo mode: 5 MCQ questions from cache or API ────────────────────
+          // ── Demo mode: 5 MCQ from cache or API ──────────────────────────────
           const cached = await loadFromCache(examType, sub.id, "A");
-          const fromCache = shuffled(cached).slice(0, Math.min(cached.length, DEMO_QUESTIONS_PER_SUBJECT));
-          const needGen = DEMO_QUESTIONS_PER_SUBJECT - fromCache.length;
-
-          setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: fromCache.length, total: targetCount } }));
-
+          const fromCache = shuffled(cached).slice(0, DEMO_QUESTIONS_PER_SUBJECT);
           let generated: MockQuestion[] = [];
-          if (needGen > 0) {
+          if (fromCache.length < DEMO_QUESTIONS_PER_SUBJECT) {
             try {
-              generated = await generateFromAPI(examType, sub.id, "A", needGen);
-              if (generated.length > 0) await saveToCache(examType, sub.id, "A", generated);
-            } catch { /* ignore generation errors in demo */ }
+              generated = await generateFromAPI(examType, sub.id, "A", DEMO_QUESTIONS_PER_SUBJECT - fromCache.length);
+              if (generated.length > 0) saveToCache(examType, sub.id, "A", generated);
+            } catch { /* use cache fallback silently */ }
           }
-
-          const demoQs = shuffled([...fromCache, ...generated])
+          qs = shuffled([...fromCache, ...generated])
             .slice(0, DEMO_QUESTIONS_PER_SUBJECT)
             .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "A" as Section }));
 
-          collected.push(...demoQs);
-          setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "done", loaded: demoQs.length, total: targetCount } }));
         } else {
-          // ── Full test mode ────────────────────────────────────────────────────
-          let sectionAQuestions: MockQuestion[] = [];
+          // ── Full mode: Section A ─────────────────────────────────────────────
+          let secA: MockQuestion[] = [];
           if (sub.sectionA > 0) {
             const cached = await loadFromCache(examType, sub.id, "A");
+            // Use up to 50% from cache, rest from AI generation
             const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionA * 0.5)));
-            const needGen = sub.sectionA - fromCache.length;
-
-            setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "loading", loaded: fromCache.length, total: targetCount } }));
-
             let generated: MockQuestion[] = [];
-            if (needGen > 0) {
-              generated = await generateFromAPI(examType, sub.id, "A", needGen);
-              if (generated.length > 0) await saveToCache(examType, sub.id, "A", generated);
+            try {
+              const needGen = sub.sectionA - fromCache.length;
+              if (needGen > 0) {
+                generated = await generateFromAPI(examType, sub.id, "A", needGen);
+                if (generated.length > 0) saveToCache(examType, sub.id, "A", generated);
+              }
+            } catch {
+              // API failed — fall back to all available cache instead
+              const fullCache = shuffled(cached);
+              generated = fullCache.slice(fromCache.length, sub.sectionA);
             }
-
-            sectionAQuestions = shuffled([...fromCache, ...generated])
+            secA = shuffled([...fromCache, ...generated])
               .slice(0, sub.sectionA)
               .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "A" as Section }));
           }
 
-          let sectionBQuestions: MockQuestion[] = [];
+          // ── Full mode: Section B ─────────────────────────────────────────────
+          let secB: MockQuestion[] = [];
           if (sub.sectionB > 0) {
             const cached = await loadFromCache(examType, sub.id, "B");
             const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionB * 0.5)));
-            const needGen = sub.sectionB - fromCache.length;
-
             let generated: MockQuestion[] = [];
-            if (needGen > 0) {
-              generated = await generateFromAPI(examType, sub.id, "B", needGen);
-              if (generated.length > 0) await saveToCache(examType, sub.id, "B", generated);
+            try {
+              const needGen = sub.sectionB - fromCache.length;
+              if (needGen > 0) {
+                generated = await generateFromAPI(examType, sub.id, "B", needGen);
+                if (generated.length > 0) saveToCache(examType, sub.id, "B", generated);
+              }
+            } catch {
+              const fullCache = shuffled(cached);
+              generated = fullCache.slice(fromCache.length, sub.sectionB);
             }
-
-            sectionBQuestions = shuffled([...fromCache, ...generated])
+            secB = shuffled([...fromCache, ...generated])
               .slice(0, sub.sectionB)
               .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "B" as Section }));
           }
 
-          const subjectQuestions = [...sectionAQuestions, ...sectionBQuestions];
-          collected.push(...subjectQuestions);
-          setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "done", loaded: subjectQuestions.length, total: targetCount } }));
+          qs = [...secA, ...secB];
         }
+
+        if (!cancelled) {
+          setQuestionsBySubject((prev) => ({ ...prev, [sub.id]: qs }));
+          setSubjectStatus((prev) => ({ ...prev, [sub.id]: qs.length > 0 ? "done" : "error" }));
+        }
+
       } catch (err) {
-        console.error(`Assembly failed for ${sub.id}:`, err);
-        setAssemblyProgress((p) => ({ ...p, [sub.id]: { status: "error", loaded: 0, total: targetCount } }));
+        console.error(`[MockTest] Subject load failed [${sub.id}]:`, err);
+        if (cancelled) return;
+
+        // Last-resort: load everything available from cache
+        try {
+          const cached = await loadFromCache(examType, sub.id, "A");
+          if (cached.length > 0) {
+            const fallback = shuffled(cached)
+              .slice(0, isDemo ? DEMO_QUESTIONS_PER_SUBJECT : sub.sectionA || 10)
+              .map((q) => ({ ...q, id: makeId(), subject: sub.id, section: "A" as Section }));
+            if (!cancelled) {
+              setQuestionsBySubject((prev) => ({ ...prev, [sub.id]: fallback }));
+              setSubjectStatus((prev) => ({ ...prev, [sub.id]: "done" }));
+            }
+          } else {
+            if (!cancelled) setSubjectStatus((prev) => ({ ...prev, [sub.id]: "error" }));
+          }
+        } catch {
+          if (!cancelled) setSubjectStatus((prev) => ({ ...prev, [sub.id]: "error" }));
+        }
       }
     }
 
-    setAllQuestions(collected);
-    setTimeout(() => setPhase("quiz"), 800);
-  }, [examType, isDemo]);
+    // Expose so retry button can call it
+    loaderRef.current = loadSubject;
 
-  useEffect(() => { assembleTest(); }, [assembleTest]);
+    // Load all subjects in parallel — no blocking
+    Promise.all(cfg.subjects.map(loadSubject));
 
-  // ── Timer ───────────────────────────────────────────────────────────────────
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadKey, examType, isDemo]);
+
+  // ── Timer (runs immediately — not gated on loading) ──────────────────────────
 
   useEffect(() => {
     if (phase !== "quiz") return;
@@ -815,14 +824,14 @@ export default function MockTestPage() {
     return () => clearInterval(interval);
   }, [phase]);
 
-  // ── Derived state ───────────────────────────────────────────────────────────
+  // ── Derived state ─────────────────────────────────────────────────────────────
 
-  const questionsBySubject = Object.fromEntries(
-    cfg.subjects.map((s) => [s.id, allQuestions.filter((q) => q.subject === s.id)]),
-  );
+  // Flat list for result screens
+  const allQuestions = cfg.subjects.flatMap((s) => questionsBySubject[s.id] ?? []);
 
   const activeSubjectCfg = cfg.subjects.find((s) => s.id === activeSubject)!;
   const activeQuestions = questionsBySubject[activeSubject] ?? [];
+  const activeStatus = subjectStatus[activeSubject] ?? "pending";
   const currentIdx = currentIdxBySubject[activeSubject] ?? 0;
   const currentQ = activeQuestions[currentIdx];
 
@@ -833,7 +842,12 @@ export default function MockTestPage() {
   function answerMCQ(questionId: string, index: number) {
     setAnswers((prev) => ({
       ...prev,
-      [questionId]: { ...prev[questionId], selectedIndex: prev[questionId]?.selectedIndex === index ? undefined : index, visited: true, flagged: prev[questionId]?.flagged ?? false },
+      [questionId]: {
+        ...prev[questionId],
+        selectedIndex: prev[questionId]?.selectedIndex === index ? undefined : index,
+        visited: true,
+        flagged: prev[questionId]?.flagged ?? false,
+      },
     }));
   }
 
@@ -876,17 +890,7 @@ export default function MockTestPage() {
     }).length;
   }
 
-  // ── Rendering ───────────────────────────────────────────────────────────────
-
-  if (phase === "assembling") {
-    return (
-      <AssemblingScreen
-        examName={cfg.examName}
-        subjects={cfg.subjects}
-        progress={assemblyProgress}
-      />
-    );
-  }
+  // ── Result phase ──────────────────────────────────────────────────────────────
 
   if (phase === "result") {
     if (isDemo) {
@@ -907,21 +911,18 @@ export default function MockTestPage() {
         allQuestions={allQuestions}
         answers={answers}
         onRetry={() => {
-          assemblyRef.current = false;
-          setPhase("assembling");
-          setAllQuestions([]);
           setAnswers({});
           setCurrentIdxBySubject({});
           setTimeLeft(3 * 60 * 60);
-          setAssemblyProgress({});
-          assembleTest();
+          setPhase("quiz");
+          setLoadKey((k) => k + 1);
         }}
         onHome={() => navigate("/")}
       />
     );
   }
 
-  // ── Quiz Screen ─────────────────────────────────────────────────────────────
+  // ── Quiz Screen ───────────────────────────────────────────────────────────────
 
   const timerColor = timeLeft <= 600 ? "#ef4444" : timeLeft <= 1800 ? "#f59e0b" : "#10b981";
   const attemptedCount = getAttemptedCount(activeSubject);
@@ -972,8 +973,11 @@ export default function MockTestPage() {
         <div className="flex border-t border-white/5">
           {cfg.subjects.map((sub) => {
             const isActive = sub.id === activeSubject;
+            const status = subjectStatus[sub.id] ?? "pending";
             const subAttempted = getAttemptedCount(sub.id);
             const subTotal = (questionsBySubject[sub.id] ?? []).length;
+            const isLoading = status === "loading" || status === "pending";
+
             return (
               <button
                 key={sub.id}
@@ -982,7 +986,23 @@ export default function MockTestPage() {
                 style={{ color: isActive ? sub.accent : "rgba(255,255,255,0.30)", borderBottom: `2px solid ${isActive ? sub.accent : "transparent"}` }}
               >
                 <span>{sub.emoji} {sub.label}</span>
-                <span className="text-[9px] mt-0.5 opacity-70">{subAttempted}/{subTotal}</span>
+                <span className="text-[9px] mt-0.5 opacity-70 flex items-center gap-0.5">
+                  {isLoading ? (
+                    <>
+                      <motion.span
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+                        className="inline-block w-2.5 h-2.5 rounded-full border border-transparent"
+                        style={{ borderTopColor: isActive ? sub.accent : "rgba(255,255,255,0.35)" }}
+                      />
+                      <span>loading</span>
+                    </>
+                  ) : status === "error" ? (
+                    <span className="text-red-400">⚠ error</span>
+                  ) : (
+                    <span>{subAttempted}/{subTotal}</span>
+                  )}
+                </span>
               </button>
             );
           })}
@@ -1005,161 +1025,192 @@ export default function MockTestPage() {
 
       {/* ── Question area ── */}
       <div className="flex-1 overflow-y-auto">
-        {activeQuestions.length === 0 ? (
-          <div className="flex items-center justify-center h-48 text-white/20 text-sm">No questions loaded for this subject</div>
-        ) : currentQ ? (
-          <div className="max-w-lg mx-auto px-4 py-6">
 
-            {/* Question meta */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-white/40 text-xs font-mono">Q {currentIdx + 1}/{activeQuestions.length}</span>
-                {currentQ.section === "B" && (
-                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-orange-300 bg-orange-500/15 border border-orange-500/25">
-                    Section B · Numerical
-                  </span>
+        {/* Loading skeleton */}
+        {(activeStatus === "loading" || activeStatus === "pending") && (
+          <SubjectSkeletonLoader label={activeSubjectCfg.label} accent={activeSubjectCfg.accent} />
+        )}
+
+        {/* Error state with retry */}
+        {activeStatus === "error" && (
+          <div className="flex flex-col items-center justify-center h-64 gap-4 px-6">
+            <div className="text-4xl">⚠️</div>
+            <div className="text-center">
+              <p className="text-white/50 text-sm font-semibold mb-1">{activeSubjectCfg.label} failed to load</p>
+              <p className="text-white/25 text-xs">Network error or no cached questions available</p>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => loaderRef.current?.(activeSubjectCfg)}
+              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white"
+              style={{
+                background: `linear-gradient(135deg, ${activeSubjectCfg.accent}, ${activeSubjectCfg.accent}bb)`,
+                boxShadow: `0 2px 12px ${activeSubjectCfg.accent}40`,
+              }}
+            >
+              ↺ Retry {activeSubjectCfg.label}
+            </motion.button>
+          </div>
+        )}
+
+        {/* Question view (only when loaded) */}
+        {activeStatus === "done" && (
+          currentQ ? (
+            <div className="max-w-lg mx-auto px-4 py-6">
+
+              {/* Question meta */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/40 text-xs font-mono">Q {currentIdx + 1}/{activeQuestions.length}</span>
+                  {currentQ.section === "B" && (
+                    <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-orange-300 bg-orange-500/15 border border-orange-500/25">
+                      Section B · Numerical
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => { toggleFlag(currentQ.id); }}
+                  className="text-lg transition-all"
+                  style={{ opacity: answers[currentQ.id]?.flagged ? 1 : 0.3 }}
+                  title="Flag for review"
+                >
+                  🚩
+                </button>
+              </div>
+
+              {/* Question text */}
+              <div className="mb-6 p-4 rounded-2xl"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                {(langMode === "both" || langMode === "en") && (
+                  <MathText text={currentQ.english} className="text-white text-base leading-relaxed font-medium block" />
+                )}
+                {(langMode === "both" || langMode === "hi") && currentQ.hindi && (
+                  <MathText text={currentQ.hindi} className="text-white/55 text-sm leading-relaxed mt-2 block" />
                 )}
               </div>
-              <button
-                onClick={() => { toggleFlag(currentQ.id); }}
-                className="text-lg transition-all"
-                style={{ opacity: answers[currentQ.id]?.flagged ? 1 : 0.3 }}
-                title="Flag for review"
-              >
-                🚩
-              </button>
-            </div>
 
-            {/* Question text */}
-            <div className="mb-6 p-4 rounded-2xl"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              {(langMode === "both" || langMode === "en") && (
-                <MathText text={currentQ.english} className="text-white text-base leading-relaxed font-medium block" />
-              )}
-              {(langMode === "both" || langMode === "hi") && currentQ.hindi && (
-                <MathText text={currentQ.hindi} className="text-white/55 text-sm leading-relaxed mt-2 block" />
-              )}
-            </div>
-
-            {/* MCQ options */}
-            {currentQ.section === "A" && currentQ.options.length >= 2 && (
-              <div className="flex flex-col gap-2.5">
-                {currentQ.options.map((opt, idx) => {
-                  const selected = answers[currentQ.id]?.selectedIndex === idx;
-                  const label = String.fromCharCode(65 + idx);
-                  const optHindi = currentQ.optionsHindi[idx];
-                  return (
-                    <motion.button
-                      key={idx}
-                      whileTap={{ scale: 0.985 }}
-                      onClick={() => { answerMCQ(currentQ.id, idx); markVisited(currentQ.id); }}
-                      className="w-full text-left p-4 rounded-2xl transition-all"
-                      style={{
-                        background: selected ? `${activeSubjectCfg.accent}20` : "rgba(255,255,255,0.04)",
-                        border: `1.5px solid ${selected ? activeSubjectCfg.accent : "rgba(255,255,255,0.08)"}`,
-                        boxShadow: selected ? `0 0 16px ${activeSubjectCfg.accent}30` : "none",
-                      }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
-                          style={{
-                            background: selected ? activeSubjectCfg.accent : "rgba(255,255,255,0.08)",
-                            color: selected ? "#fff" : "rgba(255,255,255,0.5)",
-                          }}>
-                          {label}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          {(langMode === "both" || langMode === "en") && (
-                            <MathText text={opt} className="text-white text-sm leading-snug block" />
-                          )}
-                          {(langMode === "both" || langMode === "hi") && optHindi && (
-                            <MathText text={optHindi} className="text-white/45 text-xs leading-snug mt-0.5 block" />
-                          )}
-                        </div>
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Numerical input (JEE Section B) */}
-            {currentQ.section === "B" && (
-              <div className="flex flex-col gap-3">
-                <div className="p-4 rounded-2xl"
-                  style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.25)" }}>
-                  <p className="text-orange-300/80 text-xs mb-3">
-                    Type your numerical answer. No negative marking for Section B (+4 if correct, 0 if wrong).
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="number"
-                      step="any"
-                      value={answers[currentQ.id]?.numericalInput ?? ""}
-                      onChange={(e) => { answerNumerical(currentQ.id, e.target.value); markVisited(currentQ.id); }}
-                      placeholder="Enter numerical answer..."
-                      className="flex-1 px-4 py-3 rounded-xl text-white text-lg font-bold placeholder-white/20 outline-none"
-                      style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
-                    />
-                    {answers[currentQ.id]?.numericalInput && (
-                      <button
-                        onClick={() => answerNumerical(currentQ.id, "")}
-                        className="text-white/30 hover:text-white/60 text-sm transition-colors px-2"
+              {/* MCQ options */}
+              {currentQ.section === "A" && currentQ.options.length >= 2 && (
+                <div className="flex flex-col gap-2.5">
+                  {currentQ.options.map((opt, idx) => {
+                    const selected = answers[currentQ.id]?.selectedIndex === idx;
+                    const label = String.fromCharCode(65 + idx);
+                    const optHindi = currentQ.optionsHindi[idx];
+                    return (
+                      <motion.button
+                        key={idx}
+                        whileTap={{ scale: 0.985 }}
+                        onClick={() => { answerMCQ(currentQ.id, idx); markVisited(currentQ.id); }}
+                        className="w-full text-left p-4 rounded-2xl transition-all"
+                        style={{
+                          background: selected ? `${activeSubjectCfg.accent}20` : "rgba(255,255,255,0.04)",
+                          border: `1.5px solid ${selected ? activeSubjectCfg.accent : "rgba(255,255,255,0.08)"}`,
+                          boxShadow: selected ? `0 0 16px ${activeSubjectCfg.accent}30` : "none",
+                        }}
                       >
-                        ✕
-                      </button>
-                    )}
+                        <div className="flex items-start gap-3">
+                          <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
+                            style={{
+                              background: selected ? activeSubjectCfg.accent : "rgba(255,255,255,0.08)",
+                              color: selected ? "#fff" : "rgba(255,255,255,0.5)",
+                            }}>
+                            {label}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            {(langMode === "both" || langMode === "en") && (
+                              <MathText text={opt} className="text-white text-sm leading-snug block" />
+                            )}
+                            {(langMode === "both" || langMode === "hi") && optHindi && (
+                              <MathText text={optHindi} className="text-white/45 text-xs leading-snug mt-0.5 block" />
+                            )}
+                          </div>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Numerical input (JEE Section B) */}
+              {currentQ.section === "B" && (
+                <div className="flex flex-col gap-3">
+                  <div className="p-4 rounded-2xl"
+                    style={{ background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.25)" }}>
+                    <p className="text-orange-300/80 text-xs mb-3">
+                      Type your numerical answer. No negative marking for Section B (+4 if correct, 0 if wrong).
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="number"
+                        step="any"
+                        value={answers[currentQ.id]?.numericalInput ?? ""}
+                        onChange={(e) => { answerNumerical(currentQ.id, e.target.value); markVisited(currentQ.id); }}
+                        placeholder="Enter numerical answer..."
+                        className="flex-1 px-4 py-3 rounded-xl text-white text-lg font-bold placeholder-white/20 outline-none"
+                        style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                      />
+                      {answers[currentQ.id]?.numericalInput && (
+                        <button
+                          onClick={() => answerNumerical(currentQ.id, "")}
+                          className="text-white/30 hover:text-white/60 text-sm transition-colors px-2"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex items-center justify-between mt-8">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  disabled={currentIdx === 0}
+                  onClick={() => setCurrentIdx(activeSubject, currentIdx - 1)}
+                  className="px-5 py-3 rounded-xl text-sm font-bold text-white/60 border border-white/10 transition-all disabled:opacity-30"
+                  style={{ background: "rgba(255,255,255,0.04)" }}
+                >
+                  ← Prev
+                </motion.button>
+
+                <button
+                  onClick={() => setPaletteOpen(true)}
+                  className="px-4 py-3 rounded-xl text-xs font-semibold text-white/50 border border-white/08 transition-all"
+                  style={{ background: "rgba(255,255,255,0.03)" }}
+                >
+                  📊 Palette
+                </button>
+
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  disabled={currentIdx >= activeQuestions.length - 1}
+                  onClick={() => setCurrentIdx(activeSubject, currentIdx + 1)}
+                  className="px-5 py-3 rounded-xl text-sm font-bold text-white border border-transparent transition-all disabled:opacity-30"
+                  style={{ background: `linear-gradient(135deg, ${activeSubjectCfg.accent}, ${activeSubjectCfg.accent}cc)`, boxShadow: `0 2px 12px ${activeSubjectCfg.accent}40` }}
+                >
+                  Next →
+                </motion.button>
               </div>
-            )}
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between mt-8">
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                disabled={currentIdx === 0}
-                onClick={() => setCurrentIdx(activeSubject, currentIdx - 1)}
-                className="px-5 py-3 rounded-xl text-sm font-bold text-white/60 border border-white/10 transition-all disabled:opacity-30"
-                style={{ background: "rgba(255,255,255,0.04)" }}
-              >
-                ← Prev
-              </motion.button>
-
-              <button
-                onClick={() => setPaletteOpen(true)}
-                className="px-4 py-3 rounded-xl text-xs font-semibold text-white/50 border border-white/08 transition-all"
-                style={{ background: "rgba(255,255,255,0.03)" }}
-              >
-                📊 Palette
-              </button>
-
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                disabled={currentIdx >= activeQuestions.length - 1}
-                onClick={() => setCurrentIdx(activeSubject, currentIdx + 1)}
-                className="px-5 py-3 rounded-xl text-sm font-bold text-white border border-transparent transition-all disabled:opacity-30"
-                style={{ background: `linear-gradient(135deg, ${activeSubjectCfg.accent}, ${activeSubjectCfg.accent}cc)`, boxShadow: `0 2px 12px ${activeSubjectCfg.accent}40` }}
-              >
-                Next →
-              </motion.button>
+              {/* Section info footer */}
+              {examType === "jee" && (
+                <div className="mt-6 flex gap-2 justify-center text-[10px] text-white/25">
+                  <span>Sec A: {activeSubjectCfg.sectionA} MCQ (+4/−1)</span>
+                  <span>·</span>
+                  <span>Sec B: {activeSubjectCfg.sectionB} Numerical (+4/0)</span>
+                </div>
+              )}
+              {examType === "neet" && (
+                <div className="mt-6 text-center text-[10px] text-white/25">
+                  Attempt limit: {activeSubjectCfg.attemptLimit} out of {activeSubjectCfg.sectionA} · Attempted: {attemptedCount}
+                </div>
+              )}
             </div>
-
-            {/* Section label for JEE */}
-            {examType === "jee" && (
-              <div className="mt-6 flex gap-2 justify-center text-[10px] text-white/25">
-                <span>Sec A: {activeSubjectCfg.sectionA} MCQ (+4/−1)</span>
-                <span>·</span>
-                <span>Sec B: {activeSubjectCfg.sectionB} Numerical (+4/0)</span>
-              </div>
-            )}
-            {examType === "neet" && (
-              <div className="mt-6 text-center text-[10px] text-white/25">
-                Attempt limit: {activeSubjectCfg.attemptLimit} out of {activeSubjectCfg.sectionA} · Attempted: {attemptedCount}
-              </div>
-            )}
-          </div>
-        ) : null}
+          ) : (
+            <div className="flex items-center justify-center h-48 text-white/20 text-sm">No questions loaded</div>
+          )
+        )}
       </div>
 
       {/* ── Question Palette ── */}
@@ -1205,6 +1256,23 @@ export default function MockTestPage() {
               {/* Per-subject grids */}
               {cfg.subjects.map((sub) => {
                 const qs = questionsBySubject[sub.id] ?? [];
+                const status = subjectStatus[sub.id] ?? "pending";
+                if (status === "loading" || status === "pending") {
+                  return (
+                    <div key={sub.id} className="mb-4">
+                      <p className="text-white/40 text-xs font-semibold mb-2 uppercase tracking-wider">{sub.emoji} {sub.label}</p>
+                      <p className="text-white/20 text-xs flex items-center gap-1.5">
+                        <motion.span
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+                          className="inline-block w-3 h-3 rounded-full border border-transparent"
+                          style={{ borderTopColor: sub.accent }}
+                        />
+                        Loading questions…
+                      </p>
+                    </div>
+                  );
+                }
                 if (qs.length === 0) return null;
                 return (
                   <div key={sub.id} className="mb-4">
@@ -1215,7 +1283,7 @@ export default function MockTestPage() {
                         const statusColor =
                           st === "answered" ? "#10b981" :
                           st === "flagged"  ? "#f59e0b" :
-                          st === "visited"  ? "#4b5563" : "#1f2937";
+                          st === "visited"  ? "#6b7280" : "#374151";
                         const isCurrentQ = sub.id === activeSubject && idx === currentIdx;
                         return (
                           <button
@@ -1225,12 +1293,12 @@ export default function MockTestPage() {
                               setCurrentIdx(sub.id, idx);
                               setPaletteOpen(false);
                             }}
-                            className="w-full aspect-square rounded-lg text-xs font-bold transition-all flex items-center justify-center"
+                            className="w-full aspect-square rounded-lg text-[10px] font-bold transition-all"
                             style={{
                               background: statusColor,
-                              color: st === "not-visited" ? "rgba(255,255,255,0.2)" : "white",
-                              border: isCurrentQ ? `2px solid ${sub.accent}` : "2px solid transparent",
-                              boxShadow: isCurrentQ ? `0 0 8px ${sub.accent}60` : "none",
+                              color: st === "not-visited" ? "rgba(255,255,255,0.3)" : "#fff",
+                              outline: isCurrentQ ? `2px solid ${sub.accent}` : "none",
+                              outlineOffset: "1px",
                             }}
                           >
                             {idx + 1}
@@ -1241,6 +1309,24 @@ export default function MockTestPage() {
                   </div>
                 );
               })}
+
+              {/* Summary */}
+              <div className="mt-4 pt-4 border-t border-white/08 grid grid-cols-3 gap-2 text-center text-xs">
+                {cfg.subjects.map((sub) => {
+                  const qs = questionsBySubject[sub.id] ?? [];
+                  const attempted = qs.filter((q) => {
+                    const a = answers[q.id];
+                    return a?.selectedIndex !== undefined || (a?.numericalInput?.trim().length ?? 0) > 0;
+                  }).length;
+                  const status = subjectStatus[sub.id];
+                  return (
+                    <div key={sub.id} className="flex flex-col gap-0.5">
+                      <span className="font-black" style={{ color: sub.accent }}>{status === "done" ? `${attempted}/${qs.length}` : "…"}</span>
+                      <span className="text-white/30">{sub.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
           </motion.div>
         )}
