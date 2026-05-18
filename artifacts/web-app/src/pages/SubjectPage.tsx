@@ -578,22 +578,22 @@ function ChoosePlanOverlay({ goal, onClose }: { goal: "jee" | "neet" | "c10" | "
   const [, navigate] = useLocation();
   const plans: Record<string, { id: string; name: string; price: string; accent: string; emoji: string; features: string[] }[]> = {
     jee: [
-      { id: "jee_neet_weekly", name: "Weekly Pass", price: "₹29", accent: "#3b82f6", emoji: "📅", features: ["All JEE subjects", "7 days access", "AI-enhanced questions"] },
+      { id: "jee_neet_weekly", name: "Weekly Pass", price: "₹29", accent: "#3b82f6", emoji: "📅", features: ["All JEE subjects", "7 days access", "Shiken Engine questions"] },
       { id: "jee_neet_monthly", name: "Monthly Plan", price: "₹69", accent: "#6366f1", emoji: "📆", features: ["All JEE subjects", "30 days access", "Priority counselling"] },
       { id: "jee_neet_yearly", name: "Yearly Pro", price: "₹499", accent: "#f59e0b", emoji: "🎯", features: ["All JEE subjects", "1 year access", "Golden badge", "Priority counselling"] },
     ],
     neet: [
-      { id: "jee_neet_weekly", name: "Weekly Pass", price: "₹29", accent: "#10b981", emoji: "📅", features: ["All NEET subjects", "7 days access", "AI-enhanced questions"] },
+      { id: "jee_neet_weekly", name: "Weekly Pass", price: "₹29", accent: "#10b981", emoji: "📅", features: ["All NEET subjects", "7 days access", "Shiken Engine questions"] },
       { id: "jee_neet_monthly", name: "Monthly Plan", price: "₹69", accent: "#059669", emoji: "📆", features: ["All NEET subjects", "30 days access", "Priority counselling"] },
       { id: "jee_neet_yearly", name: "Yearly Pro", price: "₹499", accent: "#f59e0b", emoji: "🎯", features: ["All NEET subjects", "1 year access", "Golden badge", "Priority counselling"] },
     ],
     c10: [
-      { id: "c10_monthly", name: "Monthly Pass", price: "₹49", accent: "#f59e0b", emoji: "📅", features: ["1 subject unlimited", "30 days access", "AI-enhanced questions"] },
-      { id: "c10_6month", name: "6 Months", price: "₹99", accent: "#10b981", emoji: "📆", features: ["1 subject unlimited", "6 months access", "AI-enhanced questions"] },
+      { id: "c10_monthly", name: "Monthly Pass", price: "₹49", accent: "#f59e0b", emoji: "📅", features: ["1 subject unlimited", "30 days access", "Shiken Engine questions"] },
+      { id: "c10_6month", name: "6 Months", price: "₹99", accent: "#10b981", emoji: "📆", features: ["1 subject unlimited", "6 months access", "Shiken Engine questions"] },
     ],
     c12: [
-      { id: "c12_monthly", name: "Monthly Pass", price: "₹49", accent: "#8b5cf6", emoji: "📅", features: ["1 subject unlimited", "30 days access", "AI-enhanced questions"] },
-      { id: "c12_6month", name: "6 Months", price: "₹99", accent: "#10b981", emoji: "📆", features: ["1 subject unlimited", "6 months access", "AI-enhanced questions"] },
+      { id: "c12_monthly", name: "Monthly Pass", price: "₹49", accent: "#8b5cf6", emoji: "📅", features: ["1 subject unlimited", "30 days access", "Shiken Engine questions"] },
+      { id: "c12_6month", name: "6 Months", price: "₹99", accent: "#10b981", emoji: "📆", features: ["1 subject unlimited", "6 months access", "Shiken Engine questions"] },
     ],
   };
   const list = plans[goal] || plans.c10;
@@ -755,13 +755,13 @@ function ModeSelect({
       id: "full",
       title: "Full Length Test",
       subtitle: isPremium
-        ? `43 DB + 7 AI questions (50 total)`
+        ? `43 DB + 7 Shiken Engine questions (50 total)`
         : !hasUsedFreeFull
           ? "1 Free Test Available! · 50 questions"
           : "Upgrade for unlimited tests",
       icon: "🎯",
       desc: isPremium
-        ? "Covers entire syllabus with AI-enhanced questions. ⏱ 60 min"
+        ? "Covers entire syllabus with Shiken Engine questions. ⏱ 60 min"
         : !hasUsedFreeFull
           ? "Try your first Full Length Test free! ⏱ 60 min"
           : "You've used your 1 free test. Upgrade to Premium for unlimited tests.",
@@ -784,11 +784,11 @@ function ModeSelect({
     {
       id: "ai",
       title: "Shiken Practice",
-      subtitle: isPremium ? "5 fresh AI questions" : "AI practice — Premium only",
+      subtitle: isPremium ? "5 fresh Shiken Engine questions" : "Shiken Engine practice — Premium only",
       icon: "🤖",
       desc: isPremium
         ? "नए सवाल तुम्हारे लिए तैयार किए जा रहे हैं। हर बार अलग, हर बार नया!"
-        : "Upgrade to Premium for AI practice sessions.",
+        : "Upgrade to Premium for Shiken Engine practice sessions.",
       onClick: isPremium ? onAI : onUpgrade,
       glowColor: isPremium ? "#6366f1" : "#fbbf24",
       locked: !isPremium,
@@ -1429,7 +1429,7 @@ function ResultScreen({
                 <p className="text-amber-300 font-black text-xs uppercase tracking-widest mb-1">Kya aap jante hain?</p>
                 <p className="text-white text-sm font-semibold leading-relaxed mb-3">
                   ₹199/- mein aap board exams tak{" "}
-                  <span style={{ color: "#fbbf24" }}>unlimited AI-enhanced tests</span> aur{" "}
+                  <span style={{ color: "#fbbf24" }}>unlimited Shiken Engine tests</span> aur{" "}
                   <span style={{ color: "#fbbf24" }}>direct mentorship</span> pa sakte hain!
                   <span className="text-white/50 font-normal"> (Sirf ₹33 mahina)</span>
                 </p>
