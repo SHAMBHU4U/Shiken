@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
 
 const API_BASE = import.meta.env.BASE_URL;
-const RAZORPAY_KEY = "rzp_live_SpCKz6wHPlW2o9";
+const RAZORPAY_KEY = "rzp_live_SqePWVSFlT9MSp";
 
 declare global {
   interface Window {
