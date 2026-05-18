@@ -6,7 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
 
 const API_BASE = import.meta.env.BASE_URL;
-const RAZORPAY_KEY = "rzp_live_SmHIAPIgMMiDhq";
+const RAZORPAY_KEY = "rzp_live_SpCKz6wHPlW2o9";
 
 declare global {
   interface Window {
@@ -301,12 +301,13 @@ function PaymentSheet({
       }
 
       const orderId = typeof orderData.orderId === "string" ? orderData.orderId : "";
-      const amount = Number(orderData.amount);
-      if (!orderId || !Number.isFinite(amount)) {
+      const amountRs = Number(orderData.amount);
+      if (!orderId || !Number.isFinite(amountRs)) {
         setError("Payment gateway returned invalid order data. Please try again.");
         setPaying(false);
         return;
       }
+      const amount = Math.round(amountRs * 100); // Razorpay expects paise
 
       const options: RazorpayOptions = {
         key:         RAZORPAY_KEY,
@@ -324,6 +325,7 @@ function PaymentSheet({
 
         handler: async (response: RazorpayResponse) => {
           try {
+            setPaying(true);
             const verifyRes = await fetch(`${API_BASE}api/razorpay/verify-payment`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -376,14 +378,8 @@ function PaymentSheet({
       try {
         rzp.open();
       } catch {
-        window.location.href = `https://api.razorpay.com/v1/checkout?` + new URLSearchParams({
-          key: RAZORPAY_KEY,
-          order_id: orderId,
-          amount: String(amount),
-          currency: "INR",
-          name: "SHIKEN",
-          description: `${plan.name}${plan.singleSubject && selectedSubject ? " · " + selectedSubject : ""} — ${plan.period}`,
-        }).toString();
+        setError("Payment gateway failed to open. Please refresh and try again.");
+        setPaying(false);
       }
     } catch (err) {
       setError(formatGatewayError(err));
