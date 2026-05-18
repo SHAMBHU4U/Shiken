@@ -33,34 +33,48 @@ function getRazorpayClient(): Razorpay {
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
 }
 
-/** Map planId to days and category */
-function planMeta(planId: string): { days: number; category: "jee_neet" | "class10_12" | "other" } {
+/** Map planId to days, category, and base amount */
+function planMeta(planId: string): { days: number; category: "jee_neet" | "class10_12" | "other"; amount: number } {
   switch (planId) {
-    case "jee_neet_weekly":   return { days: 7,   category: "jee_neet" };
-    case "jee_neet_monthly":  return { days: 30,  category: "jee_neet" };
-    case "jee_neet_yearly":   return { days: 365, category: "jee_neet" };
-    case "c10_monthly":       return { days: 30,  category: "class10_12" };
-    case "c12_monthly":       return { days: 30,  category: "class10_12" };
-    case "c10_6month":        return { days: 180, category: "class10_12" };
-    case "c12_6month":        return { days: 180, category: "class10_12" };
-    case "monthly_one":       return { days: 30,  category: "other" };
-    case "biannual_one":      return { days: 180, category: "other" };
-    case "biannual_all":      return { days: 180, category: "other" };
-    default:                  return { days: 30,  category: "other" };
+    case "jee_neet_weekly":        return { days: 7,   category: "jee_neet",   amount: 29  };
+    case "jee_neet_monthly":       return { days: 30,  category: "jee_neet",   amount: 69  };
+    case "jee_neet_yearly":        return { days: 365, category: "jee_neet",   amount: 399 };
+    case "c10_monthly":            return { days: 30,  category: "class10_12", amount: 49  };
+    case "c12_monthly":            return { days: 30,  category: "class10_12", amount: 49  };
+    case "c10_6month":             return { days: 180, category: "class10_12", amount: 99  };
+    case "c12_6month":             return { days: 180, category: "class10_12", amount: 99  };
+    case "monthly_one":            return { days: 30,  category: "other",      amount: 99  };
+    case "biannual_one":           return { days: 180, category: "other",      amount: 199 };
+    case "biannual_all":           return { days: 180, category: "other",      amount: 399 };
+    case "board_premium_6month":   return { days: 180, category: "class10_12", amount: 199 };
+    default:                       return { days: 30,  category: "other",      amount: 0   };
   }
 }
 
-/** Credit referrer when a new user signs up with referral code */
-async function creditReferrer(referredBy: string, category: "jee_neet" | "class10_12"): Promise<void> {
+/** Plans that qualify for referral rewards (₹199 and ₹399 only) */
+const QUALIFYING_PLAN_AMOUNTS = new Set([199, 399]);
+
+/** Credit referrer ONLY when referred user buys a qualifying plan (₹199 or ₹399) */
+async function creditReferrer(
+  referredBy: string,
+  planId: string,
+  category: "jee_neet" | "class10_12" | "other",
+): Promise<void> {
   if (!referredBy) return;
+
+  const { amount: planAmount } = planMeta(planId);
+  if (!QUALIFYING_PLAN_AMOUNTS.has(planAmount)) {
+    logger.info({ referrer: referredBy, planId, planAmount }, "Referral reward skipped — plan not qualifying (not ₹199/₹399)");
+    return;
+  }
+
   const reward = category === "jee_neet" ? 5 : 10;
   const safeRef = String(referredBy).replace(/[#.$\/[\]]/g, "_");
   try {
-    // Fetch current referrer data
     const refRes = await fetch(`${DB_URL}/users/${safeRef}.json`);
     const refData = refRes.ok ? (await refRes.json() as Record<string, unknown> | null) : null;
     const currentWallet = typeof refData?.walletBalance === "number" ? refData.walletBalance : 0;
-    const currentCount = typeof refData?.referralCount === "number" ? refData.referralCount : 0;
+    const currentCount  = typeof refData?.referralCount  === "number" ? refData.referralCount  : 0;
     await fetch(`${DB_URL}/users/${safeRef}.json`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -69,7 +83,7 @@ async function creditReferrer(referredBy: string, category: "jee_neet" | "class1
         referralCount: currentCount + 1,
       }),
     });
-    logger.info({ referrer: safeRef, reward, category }, "Referral reward credited");
+    logger.info({ referrer: safeRef, reward, category, planId }, "Referral reward credited (qualifying plan)");
   } catch (err) {
     logger.error({ err, referrer: safeRef }, "Failed to credit referrer");
   }
@@ -78,16 +92,18 @@ async function creditReferrer(referredBy: string, category: "jee_neet" | "class1
 // ─── POST /api/razorpay/create-order ─────────────────────────────────────────
 router.post("/razorpay/create-order", async (req, res) => {
   try {
-    const { amount, planId, uid, couponCode } = req.body;
+    const { amount, planId, uid, couponCode, useWallet } = req.body;
 
     if (!amount || !planId || !uid) {
       return res.status(400).json({ ok: false, error: "amount, planId, and uid are required" });
     }
 
-    let finalAmount = Number(amount);
-    let discount    = 0;
-    let couponApplied = false;
+    let finalAmount    = Number(amount);
+    let discount       = 0;
+    let couponApplied  = false;
+    let walletDiscount = 0;
 
+    // ── 1. Apply coupon first ─────────────────────────────────────────────────
     if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
       const code = couponCode.trim().toUpperCase();
       try {
@@ -106,9 +122,8 @@ router.post("/razorpay/create-order", async (req, res) => {
             discount = coupon.type === "percent"
               ? Math.round((finalAmount * coupon.value) / 100)
               : coupon.value;
-            finalAmount = Math.max(1, finalAmount - discount);
+            finalAmount   = Math.max(1, finalAmount - discount);
             couponApplied = true;
-            // Increment usage count (fire-and-forget, best effort)
             fetch(`${DB_URL}/coupons/${code}/usageCount.json`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
@@ -119,10 +134,29 @@ router.post("/razorpay/create-order", async (req, res) => {
       } catch { /* ignore coupon errors — don't block payment */ }
     }
 
+    // ── 2. Apply wallet balance as discount ───────────────────────────────────
+    if (useWallet && uid) {
+      const safeUid = String(uid).replace(/[.#$/[\]]/g, "_");
+      try {
+        const userRes  = await fetch(`${DB_URL}/users/${safeUid}/walletBalance.json`);
+        const walletBal = userRes.ok ? (await userRes.json() as number | null) : null;
+        const balance   = typeof walletBal === "number" && walletBal > 0 ? walletBal : 0;
+        if (balance > 0) {
+          // Deduct up to the current finalAmount − 1 (minimum ₹1 must go via Razorpay)
+          walletDiscount = Math.min(balance, finalAmount - 1);
+          if (walletDiscount > 0) {
+            finalAmount = finalAmount - walletDiscount;
+          }
+        }
+      } catch {
+        logger.warn({ uid }, "Could not fetch wallet balance for order — skipping wallet discount");
+      }
+    }
+
     const razorpay = getRazorpayClient();
 
     const order = await razorpay.orders.create({
-      amount:   finalAmount * 100,
+      amount:   Math.round(finalAmount * 100), // paise
       currency: "INR",
       receipt:  `shiken_${planId}_${Date.now()}`,
       notes: {
@@ -131,17 +165,29 @@ router.post("/razorpay/create-order", async (req, res) => {
         couponCode:    couponCode ?? "",
         discount:      String(discount),
         couponApplied: String(couponApplied),
+        walletDiscount: String(walletDiscount),
       },
     });
 
-    logger.info({ orderId: order.id, uid, planId, finalAmount, discount }, "Razorpay order created");
+    // ── 3. Persist walletDiscount against orderId for secure server-side deduction ─
+    if (walletDiscount > 0) {
+      const safeUid = String(uid).replace(/[.#$/[\]]/g, "_");
+      fetch(`${DB_URL}/pendingOrderWallet/${order.id}.json`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: safeUid, walletDiscount, createdAt: Date.now() }),
+      }).catch(() => {});
+    }
+
+    logger.info({ orderId: order.id, uid, planId, finalAmount, discount, walletDiscount }, "Razorpay order created");
 
     return res.json({
-      ok:           true,
-      orderId:      order.id,
-      amount:       finalAmount,
+      ok:            true,
+      orderId:       order.id,
+      amount:        finalAmount,
       discount,
       couponApplied,
+      walletDiscount,
     });
   } catch (err: unknown) {
     const msg = errorText(err);
@@ -157,7 +203,7 @@ router.post("/razorpay/validate-coupon", async (req, res) => {
     if (!couponCode || !amount) {
       return res.status(400).json({ ok: false, error: "couponCode and amount are required" });
     }
-    const code = String(couponCode).trim().toUpperCase();
+    const code       = String(couponCode).trim().toUpperCase();
     const baseAmount = Number(amount);
 
     const couponRes = await fetch(`${DB_URL}/coupons/${code}.json`);
@@ -169,7 +215,7 @@ router.post("/razorpay/validate-coupon", async (req, res) => {
       expiresAt: number | null; usageLimit: number | null; usageCount: number;
     } | null;
 
-    const now = Date.now();
+    const now   = Date.now();
     const valid = coupon
       && coupon.active
       && (!coupon.expiresAt || coupon.expiresAt > now)
@@ -179,7 +225,7 @@ router.post("/razorpay/validate-coupon", async (req, res) => {
       return res.json({ ok: true, couponApplied: false, discount: 0, finalAmount: baseAmount });
     }
 
-    const discount = coupon.type === "percent"
+    const discount    = coupon.type === "percent"
       ? Math.round((baseAmount * coupon.value) / 100)
       : coupon.value;
     const finalAmount = Math.max(1, baseAmount - discount);
@@ -192,7 +238,6 @@ router.post("/razorpay/validate-coupon", async (req, res) => {
 });
 
 // ─── POST /api/razorpay/verify-payment ────────────────────────────────────────
-// planSubject: if present, sets per-subject premium instead of all-subjects
 router.post("/razorpay/verify-payment", async (req, res) => {
   try {
     const {
@@ -202,7 +247,7 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       uid,
       planId,
       days,
-      planSubject,  // optional — set for single-subject plans
+      planSubject,
     } = req.body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !uid || !planId || !days) {
@@ -241,7 +286,7 @@ router.post("/razorpay/verify-payment", async (req, res) => {
     // Build the Firebase update payload
     const { days: planDays, category } = planMeta(planId);
     const effectiveDays = Number(days) || planDays;
-    const premiumUntil = Date.now() + effectiveDays * 86_400_000;
+    const premiumUntil  = Date.now() + effectiveDays * 86_400_000;
 
     const firebasePayload: Record<string, unknown> = {
       subscriptionType:  "premium",
@@ -261,12 +306,38 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       },
     };
 
-    // If user was referred, credit the referrer based on plan category
-    const userRes = await fetch(`${DB_URL}/users/${safeId}.json`);
+    // ── Deduct wallet balance securely using server-side record ───────────────
+    try {
+      const pendingRes = await fetch(`${DB_URL}/pendingOrderWallet/${razorpay_order_id}.json`);
+      if (pendingRes.ok) {
+        const pendingData = await pendingRes.json() as { uid: string; walletDiscount: number } | null;
+        if (pendingData && typeof pendingData.walletDiscount === "number" && pendingData.walletDiscount > 0) {
+          // Verify the uid matches
+          if (pendingData.uid === safeId) {
+            const walletRes = await fetch(`${DB_URL}/users/${safeId}/walletBalance.json`);
+            const currentBal = walletRes.ok ? (await walletRes.json() as number | null) : null;
+            const newBal = Math.max(0, (typeof currentBal === "number" ? currentBal : 0) - pendingData.walletDiscount);
+            await fetch(`${DB_URL}/users/${safeId}/walletBalance.json`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(newBal),
+            });
+            logger.info({ uid: safeId, walletDiscount: pendingData.walletDiscount, newBal }, "Wallet balance deducted after payment");
+          }
+          // Clean up the pending record (fire-and-forget)
+          fetch(`${DB_URL}/pendingOrderWallet/${razorpay_order_id}.json`, { method: "DELETE" }).catch(() => {});
+        }
+      }
+    } catch (walletErr) {
+      logger.error({ walletErr, uid: safeId }, "Wallet deduction failed after payment — non-fatal");
+    }
+
+    // ── Credit referrer only for qualifying plans (₹199 or ₹399) ─────────────
+    const userRes  = await fetch(`${DB_URL}/users/${safeId}.json`);
     const userData = userRes.ok ? (await userRes.json() as Record<string, unknown> | null) : null;
     const referredBy = typeof userData?.referredBy === "string" ? userData.referredBy : null;
     if (referredBy) {
-      await creditReferrer(referredBy, category);
+      await creditReferrer(referredBy, planId, category);
     }
 
     // For single-subject plans: accumulate premiumSubjects array
@@ -275,7 +346,6 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       const merged = Array.from(new Set([...existingSubjects, planSubject]));
       firebasePayload.premiumSubjects = merged;
     } else {
-      // all-subjects plan — clear any subject restrictions
       firebasePayload.premiumSubjects = [];
     }
 

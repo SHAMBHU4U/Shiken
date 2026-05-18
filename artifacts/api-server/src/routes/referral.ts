@@ -11,7 +11,9 @@ function safeId(uid: string): string {
 /**
  * POST /api/referral/apply
  * Body: { uid: string, referralCode: string }
- * Finds the referrer by referralCode, credits them, and marks the new user as referred.
+ * Finds the referrer by referralCode and marks the new user as referred.
+ * NOTE: No wallet credit happens here — reward is only given when the referred
+ *       user actually buys a qualifying plan (₹199 or ₹399) via verify-payment.
  */
 router.post("/referral/apply", async (req, res) => {
   try {
@@ -21,16 +23,22 @@ router.post("/referral/apply", async (req, res) => {
     }
 
     const userSafe = safeId(uid);
-    const code = referralCode.trim().toUpperCase();
+    const code     = referralCode.trim().toUpperCase();
 
     // Check if user already has a referrer
-    const userRes = await fetch(`${DB_URL}/users/${userSafe}.json`);
+    const userRes  = await fetch(`${DB_URL}/users/${userSafe}.json`);
     const userData = userRes.ok ? (await userRes.json() as Record<string, unknown> | null) : null;
     if (userData?.referredBy) {
       return res.status(400).json({ ok: false, error: "You have already applied a referral code." });
     }
 
-    // Find referrer by referralCode (scan all users — Firebase RTDB doesn't support queries well)
+    // Prevent self-referral — check if the code belongs to this user
+    const myCode = `SKN${uid.slice(0, 6).toUpperCase()}`;
+    if (myCode === code) {
+      return res.status(400).json({ ok: false, error: "You cannot use your own referral code." });
+    }
+
+    // Find referrer by referralCode (scan all users)
     const allUsersRes = await fetch(`${DB_URL}/users.json?shallow=true`);
     if (!allUsersRes.ok) {
       return res.status(502).json({ ok: false, error: "Could not lookup users." });
@@ -42,7 +50,7 @@ router.post("/referral/apply", async (req, res) => {
 
     let referrerUid: string | null = null;
     for (const key of Object.keys(allKeys)) {
-      const refRes = await fetch(`${DB_URL}/users/${key}/referralCode.json`);
+      const refRes  = await fetch(`${DB_URL}/users/${key}/referralCode.json`);
       if (!refRes.ok) continue;
       const refCode = await refRes.json() as string | null;
       if (refCode && refCode.toUpperCase() === code) {
@@ -55,36 +63,18 @@ router.post("/referral/apply", async (req, res) => {
       return res.status(404).json({ ok: false, error: "Referral code not found or invalid." });
     }
 
-    // Get user goal/category to determine reward
-    const goalRes = await fetch(`${DB_URL}/users/${userSafe}/goal.json`);
-    const goal = goalRes.ok ? (await goalRes.json() as string | null) : null;
-    const category: "jee_neet" | "class10_12" = (goal === "jee" || goal === "neet") ? "jee_neet" : "class10_12";
-    const reward = category === "jee_neet" ? 5 : 10;
-
-    // Credit referrer wallet
-    const refDataRes = await fetch(`${DB_URL}/users/${referrerUid}.json`);
-    const refData = refDataRes.ok ? (await refDataRes.json() as Record<string, unknown> | null) : null;
-    const currentWallet = typeof refData?.walletBalance === "number" ? refData.walletBalance : 0;
-    const currentCount = typeof refData?.referralCount === "number" ? refData.referralCount : 0;
-
-    await fetch(`${DB_URL}/users/${referrerUid}.json`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        walletBalance: currentWallet + reward,
-        referralCount: currentCount + 1,
-      }),
-    });
-
-    // Mark user as referred
+    // Mark user as referred — NO wallet credit yet (credited on qualifying plan purchase)
     await fetch(`${DB_URL}/users/${userSafe}.json`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ referredBy: code }),
     });
 
-    logger.info({ referrer: referrerUid, newUser: userSafe, reward, category }, "Referral applied");
-    return res.json({ ok: true, message: `Referral applied! Your referrer earned \u20b9${reward}.` });
+    logger.info({ referrer: referrerUid, newUser: userSafe }, "Referral code applied — reward pending on plan purchase");
+    return res.json({
+      ok: true,
+      message: "Referral code applied! Your referrer will earn a reward when you buy a ₹199 or ₹399 plan.",
+    });
   } catch (err: unknown) {
     logger.error({ err }, "referral/apply failed");
     return res.status(500).json({ ok: false, error: "Internal error" });

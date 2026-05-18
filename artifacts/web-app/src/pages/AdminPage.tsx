@@ -3347,6 +3347,161 @@ function AnnouncementsPanel() {
   );
 }
 
+// ─── Withdrawals Panel ─────────────────────────────────────────────────────────
+
+const DB_URL_ADMIN = "https://shiken-d8789-default-rtdb.firebaseio.com";
+
+interface AdminWithdrawal {
+  id: string;
+  uid: string;
+  upiId: string;
+  amount: number;
+  status: "pending" | "paid" | "rejected";
+  requestedAt: number;
+}
+
+function WithdrawalsPanel() {
+  const [withdrawals, setWithdrawals] = useState<AdminWithdrawal[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState("");
+  const [busy, setBusy]               = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const res  = await fetch(`${DB_URL_ADMIN}/withdrawalRequests.json`);
+      const data = res.ok ? (await res.json() as Record<string, Record<string, Omit<AdminWithdrawal, "id">>> | null) : null;
+      if (!data) { setWithdrawals([]); setLoading(false); return; }
+      const all: AdminWithdrawal[] = [];
+      for (const [uid, reqs] of Object.entries(data)) {
+        for (const [id, req] of Object.entries(reqs)) {
+          all.push({ id, uid, ...req });
+        }
+      }
+      all.sort((a, b) => b.requestedAt - a.requestedAt);
+      setWithdrawals(all);
+    } catch (e) { setError(String(e)); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function updateStatus(w: AdminWithdrawal, newStatus: "paid" | "rejected") {
+    setBusy(w.id);
+    try {
+      await fetch(`${DB_URL_ADMIN}/withdrawalRequests/${w.uid}/${w.id}/status.json`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newStatus),
+      });
+      // If rejecting, refund the wallet balance
+      if (newStatus === "rejected") {
+        const walletRes = await fetch(`${DB_URL_ADMIN}/users/${w.uid}/walletBalance.json`);
+        const currentBal = walletRes.ok ? (await walletRes.json() as number | null) : null;
+        const newBal = (typeof currentBal === "number" ? currentBal : 0) + w.amount;
+        await fetch(`${DB_URL_ADMIN}/users/${w.uid}/walletBalance.json`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newBal),
+        });
+      }
+      setWithdrawals(prev => prev.map(x => x.id === w.id ? { ...x, status: newStatus } : x));
+    } catch (e) { setError(String(e)); }
+    finally { setBusy(null); }
+  }
+
+  const pending  = withdrawals.filter(w => w.status === "pending");
+  const resolved = withdrawals.filter(w => w.status !== "pending");
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between mb-1">
+        <div>
+          <p className="text-white font-bold text-sm">Wallet Withdrawals</p>
+          <p className="text-white/30 text-xs">{pending.length} pending · {resolved.length} resolved</p>
+        </div>
+        <motion.button onClick={load} whileTap={{ scale: 0.95 }}
+          className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white/80 transition-all"
+          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
+          ↻ Refresh
+        </motion.button>
+      </div>
+
+      {error && (
+        <div className="px-4 py-3 rounded-xl text-xs text-red-400" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="w-6 h-6 rounded-full border-2 border-transparent"
+            style={{ borderTopColor: "#f59e0b", borderRightColor: "#f59e0b40" }} />
+        </div>
+      ) : withdrawals.length === 0 ? (
+        <div className="text-center py-14">
+          <p className="text-4xl mb-3">💸</p>
+          <p className="text-white/40 text-sm font-medium">No withdrawal requests yet</p>
+          <p className="text-white/20 text-xs mt-1">When users request UPI withdrawals, they appear here</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pending.length > 0 && (
+            <p className="text-amber-400/70 text-xs font-bold uppercase tracking-wide">Pending ({pending.length})</p>
+          )}
+          {[...pending, ...resolved].map(w => (
+            <motion.div key={w.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border px-4 py-3.5"
+              style={{
+                background: w.status === "pending" ? "rgba(245,158,11,0.06)" : w.status === "paid" ? "rgba(16,185,129,0.06)" : "rgba(239,68,68,0.06)",
+                borderColor: w.status === "pending" ? "rgba(245,158,11,0.2)" : w.status === "paid" ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)",
+              }}>
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-white font-black text-base">₹{w.amount}</p>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={{
+                        color:      w.status === "pending" ? "#f59e0b" : w.status === "paid" ? "#10b981" : "#ef4444",
+                        background: w.status === "pending" ? "rgba(245,158,11,0.15)" : w.status === "paid" ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
+                      }}>
+                      {w.status === "pending" ? "⏳ Pending" : w.status === "paid" ? "✓ Paid" : "✗ Rejected"}
+                    </span>
+                  </div>
+                  <p className="text-white/60 text-xs font-mono mb-0.5">{w.upiId}</p>
+                  <p className="text-white/30 text-xs truncate">UID: {w.uid}</p>
+                  <p className="text-white/20 text-xs mt-0.5">{new Date(w.requestedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                </div>
+                {w.status === "pending" && (
+                  <div className="flex flex-col gap-1.5 shrink-0">
+                    <motion.button
+                      onClick={() => updateStatus(w, "paid")}
+                      disabled={busy === w.id}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                      style={{ background: "rgba(16,185,129,0.15)", color: "#10b981", border: "1px solid rgba(16,185,129,0.25)" }}>
+                      {busy === w.id ? "…" : "✓ Mark Paid"}
+                    </motion.button>
+                    <motion.button
+                      onClick={() => updateStatus(w, "rejected")}
+                      disabled={busy === w.id}
+                      whileTap={{ scale: 0.95 }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                      style={{ background: "rgba(239,68,68,0.10)", color: "#f87171", border: "1px solid rgba(239,68,68,0.20)" }}>
+                      {busy === w.id ? "…" : "✗ Reject"}
+                    </motion.button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
 const ALL_ADMIN_SUBJECTS = [...ALL_SUBJECTS, ...ALL_C12_SUBJECTS, ...ENTRANCE_SUBJECTS];
@@ -3363,9 +3518,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [aiClass, setAiClass] = useState<"c10" | "c12" | "entrance">("c10");
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "fullmock", "coupons", "migrate", "announcements"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "fullmock", "coupons", "migrate", "announcements", "withdrawals"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "fullmock" | "coupons" | "migrate" | "announcements">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "fullmock" | "coupons" | "migrate" | "announcements" | "withdrawals">(initialTab);
   const jumpRef = useRef<HTMLDivElement | null>(null);
   const [pendingBadge, setPendingBadge] = useState(0);
 
@@ -3489,6 +3644,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "coupons",       icon: "🏷️", label: "Coupons",   badge: 0 },
             { id: "migrate",       icon: "🚚", label: "Migrate",   badge: 0 },
             { id: "announcements", icon: "📣", label: "Announce",   badge: 0 },
+            { id: "withdrawals",   icon: "💸", label: "Withdrawals", badge: 0 },
           ] as const).map(({ id, icon, label, badge }) => {
             const isActive = activeTab === id;
             return (
@@ -3665,6 +3821,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "announcements" && (
             <motion.div key="announcements" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <AnnouncementsPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "withdrawals" && (
+            <motion.div key="withdrawals" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <WithdrawalsPanel />
             </motion.div>
           )}
         </AnimatePresence>

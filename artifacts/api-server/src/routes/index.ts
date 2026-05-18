@@ -11,6 +11,7 @@ import parsePDFRouter from "./parse-pdf";
 import comprehensionRouter from "./comprehension";
 import generateMockRouter from "./generate-mock";
 import referralRouter from "./referral";
+import withdrawalRouter from "./withdrawal";
 
 const router: IRouter = Router();
 
@@ -25,5 +26,6 @@ router.use(parsePDFRouter);
 router.use(comprehensionRouter);
 router.use(generateMockRouter);
 router.use(referralRouter);
+router.use(withdrawalRouter);
 
 export default router;

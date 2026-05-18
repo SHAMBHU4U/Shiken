@@ -243,12 +243,21 @@ function PaymentSheet({
   onSuccess: (uid: string, paymentId: string) => void;
 }) {
   const { user } = useAuth();
-  const [paying, setPaying]             = useState(false);
-  const [error, setError]               = useState("");
-  const [couponInput, setCouponInput]   = useState("");
+  const { walletBalance } = useSubscription();
+  const [paying, setPaying]                 = useState(false);
+  const [error, setError]                   = useState("");
+  const [couponInput, setCouponInput]       = useState("");
   const [couponChecking, setCouponChecking] = useState(false);
-  const [couponResult, setCouponResult] = useState<{ applied: boolean; discount: number; finalAmount: number } | null>(null);
-  const [couponError, setCouponError]   = useState("");
+  const [couponResult, setCouponResult]     = useState<{ applied: boolean; discount: number; finalAmount: number } | null>(null);
+  const [couponError, setCouponError]       = useState("");
+  const [useWallet, setUseWallet]           = useState(false);
+
+  // Compute how much wallet discount actually applies
+  const baseAfterCoupon = couponResult?.applied ? couponResult.finalAmount : plan.amount;
+  const walletDiscount  = useWallet && walletBalance > 0
+    ? Math.min(walletBalance, baseAfterCoupon - 1) // keep at least ₹1 for Razorpay
+    : 0;
+  const finalDisplayAmount = baseAfterCoupon - walletDiscount;
 
   async function handleCheckCoupon() {
     const code = couponInput.trim().toUpperCase();
@@ -291,7 +300,13 @@ function PaymentSheet({
       const orderRes = await fetch(`${API_BASE}api/razorpay/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: plan.amount, planId: plan.id, uid, couponCode: couponInput.trim() || undefined }),
+        body: JSON.stringify({
+          amount:     plan.amount,
+          planId:     plan.id,
+          uid,
+          couponCode: couponInput.trim() || undefined,
+          useWallet:  useWallet && walletBalance > 0,
+        }),
       });
       const orderData = await orderRes.json();
       if (!orderRes.ok || !orderData.ok) {
@@ -300,7 +315,7 @@ function PaymentSheet({
         return;
       }
 
-      const orderId = typeof orderData.orderId === "string" ? orderData.orderId : "";
+      const orderId  = typeof orderData.orderId === "string" ? orderData.orderId : "";
       const amountRs = Number(orderData.amount);
       if (!orderId || !Number.isFinite(amountRs)) {
         setError("Payment gateway returned invalid order data. Please try again.");
@@ -317,7 +332,7 @@ function PaymentSheet({
         description: `${plan.name}${plan.singleSubject && selectedSubject ? " · " + selectedSubject : ""} — ${plan.period}`,
         order_id:    orderId,
         prefill: {
-          email: auth.currentUser.email   ?? undefined,
+          email: auth.currentUser.email       ?? undefined,
           name:  auth.currentUser.displayName ?? undefined,
         },
         theme: { color: plan.accent },
@@ -356,7 +371,7 @@ function PaymentSheet({
                   `👤 UID: ${uid}`,
                   `📦 Plan: ${plan.name}`,
                   plan.singleSubject && selectedSubject ? `📚 Subject: ${selectedSubject}` : "",
-                  `💰 Amount: ₹${orderData.amount}`,
+                  `💰 Amount: ₹${orderData.amount}${orderData.walletDiscount > 0 ? ` (₹${orderData.walletDiscount} from wallet)` : ""}`,
                   `🔑 Payment ID: ${response.razorpay_payment_id}`,
                 ].filter(Boolean).join("\n"),
               }),
@@ -425,6 +440,40 @@ function PaymentSheet({
               {SUBJECT_OPTIONS.find(s => s.id === selectedSubject)?.label ?? selectedSubject}
             </span>
           </div>
+        )}
+
+        {/* Wallet balance row */}
+        {walletBalance > 0 && (
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+            className="mb-3 px-4 py-3 rounded-2xl flex items-center justify-between"
+            style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(251,191,36,0.06))", border: "1px solid rgba(251,191,36,0.25)" }}>
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">💵</span>
+              <div>
+                <p className="text-amber-300 text-xs font-black leading-tight">Shiken Wallet</p>
+                <p className="text-amber-200/60 text-xs">Balance: ₹{walletBalance}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setUseWallet(v => !v)}
+              disabled={paying}
+              className="relative w-11 h-6 rounded-full transition-all shrink-0"
+              style={{
+                background: useWallet ? "rgba(245,158,11,0.8)" : "rgba(255,255,255,0.12)",
+                border: useWallet ? "1px solid rgba(245,158,11,0.5)" : "1px solid rgba(255,255,255,0.15)",
+              }}>
+              <span className="absolute top-0.5 transition-all duration-200 w-5 h-5 rounded-full bg-white shadow"
+                style={{ left: useWallet ? "calc(100% - 1.375rem)" : "0.125rem" }} />
+            </button>
+          </motion.div>
+        )}
+        {useWallet && walletDiscount > 0 && (
+          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+            className="mb-3 px-3 py-2 rounded-xl flex items-center justify-between"
+            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
+            <span className="text-amber-400 text-xs font-bold">🪙 Wallet applied: −₹{walletDiscount}</span>
+            <span className="text-amber-300 text-sm font-black">₹{finalDisplayAmount}</span>
+          </motion.div>
         )}
 
         {/* Coupon code input */}
@@ -502,7 +551,7 @@ function PaymentSheet({
                 Opening Payment…
               </>
             ) : (
-              <><span className="text-lg">💳</span> Pay {plan.price} Securely</>
+              <><span className="text-lg">💳</span> Pay ₹{finalDisplayAmount} Securely</>
             )}
           </motion.button>
         )}
