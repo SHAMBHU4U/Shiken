@@ -68,28 +68,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      if (u) {
-        await syncUserToDB(u);
-        await loadGoal(u);
-      } else {
-        setGoalState(null);
-        setGoalLoading(false);
-      }
-      setUser(u);
-      setLoading(false);
-    });
+  // ✅ YEH NAYA CODE PASTE KARO:
+useEffect(() => {
+  let isMounted = true;
 
-    getRedirectResult(auth).then(async (result) => {
-      if (result?.user) {
+  // 1️⃣ Sabse pehle mobile redirect ka data handle karo
+  getRedirectResult(auth)
+    .then(async (result) => {
+      if (isMounted && result?.user) {
         await syncUserToDB(result.user);
         await loadGoal(result.user);
       }
-    }).catch((err) => console.error("Redirect error:", err));
+    })
+    .catch((err) => console.error("Redirect check error:", err));
 
-    return unsub;
-  }, []);
+  // 2️⃣ Global auth state change listener
+  const unsub = onAuthStateChanged(auth, async (u) => {
+    if (!isMounted) return;
+
+    if (u) {
+      // User ko turant state mein set karo taaki redirect loop na bane
+      setUser(u);
+      setLoading(false);
+      
+      // Database ka kaam background mein hone do
+      syncUserToDB(u).catch(console.error);
+      loadGoal(u).catch(console.error);
+    } else {
+      setUser(null);
+      setGoalState(null);
+      setGoalLoading(false);
+      setLoading(false);
+    }
+  });
+
+  return () => {
+    isMounted = false;
+    unsub();
+  };
+}, []);
 
   const setGoal = async (g: UserGoal) => {
     if (!user) return;
