@@ -9,11 +9,11 @@
     "rewrites": [
       {
         "source": "/api/**",
-        "destination": "/api"
+        "function": "api"
       },
       {
         "source": "**",
-        "destination": "/artifacts/web-app/dist/index.html"
+        "destination": "/index.html"
       }
     ]
   }
