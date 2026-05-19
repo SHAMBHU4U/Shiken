@@ -1,1 +1,40 @@
-hii
+{
+  "project_info": {
+    "project_number": "101540280667",
+    "firebase_url": "https://shiken-d8789-default-rtdb.firebaseio.com",
+    "project_id": "shiken-d8789",
+    "storage_bucket": "shiken-d8789.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:101540280667:android:f8944bb8e38e70c39c427e",
+        "android_client_info": {
+          "package_name": "com.shambhuanu.shiken"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "101540280667-l0tnk5pc5sio3n46sigfngiho7bol2vt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCpJJZL2SW0twd7iZqEk3j7CSG6IbWsrkE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "101540280667-l0tnk5pc5sio3n46sigfngiho7bol2vt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
