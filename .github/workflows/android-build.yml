@@ -42,15 +42,6 @@ jobs:
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: ${{ runner.os }}-gradle-
 
       - name: Set up Android SDK
@@ -66,9 +57,12 @@ jobs:
           FIREBASE_DEPLOY: true
           NODE_ENV: production
 
+      # 🛠️ CAPACITOR FIX ADDED HERE FOR PNPM STRUCTURE
       - name: Add Android platform via Capacitor
         working-directory: artifacts/web-app
-        run: npx cap add android
+        run: |
+          pnpm add -D @capacitor/cli @capacitor/core @capacitor/android
+          npx cap add android || echo "Android folder already exists"
 
       - name: Sync Capacitor
         working-directory: artifacts/web-app
@@ -81,8 +75,10 @@ jobs:
       - name: Set version code and version name in build.gradle
         working-directory: artifacts/web-app/android/app
         run: |
-          sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" build.gradle
-          sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" build.gradle
+          if [ -f build.gradle ]; then
+            sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" build.gradle
+            sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" build.gradle
+          fi
 
       - name: Build signed Release AAB
         working-directory: artifacts/web-app/android
