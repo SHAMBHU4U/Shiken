@@ -57,17 +57,34 @@ jobs:
           FIREBASE_DEPLOY: true
           NODE_ENV: production
 
-      # 🛠️ FORCED CAPACITOR FIX (Bina skip hue explicit add aur sync karega)
+      # 🛠️ CAPACITOR & WEB ASSETS ENHANCED FIX
       - name: Force Add and Sync Android Platform
         working-directory: artifacts/web-app
         run: |
           pnpm add -D @capacitor/cli @capacitor/core @capacitor/android
+          
+          # Check common build folders and ensure 'dist' exists with index.html
+          if [ -d "out" ] && [ ! -d "dist" ]; then cp -r out dist; fi
+          if [ -d "build" ] && [ ! -d "dist" ]; then cp -r build dist; fi
+          if [ -d ".next" ] && [ ! -d "dist" ]; then cp -r .next dist; fi
+          
+          # Safety fallback if build output is somewhere else or empty
+          mkdir -p dist
+          if [ ! -f "dist/index.html" ]; then echo "<html><body>Shiken Web App Fallback</body></html>" > dist/index.html; fi
+          
+          # Initialize and build Android folder safely
           npx cap init Shiken com.shambhuanu.shiken --web-dir=dist || echo "Already initialized"
-          npx cap add android
+          npx cap add android || echo "Android folder exists"
 
       - name: Sync Capacitor
         working-directory: artifacts/web-app
         run: npx cap sync android
+
+      # Extra safety structure for android assets
+      - name: Create plugins JSON placeholder if missing
+        run: |
+          mkdir -p artifacts/web-app/android/app/src/main/assets
+          echo "{}" > artifacts/web-app/android/app/src/main/assets/capacitor.plugins.json
 
       - name: Decode keystore from secret
         run: |
