@@ -297,7 +297,7 @@ function PaymentSheet({
     setError("");
 
     try {
-      const orderRes = await fetch(`${API_BASE}api/razorpay/create-order`, {
+      const orderRes = await fetch('https://us-central1-shiken-d8789.cloudfunctions.net/api/razorpay/create-order', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
