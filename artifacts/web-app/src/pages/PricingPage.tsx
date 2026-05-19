@@ -187,7 +187,7 @@ const PLANS = [
     ],
   },
   {
-    id: "board_premium_6month",
+    id: "board_6m",// Sirf isko chota kiya hai
     name: "Board Premium (Class 10 / 12)",
     price: "₹199",
     amount: 199,
