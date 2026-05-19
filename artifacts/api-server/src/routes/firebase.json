@@ -1,0 +1,20 @@
+{
+  "hosting": {
+    "public": "artifacts/web-app/dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "destination": "/api"
+      },
+      {
+        "source": "**",
+        "destination": "/artifacts/web-app/dist/index.html"
+      }
+    ]
+  }
+}
