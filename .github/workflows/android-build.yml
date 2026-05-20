@@ -97,11 +97,15 @@ jobs:
 
       # 🛠️ FIXED: Using full absolute path for injected signing store file
       - name: Build signed Release AAB
-        working-directory: artifacts/web-app/android
         run: |
-          cd android 
+          # 🌟 Yeh command gradlew file ka sahi folder khud dhoondh legi
+          GRADLE_DIR=$(dirname $(find . -name "gradlew" | head -n 1))
+          echo "Gradle directory found at: $GRADLE_DIR"
+          
+          # Us folder ke andar jaakar permission set karenge aur build chalayenge
+          cd $GRADLE_DIR
           chmod +x gradlew
-          ./gradlew bundleRelease \
+          ./gradlew bundleRelease
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/keystore-holder/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
