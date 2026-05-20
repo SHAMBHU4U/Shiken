@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'App version name (e.g. 1.0.0)'
+        description: 'App version name (e.g. 1.0.1)'
         required: true
-        default: '1.0.0'
+        default: '1.0.1'
       version_code:
         description: 'Version code (integer, increment each release)'
         required: true
-        default: '1'
+        default: '2'
 
 jobs:
   build-android:
