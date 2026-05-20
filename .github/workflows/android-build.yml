@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version_name:
-        description: 'App version name (e.g. 1.0.1)'
+        description: 'App version name (e.g. 1.0.0)'
         required: true
         default: '1.0.1'
       version_code:
@@ -44,6 +44,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-gradle-
 
+          # Fix: Use proper path or leave fallback if missing
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -70,7 +71,20 @@ jobs:
           if [ ! -f "dist/index.html" ]; then echo "<html><body>Shiken Web App Fallback</body></html>" > dist/index.html; fi
           
           npx cap init Shiken com.shambhuanu.shiken --web-dir=dist || echo "Already initialized"
-          npx cap add android || echo "Android folder exists"
+          
+          # 🌟 SMART REPAIR: Agar gradlew missing hai, toh login/payment ka backup lekar folder fresh banao
+          if [ -d "android" ] && [ ! -f "android/gradlew" ]; then
+            echo "⚠️ 'gradlew' missing! Creating secure backup of your login/payment code and repairing..."
+            mkdir -p /tmp/app-backup
+            cp -r android/app/* /tmp/app-backup/
+            rm -rf android
+            npx cap add android
+            cp -r /tmp/app-backup/* android/app/
+          elif [ ! -d "android" ]; then
+            npx cap add android
+          else
+            echo "Android folder and gradlew both look good."
+          fi
 
       - name: Sync Capacitor
         working-directory: artifacts/web-app
@@ -81,7 +95,6 @@ jobs:
           mkdir -p artifacts/web-app/android/app/src/main/assets
           echo "{}" > artifacts/web-app/android/app/src/main/assets/capacitor.plugins.json
 
-      # 🛠️ FIXED: Decode keystore to a central absolute workspace folder
       - name: Decode keystore from secret
         run: |
           mkdir -p ${{ github.workspace }}/keystore-holder
@@ -95,7 +108,6 @@ jobs:
             sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" build.gradle
           fi
 
-      # 🛠️ FIXED: Using full absolute path for injected signing store file
       - name: Build signed Release AAB
         working-directory: artifacts/web-app/android
         run: |
