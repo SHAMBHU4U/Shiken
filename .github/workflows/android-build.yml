@@ -6,11 +6,11 @@ on:
       version_name:
         description: 'App version name (e.g. 1.0.0)'
         required: true
-        default: '1.0.1'
+        default: '1.0.0'
       version_code:
         description: 'Version code (integer, increment each release)'
         required: true
-        default: '2'
+        default: '1'
 
 jobs:
   build-android:
@@ -97,16 +97,10 @@ jobs:
 
       # 🛠️ FIXED: Using full absolute path for injected signing store file
       - name: Build signed Release AAB
+        working-directory: artifacts/web-app/android
         run: |
-          # 1. Pehle us sub-folder mein jao jahan aapka web-app aur android folder hai
-          cd artifacts/web-app
-          
-          # 2. Ab yahan se android folder ke andar jao
-          cd android
-          
-          # 3. Ab permission dekar build chalao
           chmod +x gradlew
-          ./gradlew bundleRelease
+          ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/keystore-holder/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
