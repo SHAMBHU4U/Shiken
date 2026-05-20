@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import {
   signInWithPopup, signInWithRedirect, getRedirectResult,
+  setPersistence, browserLocalPersistence, // 🌟 Yeh dono naye add kiye hain
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, updateProfile,
@@ -121,28 +122,31 @@ useEffect(() => {
   };
 
   const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+
+  try {
+    // 🌟 Persistence set kar rahe hain taaki mobile redirect ke baad login data save rahe
+    await setPersistence(auth, browserLocalPersistence);
 
     if (isMobileBrowser() && !isInIframe()) {
       return signInWithRedirect(auth, provider);
     }
 
-    try {
-      const result = await signInWithPopup(auth, provider);
-      if (result.user) {
-        await syncUserToDB(result.user);
-        await loadGoal(result.user);
-      }
-    } catch (err: unknown) {
-      const code = (err as { code?: string }).code ?? "";
-      if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
-        await signInWithRedirect(auth, provider);
-      } else {
-        throw err;
-      }
+    const result = await signInWithPopup(auth, provider);
+    if (result.user) {
+      await syncUserToDB(result.user);
+      await loadGoal(result.user);
     }
-  };
+  } catch (err: unknown) {
+    const code = (err as { code?: string }).code ?? "";
+    if (code === "auth/popup-blocked" || code === "auth/popup-closed-by-user") {
+      await signInWithRedirect(auth, provider);
+    } else {
+      throw err;
+    }
+  }
+};
 
   const signInWithEmail = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
