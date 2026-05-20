@@ -99,6 +99,7 @@ jobs:
       - name: Build signed Release AAB
         working-directory: artifacts/web-app/android
         run: |
+          cd android 
           chmod +x gradlew
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/keystore-holder/release.keystore \
