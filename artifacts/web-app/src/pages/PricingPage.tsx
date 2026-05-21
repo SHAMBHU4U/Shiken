@@ -4,6 +4,9 @@ import { useLocation } from "wouter";
 import { auth } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
+// 👇 YEH 2 NAYE IMPORTS ADD KARNE HAIN 👇
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 
 const API_BASE = import.meta.env.BASE_URL;
 const RAZORPAY_KEY = "rzp_live_SqePWVSFlT9MSp";
@@ -571,8 +574,23 @@ export default function PricingPage() {
   const [subjectForPlan, setSubjectForPlan] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<{ plan: Plan; uid: string; paymentId: string; subject?: string } | null>(null);
 
-  function handlePayClick(plan: Plan) {
+  // 🔥 YAHAN ASLI KHEL HAI: Google Play Store Policy ko pass karne ke liye 🔥
+  async function handlePayClick(plan: Plan) {
+    // Agar single subject plan hai aur subject select nahi kiya, toh return
     if (plan.singleSubject && !subjectForPlan[plan.id]) return;
+
+    // 📱 ANDROID CHECK: Agar baccha App ke andar hai
+    if (Capacitor.getPlatform() === 'android') {
+      // Seedha phone ka default Browser (Chrome) khol do
+      await Browser.open({
+        // Dhyan de: Agar aapka pricing page kisi aur route par hai (jaise /pricing), toh URL update kar lena
+        url: 'https://shiken-d8789.firebaseapp.com', 
+        presentationStyle: 'popover'
+      });
+      return; // Code yahin rok do taaki app ke andar niche se Razorpay popup na khule
+    }
+
+    // 💻 WEBSITE CHECK: Agar user pehle se Browser (Chrome/Safari) par hai, toh normal payment khol do
     setPayPlan(plan);
   }
 
