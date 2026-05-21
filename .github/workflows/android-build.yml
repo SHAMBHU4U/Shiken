@@ -48,7 +48,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build frontend (production)
         working-directory: artifacts/web-app
