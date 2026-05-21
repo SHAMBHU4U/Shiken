@@ -1,4 +1,4 @@
-name: Build Android AAB (Play Store)
+name: Build Android AAB & APK
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ on:
 
 jobs:
   build-android:
-    name: Build Signed AAB
+    name: Build Signed AAB & APK
     runs-on: ubuntu-latest
 
     steps:
@@ -44,7 +44,6 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: ${{ runner.os }}-gradle-
 
-          # Fix: Use proper path or leave fallback if missing
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -108,21 +107,24 @@ jobs:
             sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" build.gradle
           fi
 
-      - name: Build signed Release AAB
+      - name: Build signed Release APK & AAB
         working-directory: artifacts/web-app/android
         run: |
           chmod +x gradlew
-          ./gradlew bundleRelease \
+          ./gradlew assembleRelease bundleRelease \
             -Pandroid.injected.signing.store.file=${{ github.workspace }}/keystore-holder/release.keystore \
             -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
             -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
 
-      - name: Find and rename AAB
+      - name: Find and rename APK & AAB
         run: |
           AAB_PATH=$(find artifacts/web-app/android -name "*.aab" | head -1)
+          APK_PATH=$(find artifacts/web-app/android -name "*.apk" | grep "release" | head -1)
           echo "Found AAB at: $AAB_PATH"
+          echo "Found APK at: $APK_PATH"
           cp "$AAB_PATH" "shiken-v${{ github.event.inputs.version_name }}-release.aab"
+          cp "$APK_PATH" "shiken-v${{ github.event.inputs.version_name }}-release.apk"
 
       - name: Upload AAB as GitHub Artifact
         uses: actions/upload-artifact@v4
@@ -131,13 +133,21 @@ jobs:
           path: shiken-v${{ github.event.inputs.version_name }}-release.aab
           retention-days: 30
 
+      - name: Upload APK as GitHub Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiken-android-apk-v${{ github.event.inputs.version_name }}
+          path: shiken-v${{ github.event.inputs.version_name }}-release.apk
+          retention-days: 30
+
       - name: Build Summary
         run: |
-          echo "## Android AAB Build Complete!" >> $GITHUB_STEP_SUMMARY
+          echo "## Android Build Complete! 🎉" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **App Name:** Shiken" >> $GITHUB_STEP_SUMMARY
-          echo "- **Package ID:** com.shambhuanu.shiken" >> $GITHUB_STEP_SUMMARY
           echo "- **Version:** ${{ github.event.inputs.version_name }} (${{ github.event.inputs.version_code }})" >> $GITHUB_STEP_SUMMARY
-          echo "- **File:** shiken-v${{ github.event.inputs.version_name }}-release.aab" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Download the AAB from the Artifacts section below." >> $GITHUB_STEP_SUMMARY
+          echo "✅ **APK (For direct phone installation/testing)** has been generated." >> $GITHUB_STEP_SUMMARY
+          echo "✅ **AAB (For Google Play Store upload)** has been generated." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download them from the **Artifacts** section at the bottom of this page." >> $GITHUB_STEP_SUMMARY
