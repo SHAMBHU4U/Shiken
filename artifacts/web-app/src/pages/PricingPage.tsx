@@ -4,7 +4,6 @@ import { useLocation } from "wouter";
 import { auth } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useSubscription } from "../hooks/useSubscription";
-// 👇 YEH 2 NAYE IMPORTS ADD KARNE HAIN 👇
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 
@@ -45,187 +44,278 @@ function formatGatewayError(err: unknown): string {
   return msg.toLowerCase().includes("object object") ? "Payment failed. Please try again." : msg;
 }
 
+// ==================== 1. ALL NEW UPDATED PLANS ARRAY ====================
 const PLANS = [
+  // ------------------- JEE PREMIUM -------------------
   {
-    id: "jee_neet_weekly",
-    name: "JEE/NEET Weekly Pass",
-    price: "₹29",
-    amount: 29,
+    id: "jee_7d",
+    name: "JEE Premium (7 Days)",
+    price: "₹51",
+    amount: 51,
     days: 7,
     period: "7 days",
-    perMonth: "₹29/7d",
-    tag: null as string | null,
+    perMonth: "₹51/week",
+    tag: "Weekly Pass" as string | null,
     accent: "#3b82f6",
-    emoji: "📅",
+    emoji: "⚡",
     singleSubject: false,
-    category: "jee_neet" as const,
+    category: "jee" as const,
     features: [
-      "All JEE/NEET subjects unlimited",
-      "Full Tests + Chapter-wise",
-      "Shiken Engine questions & analysis",
-      "7 days full access",
+      "Full Access to JEE Physics, Chemistry, Maths",
+      "JEE Main Pattern Mock Tests",
+      "Chapter-wise PYQs with Solutions",
+      "Shiken Engine Premium Questions",
     ],
   },
   {
-    id: "jee_neet_monthly",
-    name: "JEE/NEET Monthly Plan",
-    price: "₹69",
-    amount: 69,
+    id: "jee_1m",
+    name: "JEE Premium (Monthly)",
+    price: "₹75",
+    amount: 75,
     days: 30,
     period: "30 days",
-    perMonth: "₹69/माह",
-    tag: null as string | null,
-    accent: "#6366f1",
-    emoji: "📆",
+    perMonth: "₹75/maah",
+    tag: "Popular" as string | null,
+    accent: "#2563eb",
+    emoji: "🚀",
     singleSubject: false,
-    category: "jee_neet" as const,
+    category: "jee" as const,
     features: [
-      "All JEE/NEET subjects unlimited",
-      "Full Tests + Chapter-wise",
-      "Shiken Engine questions & analysis",
-      "Priority counselling",
-      "30 days full access",
+      "Full Access to JEE Physics, Chemistry, Maths",
+      "JEE Main Pattern Mock Tests",
+      "Chapter-wise PYQs with Solutions",
+      "Priority AI Doubt Explanations",
     ],
   },
   {
-    id: "jee_neet_yearly",
-    name: "JEE/NEET Yearly Pro",
+    id: "jee_6m",
+    name: "JEE Premium (6 Months)",
     price: "₹399",
     amount: 399,
-    days: 365,
-    period: "1 year",
-    perMonth: "₹42/माह",
+    days: 180,
+    period: "6 months",
+    perMonth: "₹66.50/maah",
     tag: "🏆 Best Value" as string | null,
-    accent: "#f59e0b",
-    emoji: "🎯",
+    accent: "#1d4ed8",
+    emoji: "👑",
     singleSubject: false,
-    category: "jee_neet" as const,
+    category: "jee" as const,
     features: [
-      "All JEE/NEET subjects unlimited",
-      "Full Tests + Chapter-wise",
-      "Shiken Engine questions & analysis",
-      "Priority counselling",
-      "Golden badge & premium theme",
-      "1 year full access",
+      "Full Access to JEE Physics, Chemistry, Maths",
+      "JEE Main & Advanced Level Mock Tests",
+      "6 Months All Subjects Access",
+      "Exclusive Premium Dashboard Theme",
+    ],
+  },
+
+  // ------------------- NEET PREMIUM -------------------
+  {
+    id: "neet_7d",
+    name: "NEET Premium (7 Days)",
+    price: "₹51",
+    amount: 51,
+    days: 7,
+    period: "7 days",
+    perMonth: "₹51/week",
+    tag: "Weekly Pass" as string | null,
+    accent: "#10b981",
+    emoji: "🩺",
+    singleSubject: false,
+    category: "neet" as const,
+    features: [
+      "Full Access to NEET Physics, Chemistry, Biology",
+      "NEET Pattern NCERT-Based Mock Tests",
+      "Chapter-wise PYQs with Solutions",
+      "7 Days Complete Pro Access",
     ],
   },
   {
-    id: "c10_monthly",
-    name: "Class 10 Monthly Pass",
+    id: "neet_1m",
+    name: "NEET Premium (Monthly)",
+    price: "₹75",
+    amount: 75,
+    days: 30,
+    period: "30 days",
+    perMonth: "₹75/maah",
+    tag: "Popular" as string | null,
+    accent: "#059669",
+    emoji: "🧪",
+    singleSubject: false,
+    category: "neet" as const,
+    features: [
+      "Full Access to NEET Physics, Chemistry, Biology",
+      "NEET Pattern NCERT-Based Mock Tests",
+      "Chapter-wise PYQs with Solutions",
+      "30 Days Complete Pro Access",
+    ],
+  },
+  {
+    id: "neet_6m",
+    name: "NEET Premium (6 Months)",
+    price: "₹399",
+    amount: 399,
+    days: 180,
+    period: "6 months",
+    perMonth: "₹66.50/maah",
+    tag: "🏆 Best Value" as string | null,
+    accent: "#047857",
+    emoji: "🧬",
+    singleSubject: false,
+    category: "neet" as const,
+    features: [
+      "Full Access to NEET Physics, Chemistry, Biology",
+      "Full Length Real Exam-Pattern Papers",
+      "All Chapters PYQs & Detailed Analytics",
+      "6 Months Complete Pro Access",
+    ],
+  },
+
+  // ------------------- CLASS 10TH PLANS -------------------
+  {
+    id: "c10_1m",
+    name: "Class 10 Full Access",
     price: "₹49",
     amount: 49,
     days: 30,
     period: "30 days",
-    perMonth: "₹49/माह",
-    tag: null as string | null,
+    perMonth: "₹49/maah",
+    tag: "All Subjects" as string | null,
     accent: "#f59e0b",
-    emoji: "📅",
-    singleSubject: true,
-    category: "class10_12" as const,
+    emoji: "📚",
+    singleSubject: false,
+    category: "class10" as const,
     features: [
-      "1 subject unlimited Full Tests",
-      "Chapter-wise practice tests",
-      "Shiken Engine questions & analysis",
-      "30 days access",
+      "Full Access to ALL Class 10 Board Subjects",
+      "Chapter-wise Practice Tests",
+      "Shiken Engine Questions & Analysis",
+      "30 Days Access",
     ],
   },
   {
-    id: "c10_6month",
-    name: "Class 10 — 6 Months",
+    id: "c10_6m_single",
+    name: "Class 10 Single Subject",
     price: "₹99",
     amount: 99,
     days: 180,
     period: "6 months",
-    perMonth: "₹16.50/माह",
-    tag: null as string | null,
-    accent: "#10b981",
-    emoji: "📆",
+    perMonth: "₹16.50/maah",
+    tag: "1 Subject Pass" as string | null,
+    accent: "#eab308",
+    emoji: "✏️",
     singleSubject: true,
-    category: "class10_12" as const,
+    category: "class10" as const,
     features: [
-      "1 subject unlimited Full Tests",
-      "Chapter-wise practice tests",
-      "Shiken Engine questions & analysis",
-      "6 months access",
+      "1 Chosen Subject Unlimited Full Tests",
+      "Chapter-wise Board Practice Papers",
+      "Shiken Engine Analytics Tracker",
+      "6 Months Subject Access",
     ],
   },
   {
-    id: "c12_monthly",
-    name: "Class 12 Monthly Pass",
-    price: "₹49",
-    amount: 49,
-    days: 30,
-    period: "30 days",
-    perMonth: "₹49/माह",
-    tag: null as string | null,
-    accent: "#8b5cf6",
-    emoji: "📅",
-    singleSubject: true,
-    category: "class10_12" as const,
-    features: [
-      "1 subject unlimited Full Tests",
-      "Chapter-wise practice tests",
-      "Shiken Engine questions & analysis",
-      "30 days access",
-    ],
-  },
-  {
-    id: "c12_6month",
-    name: "Class 12 — 6 Months",
-    price: "₹99",
-    amount: 99,
-    days: 180,
-    period: "6 months",
-    perMonth: "₹16.50/माह",
-    tag: null as string | null,
-    accent: "#10b981",
-    emoji: "📆",
-    singleSubject: true,
-    category: "class10_12" as const,
-    features: [
-      "1 subject unlimited Full Tests",
-      "Chapter-wise practice tests",
-      "Shiken Engine questions & analysis",
-      "6 months access",
-    ],
-  },
-  {
-    id: "board_6m",// Sirf isko chota kiya hai
-    name: "Board Premium (Class 10 / 12)",
+    id: "c10_6m_full",
+    name: "Class 10 Full Premium",
     price: "₹199",
     amount: 199,
     days: 180,
     period: "6 months",
-    perMonth: "₹33/माह",
-    tag: "🔥 Best Value" as string | null,
-    accent: "#f59e0b",
+    perMonth: "₹33/maah",
+    tag: "🔥 Best Combo" as string | null,
+    accent: "#d97706",
     emoji: "🎯",
     singleSubject: false,
-    category: "class10_12" as const,
+    category: "class10" as const,
     features: [
-      "Unlimited Chapter-wise Tests",
-      "Board Pattern Mock Tests",
-      "Previous Year Questions (PYQs)",
-      "Detailed AI Explanations",
-      "6 months full access",
+      "Full Access to ALL Class 10 Subjects",
+      "Unlimited Chapter-wise Tests + Mock Tests",
+      "Board Previous Year Papers (PYQs)",
+      "6 Months Full Premium Access",
+    ],
+  },
+
+  // ------------------- CLASS 12TH PLANS -------------------
+  {
+    id: "c12_1m",
+    name: "Class 12 Full Access",
+    price: "₹49",
+    amount: 49,
+    days: 30,
+    period: "30 days",
+    perMonth: "₹49/maah",
+    tag: "All Subjects" as string | null,
+    accent: "#8b5cf6",
+    emoji: "📓",
+    singleSubject: false,
+    category: "class12" as const,
+    features: [
+      "Full Access to ALL Class 12 Board Subjects",
+      "Chapter-wise Practice Tests",
+      "Shiken Engine Questions & Analysis",
+      "30 Days Access",
+    ],
+  },
+  {
+    id: "c12_6m_single",
+    name: "Class 12 Single Subject",
+    price: "₹99",
+    amount: 99,
+    days: 180,
+    period: "6 months",
+    perMonth: "₹16.50/maah",
+    tag: "1 Subject Pass" as string | null,
+    accent: "#a855f7",
+    emoji: "✒️",
+    singleSubject: true,
+    category: "class12" as const,
+    features: [
+      "1 Chosen Subject Unlimited Full Tests",
+      "Chapter-wise Board Practice Papers",
+      "Shiken Engine Analytics Tracker",
+      "6 Months Subject Access",
+    ],
+  },
+  {
+    id: "c12_6m_full",
+    name: "Class 12 Full Premium",
+    price: "₹199",
+    amount: 199,
+    days: 180,
+    period: "6 months",
+    perMonth: "₹33/maah",
+    tag: "🔥 Best Combo" as string | null,
+    accent: "#7c3aed",
+    emoji: "🌟",
+    singleSubject: false,
+    category: "class12" as const,
+    features: [
+      "Full Access to ALL Class 12 Subjects",
+      "Unlimited Chapter-wise Tests + Mock Tests",
+      "Board Previous Year Papers (PYQs)",
+      "6 Months Full Premium Access",
     ],
   },
 ];
 
-const SUBJECT_OPTIONS = [
-  { id: "maths",     label: "Maths / गणित" },
-  { id: "science",   label: "Science / विज्ञान" },
-  { id: "social",    label: "Social Science / सामाजिक" },
-  { id: "hindi",     label: "Hindi / हिंदी" },
-  { id: "english",   label: "English / अंग्रेज़ी" },
-  { id: "sanskrit",  label: "Sanskrit / संस्कृत" },
-  { id: "physics",   label: "Physics / भौतिकी" },
-  { id: "chemistry", label: "Chemistry / रसायन" },
-  { id: "biology",   label: "Biology / जीव विज्ञान" },
+// Clean filtered subject structures to avoid contamination
+const SUBJECTS_BOARD_10TH = [
+  { id: "maths",      label: "Maths / गणित" },
+  { id: "science",    label: "Science / विज्ञान" },
+  { id: "social",     label: "Social Science / सामाजिक विज्ञान" },
+  { id: "hindi",      label: "Hindi / हिंदी" },
+  { id: "english",    label: "English / अंग्रेज़ी" },
+  { id: "sanskrit",   label: "Sanskrit / संस्कृत" },
+];
+
+const SUBJECTS_BOARD_12TH = [
+  { id: "physics",    label: "Physics / भौतिकी" },
+  { id: "chemistry",  label: "Chemistry / रसायन" },
+  { id: "maths",      label: "Maths / गणित" },
+  { id: "biology",    label: "Biology / जीव विज्ञान" },
+  { id: "english",    label: "English / अंग्रेज़ी" },
+  { id: "Hindi",      label: "Hindi / हिन्दी" },
+  { id: "Social Science",    label: "Social Science / सामाजिक विज्ञान" },
 ];
 
 type Plan = (typeof PLANS)[0];
-
 const ADMIN_WA = "918340472013";
 
 function buildAdminWaLink(uid: string, plan: Plan, paymentId: string, subject?: string) {
@@ -234,6 +324,7 @@ function buildAdminWaLink(uid: string, plan: Plan, paymentId: string, subject?: 
   return `https://wa.me/${ADMIN_WA}?text=${encodeURIComponent(msg)}`;
 }
 
+// ==================== 2. PAYMENT SHEET COMPONENT ====================
 function PaymentSheet({
   plan,
   selectedSubject,
@@ -255,12 +346,15 @@ function PaymentSheet({
   const [couponError, setCouponError]       = useState("");
   const [useWallet, setUseWallet]           = useState(false);
 
-  // Compute how much wallet discount actually applies
   const baseAfterCoupon = couponResult?.applied ? couponResult.finalAmount : plan.amount;
   const walletDiscount  = useWallet && walletBalance > 0
-    ? Math.min(walletBalance, baseAfterCoupon - 1) // keep at least ₹1 for Razorpay
+    ? Math.min(walletBalance, baseAfterCoupon - 1) 
     : 0;
   const finalDisplayAmount = baseAfterCoupon - walletDiscount;
+
+  // Find dynamic labels for display inside sheet
+  const combinedOptions = [...SUBJECTS_BOARD_10TH, ...SUBJECTS_BOARD_12TH];
+  const renderedSubjectLabel = combinedOptions.find(s => s.id === selectedSubject)?.label ?? selectedSubject;
 
   async function handleCheckCoupon() {
     const code = couponInput.trim().toUpperCase();
@@ -325,10 +419,10 @@ function PaymentSheet({
         setPaying(false);
         return;
       }
-      const amount = Math.round(amountRs * 100); // Razorpay expects paise
+      const amount = Math.round(amountRs * 100);
 
       const options: RazorpayOptions = {
-        key:         RAZORPAY_KEY,
+        key:        RAZORPAY_KEY,
         amount,
         currency:    "INR",
         name:        "SHIKEN",
@@ -439,13 +533,10 @@ function PaymentSheet({
           <div className="mb-4 px-4 py-2.5 rounded-xl flex items-center gap-2"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
             <span className="text-sm">📚</span>
-            <span className="text-white/70 text-sm font-semibold">
-              {SUBJECT_OPTIONS.find(s => s.id === selectedSubject)?.label ?? selectedSubject}
-            </span>
+            <span className="text-white/70 text-sm font-semibold">{renderedSubjectLabel}</span>
           </div>
         )}
 
-        {/* Wallet balance row */}
         {walletBalance > 0 && (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
             className="mb-3 px-4 py-3 rounded-2xl flex items-center justify-between"
@@ -470,6 +561,7 @@ function PaymentSheet({
             </button>
           </motion.div>
         )}
+
         {useWallet && walletDiscount > 0 && (
           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
             className="mb-3 px-3 py-2 rounded-xl flex items-center justify-between"
@@ -479,7 +571,6 @@ function PaymentSheet({
           </motion.div>
         )}
 
-        {/* Coupon code input */}
         <div className="mb-4">
           <div className="flex gap-2">
             <input
@@ -504,9 +595,7 @@ function PaymentSheet({
               {couponChecking ? "…" : couponResult?.applied ? "✓" : "Apply"}
             </motion.button>
           </div>
-          {couponError && (
-            <p className="text-red-400 text-xs mt-1.5 px-1">{couponError}</p>
-          )}
+          {couponError && <p className="text-red-400 text-xs mt-1.5 px-1">{couponError}</p>}
           {couponResult?.applied && (
             <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
               className="mt-2 px-3 py-2 rounded-xl flex items-center justify-between"
@@ -541,8 +630,8 @@ function PaymentSheet({
             whileTap={{ scale: paying ? 1 : 0.97 }}
             className="flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-black text-base mb-3"
             style={{
-              background: paying ? "rgba(139,92,246,0.3)" : `linear-gradient(135deg, ${plan.accent}, ${plan.id === "c10_monthly" ? "#6366f1" : plan.id === "c10_6month" ? "#059669" : "#d97706"})`,
-              color: paying ? "#fff" : "#000",
+              background: paying ? "rgba(139,92,246,0.3)" : `linear-gradient(135deg, ${plan.accent}, #111115)`,
+              color: paying ? "#fff" : "#fff",
               boxShadow: paying ? "none" : `0 6px 32px ${plan.accent}50`,
               opacity: paying ? 0.8 : 1,
             }}
@@ -567,29 +656,29 @@ function PaymentSheet({
   );
 }
 
+// ==================== 3. MAIN PRICING PAGE VIEW ====================
 export default function PricingPage() {
   const [, navigate] = useLocation();
   const { isPremium, premiumSubjects } = useSubscription();
   const [payPlan, setPayPlan] = useState<Plan | null>(null);
   const [subjectForPlan, setSubjectForPlan] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<{ plan: Plan; uid: string; paymentId: string; subject?: string } | null>(null);
+  
+  // Segment categories into intuitive sub-tabs to avoid micro-clutter
+  const [activeTab, setActiveTab] = useState<"jee" | "neet" | "class10" | "class12">("jee");
 
-  // 🔥 YAHAN ASLI KHEL HAI: Google Play Store Policy ko pass karne ke liye 🔥
+  const filteredPlans = PLANS.filter(plan => plan.category === activeTab);
+
   async function handlePayClick(plan: Plan) {
-    // Agar single subject plan hai aur subject select nahi kiya, toh return
     if (plan.singleSubject && !subjectForPlan[plan.id]) return;
 
-    // 📱 ANDROID CHECK: Dono tareeqon se check karega (App aur Browser Console)
-  if (Capacitor.getPlatform() === 'android' || (window as any).Capacitor?.getPlatform?.() === 'android') {
-    await Browser.open({
-        // Dhyan de: Agar aapka pricing page kisi aur route par hai (jaise /pricing), toh URL update kar lena
+    if (Capacitor.getPlatform() === 'android' || (window as any).Capacitor?.getPlatform?.() === 'android') {
+      await Browser.open({
         url: 'https://shiken-d8789.firebaseapp.com', 
         presentationStyle: 'popover'
       });
-      return; // Code yahin rok do taaki app ke andar niche se Razorpay popup na khule
+      return; 
     }
-
-    // 💻 WEBSITE CHECK: Agar user pehle se Browser (Chrome/Safari) par hai, toh normal payment khol do
     setPayPlan(plan);
   }
 
@@ -646,15 +735,32 @@ export default function PricingPage() {
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-14">
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="text-center mb-8">
+          className="text-center mb-6">
           <button onClick={() => navigate(-1 as never)}
             className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
             style={{ background: "rgba(255,255,255,0.06)" }}>←</button>
           <motion.div animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
             transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }} className="text-4xl mb-3">👑</motion.div>
           <h1 className="text-white font-black text-2xl mb-1">SHIKEN Premium</h1>
-          <p className="text-white/40 text-sm">Unlimited tests chaaiye? Choose your plan!</p>
+          <p className="text-white/40 text-sm">Choose your package to continue configuration</p>
         </motion.div>
+
+        {/* Dynamic Nav Tabs Bar */}
+        <div className="grid grid-cols-4 gap-1 p-1 mb-6 bg-white/5 border border-white/10 rounded-xl max-w-md mx-auto">
+          {(["jee", "neet", "class10", "class12"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                activeTab === tab 
+                  ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" 
+                  : "text-white/40 hover:text-white/70"
+              }`}
+            >
+              {tab === "class10" ? "10th" : tab === "class12" ? "12th" : tab}
+            </button>
+          ))}
+        </div>
 
         {isPremium && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -671,11 +777,10 @@ export default function PricingPage() {
           </motion.div>
         )}
 
-        {/* Freemium reminder */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="mb-6 rounded-2xl p-4"
           style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <p className="text-white/70 font-bold text-xs mb-2">🆓 Free Plan (always available)</p>
+          <p className="text-white/70 font-bold text-xs mb-2">Free Plan Feature Matrix</p>
           <div className="flex flex-col gap-1">
             {["Mini Test — unlimited (10 random questions)", "1 Full Length Test per subject (free trial)"].map(f => (
               <div key={f} className="flex items-center gap-2 text-xs text-white/45">
@@ -687,107 +792,102 @@ export default function PricingPage() {
           </div>
         </motion.div>
 
+        {/* Filtered Segment Loop Render */}
         <div className="flex flex-col gap-5 mb-8">
-          {PLANS.map((plan, i) => (
-            <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.08 }}
-              className="rounded-2xl p-5"
-              style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${plan.accent}25` }}>
+          {filteredPlans.map((plan, i) => {
+            const isSingleSub = plan.singleSubject;
+            const subjectList = plan.category === "class10" ? SUBJECTS_BOARD_10TH : SUBJECTS_BOARD_12TH;
+            const isButtonDisabled = isSingleSub && !subjectForPlan[plan.id];
 
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-xl">{plan.emoji}</span>
-                    <p className="text-white font-black text-base">{plan.name}</p>
-                    {plan.tag && (
-                      <span className="text-xs font-black px-2 py-0.5 rounded-full"
-                        style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#000" }}>
-                        {plan.tag}
-                      </span>
+            return (
+              <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 + i * 0.05 }}
+                className="rounded-2xl p-5"
+                style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${plan.accent}25` }}>
+
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xl">{plan.emoji}</span>
+                      <p className="text-white font-black text-base">{plan.name}</p>
+                      {plan.tag && (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-black"
+                          style={{ background: `linear-gradient(135deg, ${plan.accent}, #fff)` }}>
+                          {plan.tag}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-white/40 text-xs">{plan.period} · {plan.perMonth}</p>
+                  </div>
+                  <p className="font-black text-2xl shrink-0" style={{ color: plan.accent }}>{plan.price}</p>
+                </div>
+
+                <ul className="flex flex-col gap-1.5 mb-4">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-center gap-2 text-xs text-white/60">
+                      <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
+                        style={{ background: `${plan.accent}20`, color: plan.accent }}>✓</span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                {isSingleSub && (
+                  <div className="mb-4">
+                    <p className="text-white/40 text-xs mb-1.5">Choose your subject:</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {subjectList.map((s) => {
+                        const sel = subjectForPlan[plan.id] === s.id;
+                        return (
+                          <button key={s.id}
+                            onClick={() => setSubjectForPlan(prev => ({ ...prev, [plan.id]: s.id }))}
+                            className="py-2 px-1 rounded-xl text-[11px] font-bold text-center transition-all"
+                            style={{
+                              background: sel ? `${plan.accent}30` : "rgba(255,255,255,0.03)",
+                              border: `1px solid ${sel ? plan.accent : "rgba(255,255,255,0.08)"}`,
+                              color: sel ? "#fff" : "rgba(255,255,255,0.40)",
+                            }}>
+                            {s.label.split(" / ")[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {!subjectForPlan[plan.id] && (
+                      <p className="text-xs text-amber-400/70 mt-2">↑ कोई एक विषय चुनो</p>
                     )}
                   </div>
-                  <p className="text-white/40 text-xs">{plan.period} · {plan.perMonth}</p>
-                </div>
-                <p className="font-black text-2xl shrink-0" style={{ color: plan.accent }}>{plan.price}</p>
-              </div>
+                )}
 
-              <ul className="flex flex-col gap-1.5 mb-4">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-xs text-white/60">
-                    <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
-                      style={{ background: `${plan.accent}20`, color: plan.accent }}>✓</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              {plan.singleSubject && (
-                <div className="mb-3">
-                  <p className="text-white/40 text-xs mb-1.5">Choose your subject:</p>
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {SUBJECT_OPTIONS.map((s) => {
-                      const sel = subjectForPlan[plan.id] === s.id;
-                      return (
-                        <button key={s.id}
-                          onClick={() => setSubjectForPlan(prev => ({ ...prev, [plan.id]: s.id }))}
-                          className="py-2 px-1 rounded-xl text-xs font-semibold text-center transition-all"
-                          style={{
-                            background: sel ? `${plan.accent}30` : "rgba(255,255,255,0.05)",
-                            border: `1px solid ${sel ? plan.accent : "rgba(0,0,0,0.08)"}`,
-                            color: sel ? plan.accent : "rgba(255,255,255,0.40)",
-                          }}>
-                          {s.label.split(" / ")[0]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {plan.singleSubject && !subjectForPlan[plan.id] && (
-                    <p className="text-xs text-amber-400/70 mt-1.5">↑ कोई एक विषय चुनो</p>
-                  )}
-                </div>
-              )}
-
-              <motion.button
-                onClick={() => handlePayClick(plan)}
-                whileTap={{ scale: 0.97 }}
-                disabled={plan.singleSubject && !subjectForPlan[plan.id]}
-                className="w-full py-3 rounded-xl font-black text-sm"
-                style={{
-                  background: plan.singleSubject && !subjectForPlan[plan.id]
-                    ? "rgba(255,255,255,0.06)"
-                    : `linear-gradient(135deg, ${plan.accent}, ${plan.id === "c10_monthly" ? "#6366f1" : plan.id === "c10_6month" ? "#059669" : plan.id === "board_premium_6month" ? "#d97706" : "#d97706"})`,
-                  color: plan.singleSubject && !subjectForPlan[plan.id] ? "rgba(255,255,255,0.20)" : "#000",
-                  boxShadow: plan.singleSubject && !subjectForPlan[plan.id] ? "none" : `0 4px 20px ${plan.accent}40`,
-                  cursor: plan.singleSubject && !subjectForPlan[plan.id] ? "not-allowed" : "pointer",
-                }}>
-                💳 {plan.price} में Subscribe करो
-              </motion.button>
-            </motion.div>
-          ))}
+                <motion.button
+                  onClick={() => handlePayClick(plan)}
+                  whileTap={{ scale: isButtonDisabled ? 1 : 0.97 }}
+                  disabled={isButtonDisabled}
+                  className="w-full py-3 rounded-xl font-black text-sm transition-all"
+                  style={{
+                    background: isButtonDisabled
+                      ? "rgba(255,255,255,0.06)"
+                      : `linear-gradient(135deg, ${plan.accent}, #111115)`,
+                    color: isButtonDisabled ? "rgba(255,255,255,0.2)" : "#fff",
+                    boxShadow: isButtonDisabled ? "none" : `0 4px 20px ${plan.accent}25`,
+                  }}
+                >
+                  {isSingleSub && !subjectForPlan[plan.id] ? "Select Subject First" : "Activate Plan"}
+                </motion.button>
+              </motion.div>
+            );
+          })}
         </div>
-
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-          className="text-center space-y-2 pb-4">
-          <div className="flex items-center justify-center gap-3 text-white/20 text-xs">
-            <span>🔒 Razorpay Secured</span>
-            <span>·</span>
-            <span>💳 Card / UPI / Net Banking</span>
-          </div>
-          <p className="text-white/20 text-xs">
-            Questions?{" "}
-            <a href="https://wa.me/918340472013" className="text-white/40 underline">WhatsApp करो</a>
-          </p>
-        </motion.div>
       </div>
 
       <AnimatePresence>
         {payPlan && (
           <PaymentSheet
             plan={payPlan}
-            selectedSubject={payPlan.singleSubject ? (subjectForPlan[payPlan.id] ?? "") : ""}
+            selectedSubject={subjectForPlan[payPlan.id]}
             onClose={() => setPayPlan(null)}
             onSuccess={(uid, paymentId) => {
-              setSuccess({ plan: payPlan, uid, paymentId, subject: payPlan.singleSubject ? subjectForPlan[payPlan.id] : undefined });
+              const selectedSub = subjectForPlan[payPlan.id];
+              setSuccess({ plan: payPlan, uid, paymentId, subject: selectedSub });
               setPayPlan(null);
             }}
           />
