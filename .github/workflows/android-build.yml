@@ -60,37 +60,48 @@ jobs:
       - name: Force Add and Sync Android Platform
         working-directory: artifacts/web-app
         run: |
-          pnpm add -D @capacitor/cli @capacitor/core @capacitor/android
+          # 1. 🔥 COMPATIBILITY FIX: Exact Version 6 install karenge taaki plugins se match kare
+          pnpm add -D @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/android@^6.0.0
           
-          if [ ! -d "dist" ]; then
-            echo "⚠️ dist folder nahi mila! Checking alternative folders..."
-            if [ -d "out" ]; then cp -r out dist; fi
-            if [ -d "build" ]; then cp -r build dist; fi
+          # 2. 🔍 SMART DETECTOR: Asli index.html dhoondh kar sahi jagah set karna
+          echo "🔍 Searching for real build output..."
+          if [ -f "out/index.html" ]; then
+            echo "✅ Found build in 'out/' folder. Syncing to dist..."
+            rm -rf dist && mkdir -p dist && cp -r out/* dist/
+          elif [ -f "build/index.html" ]; then
+            echo "✅ Found build in 'build/' folder. Syncing to dist..."
+            rm -rf dist && mkdir -p dist && cp -r build/* dist/
+          elif [ -f "dist/index.html" ]; then
+            echo "✅ Found build directly in 'dist/' folder."
+          else
+            echo "❌ ERROR: index.html nahi mila! Check working directory."
+            exit 1
           fi
           
+          # 3. Capacitor Initialise
           npx cap init Shiken com.shambhuanu.shiken --web-dir=dist || echo "Already initialized"
           
+          # 4. Android Folder Setup/Repair
           if [ -d "android" ] && [ ! -f "android/gradlew" ]; then
-            echo "⚠️ 'gradlew' missing! Creating secure backup and repairing..."
+            echo "⚠️ 'gradlew' missing! Repairing Android platform safely..."
             mkdir -p /tmp/app-backup
             cp -r android/app/* /tmp/app-backup/
             rm -rf android
             npx cap add android
-            cp -r /tmp/app-backup/* android/app/
+            cp -r /tmp/app-backup/* android/app/ || echo "No backup to restore"
           elif [ ! -d "android" ]; then
             npx cap add android
           else
-            echo "Android folder and gradlew both look good."
+            echo "Android folder looks good."
           fi
+          
+          # 5. 🔥 PLACEHOLDER FIX: Sync hone se PEHLE assets aur json file banana zaroori hai
+          mkdir -p android/app/src/main/assets
+          echo "{}" > android/app/src/main/assets/capacitor.plugins.json
 
       - name: Sync Capacitor
         working-directory: artifacts/web-app
         run: npx cap sync android
-
-      - name: Create plugins JSON placeholder if missing
-        run: |
-          mkdir -p artifacts/web-app/android/app/src/main/assets
-          echo "{}" > artifacts/web-app/android/app/src/main/assets/capacitor.plugins.json
 
       - name: Decode keystore from secret
         run: |
