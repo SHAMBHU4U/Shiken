@@ -579,10 +579,9 @@ export default function PricingPage() {
     // Agar single subject plan hai aur subject select nahi kiya, toh return
     if (plan.singleSubject && !subjectForPlan[plan.id]) return;
 
-    // 📱 ANDROID CHECK: Agar baccha App ke andar hai
-    if (Capacitor.getPlatform() === 'android') {
-      // Seedha phone ka default Browser (Chrome) khol do
-      await Browser.open({
+    // 📱 ANDROID CHECK: Dono tareeqon se check karega (App aur Browser Console)
+  if (Capacitor.getPlatform() === 'android' || (window as any).Capacitor?.getPlatform?.() === 'android') {
+    await Browser.open({
         // Dhyan de: Agar aapka pricing page kisi aur route par hai (jaise /pricing), toh URL update kar lena
         url: 'https://shiken-d8789.firebaseapp.com', 
         presentationStyle: 'popover'
