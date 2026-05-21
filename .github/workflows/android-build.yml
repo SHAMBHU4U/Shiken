@@ -60,21 +60,26 @@ jobs:
       - name: Force Add and Sync Android Platform
         working-directory: artifacts/web-app
         run: |
-          # 1. 🔥 COMPATIBILITY FIX: Exact Version 6 install karenge taaki plugins se match kare
+          # 1. Compatibility Fix for Capacitor v6
           pnpm add -D @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/android@^6.0.0
           
-          # 2. 🔍 SMART DETECTOR: Asli index.html dhoondh kar sahi jagah set karna
-          echo "🔍 Searching for real build output..."
-          if [ -f "out/index.html" ]; then
-            echo "✅ Found build in 'out/' folder. Syncing to dist..."
-            rm -rf dist && mkdir -p dist && cp -r out/* dist/
-          elif [ -f "build/index.html" ]; then
-            echo "✅ Found build in 'build/' folder. Syncing to dist..."
-            rm -rf dist && mkdir -p dist && cp -r build/* dist/
-          elif [ -f "dist/index.html" ]; then
-            echo "✅ Found build directly in 'dist/' folder."
+          # 2. 🔥 DYNAMIC DETECTOR: Poore project me asli index.html dhoondhna (node_modules aur android ko chhodkar)
+          echo "🔍 Searching for index.html dynamically..."
+          TARGET_FILE=$(find . -name "index.html" | grep -v "node_modules" | grep -v "android" | head -n 1)
+          
+          if [ -n "$TARGET_FILE" ]; then
+            BUILD_DIR=$(dirname "$TARGET_FILE")
+            echo "✅ Found index.html at: $TARGET_FILE (Directory: $BUILD_DIR)"
+            # Agar output pehle se 'dist' nahi hai, toh use dist me copy karenge
+            if [ "$BUILD_DIR" != "./dist" ] && [ "$BUILD_DIR" != "dist" ]; then
+              echo "📦 Copying build assets from $BUILD_DIR to dist..."
+              rm -rf dist && mkdir -p dist
+              cp -r "$BUILD_DIR"/* dist/
+            fi
           else
-            echo "❌ ERROR: index.html nahi mila! Check working directory."
+            echo "❌ Current directory structure for debugging:"
+            ls -R
+            echo "❌ ERROR: index.html pure project me kahi nahi mila!"
             exit 1
           fi
           
@@ -95,7 +100,7 @@ jobs:
             echo "Android folder looks good."
           fi
           
-          # 5. 🔥 PLACEHOLDER FIX: Sync hone se PEHLE assets aur json file banana zaroori hai
+          # 5. Placeholder Fix for assets
           mkdir -p android/app/src/main/assets
           echo "{}" > android/app/src/main/assets/capacitor.plugins.json
 
