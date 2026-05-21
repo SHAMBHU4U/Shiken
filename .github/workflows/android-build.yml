@@ -63,24 +63,19 @@ jobs:
           # 1. Compatibility Fix for Capacitor v6
           pnpm add -D @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/android@^6.0.0
           
-          # 2. 🔥 DYNAMIC DETECTOR: Poore project me asli index.html dhoondhna (node_modules aur android ko chhodkar)
-          echo "🔍 Searching for index.html dynamically..."
-          TARGET_FILE=$(find . -name "index.html" | grep -v "node_modules" | grep -v "android" | head -n 1)
-          
-          if [ -n "$TARGET_FILE" ]; then
-            BUILD_DIR=$(dirname "$TARGET_FILE")
-            echo "✅ Found index.html at: $TARGET_FILE (Directory: $BUILD_DIR)"
-            # Agar output pehle se 'dist' nahi hai, toh use dist me copy karenge
-            if [ "$BUILD_DIR" != "./dist" ] && [ "$BUILD_DIR" != "dist" ]; then
-              echo "📦 Copying build assets from $BUILD_DIR to dist..."
-              rm -rf dist && mkdir -p dist
-              cp -r "$BUILD_DIR"/* dist/
-            fi
+          # 2. 🔥 EXACT POSITION FIX: dist/public se maal main dist folder me lana
+          echo "📦 Moving build assets from dist/public to main dist folder..."
+          if [ -d "dist/public" ]; then
+            mv dist/public /tmp/public-assets
+            rm -rf dist
+            mv /tmp/public-assets dist
+            echo "✅ Assets successfully migrated to root dist folder!"
           else
-            echo "❌ Current directory structure for debugging:"
-            ls -R
-            echo "❌ ERROR: index.html pure project me kahi nahi mila!"
-            exit 1
+            echo "⚠️ dist/public nahi mila, cross-checking if index.html is in root dist..."
+            if [ ! -f "dist/index.html" ]; then
+              echo "❌ ERROR: index.html sahi jagah nahi mili!"
+              exit 1
+            fi
           fi
           
           # 3. Capacitor Initialise
