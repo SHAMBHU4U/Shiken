@@ -250,7 +250,7 @@ router.post("/razorpay/validate-coupon", async (req, res) => {
 });
 
 // ─── POST /api/razorpay/verify-payment ────────────────────────────────────────
-router.post("/api/razorpay/verify-payment", async (req, res) => {
+router.post("/razorpay/verify-payment", async (req, res) => {
   try {
     const {
       razorpay_order_id,

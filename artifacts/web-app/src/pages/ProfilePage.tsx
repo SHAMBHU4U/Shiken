@@ -396,17 +396,20 @@ export default function ProfilePage() {
     setAvatarOpen(false);
     if (!auth.currentUser) return;
     const uid = auth.currentUser.uid;
-    fetch(`${DB_URL}/users/${uid}.json`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ avatarId: id }),
-    }).catch(() => {});
-    const safeId = uid.replace(/[.#$/[\]]/g, "_");
-    fetch(`${DB_URL}/userActivity/${safeId}/meta.json`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ avatarId: id }),
-    }).catch(() => {});
+    try {
+      const token = await auth.currentUser.getIdToken();
+      fetch(`${DB_URL}/users/${uid}.json?auth=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarId: id }),
+      }).catch(() => {});
+      const safeId = uid.replace(/[.#$/[\]]/g, "_");
+      fetch(`${DB_URL}/userActivity/${safeId}/meta.json?auth=${token}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarId: id }),
+      }).catch(() => {});
+    } catch { /* ignore */ }
   }
 
   async function handleNameSave() {
@@ -461,7 +464,13 @@ export default function ProfilePage() {
       .then((r) => r.json())
       .then((data) => {
         if (!data || typeof data !== "object") return;
-        const list = Object.values(data) as Session[];
+        const list = (Object.values(data) as Session[]).map(s => ({
+          ...s,
+          pct: Number(s.pct) || 0,
+          score: Number(s.score) || 0,
+          total: Number(s.total) || 0,
+          timestamp: Number(s.timestamp) || 0,
+        }));
         setSessions(list.sort((a, b) => b.timestamp - a.timestamp));
       })
       .catch(() => {})

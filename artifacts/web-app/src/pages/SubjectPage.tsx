@@ -306,8 +306,10 @@ function getDeviceId(): string {
   return id;
 }
 
-function inferSubjectCategory(subject: string): "c10" | "c12" | "entrance" {
-  if (subject.startsWith("entrance_exams/")) return "entrance";
+function inferSubjectCategory(subject: string): "c10" | "c12" | "jee" | "neet" {
+  if (subject.startsWith("entrance_exams/jee/")) return "jee";
+  if (subject.startsWith("entrance_exams/neet/")) return "neet";
+  if (subject.startsWith("entrance_exams/")) return "jee";
   if (subject.startsWith("class12/")) return "c12";
   return "c10";
 }
@@ -332,7 +334,7 @@ function addRecord(subject: string, rec: TestRecord): TestRecord[] {
       chapter: rec.chapter,
       timestamp: rec.date,
     }).catch(() => { /* offline — ignore */ });
-    const username = localStorage.getItem("shiken_username") || "";
+    const username = localStorage.getItem("shiken_username") || auth.currentUser?.displayName || "";
     set(ref(db, `userActivity/${safeId}/meta`), {
       lastActive: rec.date,
       deviceId,
