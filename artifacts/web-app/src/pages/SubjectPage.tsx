@@ -450,51 +450,51 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
 
   const pairs: Array<[Record<string, unknown>, string | undefined]> = [];
 
-  const firstVal = Object.values(dataObj)[0];
-  if (isQuestionLike(firstVal)) {
-    for (const v of Object.values(dataObj)) {
-      if (typeof v === "object" && v !== null) {
-        pairs.push([v as Record<string, unknown>, undefined]);
-      }
-    }
-  } else {
-    for (const [chapterSlug, chapterNode] of Object.entries(dataObj)) {
-      if (typeof chapterNode === "object" && chapterNode !== null) {
-        for (const v of Object.values(chapterNode as Record<string, unknown>)) {
-          if (isQuestionLike(v)) {
-            pairs.push([v as Record<string, unknown>, chapterSlug.replace(/_/g, " ")]);
-          }
-        }
-      }
-    }
-  }
-
-  const collectFlatQuestions = (node: unknown, chapterHint?: string) => {
+  // Recursive collector — walks any depth, attaches chapter from first
+  // non-question ancestor key. Used as the sole parser for Hindi (which has
+  // a mix of 2-level and 3-level deep chapter nesting).
+  const collectRecursive = (node: unknown, chapterHint?: string) => {
     if (typeof node !== "object" || node === null || Array.isArray(node)) return;
-    const values = Object.values(node as Record<string, unknown>);
-    if (values.length === 0) return;
-    const looksFlat = values.some(isQuestionLike);
-    if (looksFlat) {
-      for (const v of values) {
+    const entries = Object.entries(node as Record<string, unknown>);
+    // If any direct child looks like a question, treat this level as a question list
+    const hasDirectQuestions = entries.some(([, v]) => isQuestionLike(v));
+    if (hasDirectQuestions) {
+      for (const [, v] of entries) {
         if (isQuestionLike(v)) pairs.push([v as Record<string, unknown>, chapterHint]);
       }
       return;
     }
-    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-      collectFlatQuestions(value, key.replace(/_/g, " "));
+    // Otherwise recurse, using the current key as chapter hint
+    for (const [key, value] of entries) {
+      collectRecursive(value, chapterHint ?? key.replace(/_/g, " "));
     }
   };
 
   if (subject === "hindi") {
-    collectFlatQuestions(dataObj);
-  }
-
-  if (pairs.length === 0 && subject === "hindi") {
-    const rawQuestions = Object.values(dataObj).flatMap((v) => {
-      if (typeof v !== "object" || v === null || Array.isArray(v)) return [];
-      return Object.values(v as Record<string, unknown>).filter(isQuestionLike) as Record<string, unknown>[];
-    });
-    for (const q of rawQuestions) pairs.push([q, undefined]);
+    // For Hindi, ONLY use the recursive collector so we don't get duplicates
+    // from mixing the 2-level parser with the deep parser.
+    collectRecursive(dataObj);
+  } else {
+    // For all other subjects: use the original 2-level parser which is fast
+    // and already correct for maths/science/english/social/sanskrit schemas.
+    const firstVal = Object.values(dataObj)[0];
+    if (isQuestionLike(firstVal)) {
+      for (const v of Object.values(dataObj)) {
+        if (typeof v === "object" && v !== null) {
+          pairs.push([v as Record<string, unknown>, undefined]);
+        }
+      }
+    } else {
+      for (const [chapterSlug, chapterNode] of Object.entries(dataObj)) {
+        if (typeof chapterNode === "object" && chapterNode !== null) {
+          for (const v of Object.values(chapterNode as Record<string, unknown>)) {
+            if (isQuestionLike(v)) {
+              pairs.push([v as Record<string, unknown>, chapterSlug.replace(/_/g, " ")]);
+            }
+          }
+        }
+      }
+    }
   }
 
   return pairs.map(([q, chapterHint]) => {
