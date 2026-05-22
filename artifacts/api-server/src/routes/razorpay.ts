@@ -262,7 +262,7 @@ router.post("/api/razorpay/verify-payment", async (req, res) => {
       planSubject,
     } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !uid || !planId || !days) {
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !uid || !planId) {
       return res.status(400).json({ ok: false, error: "Missing required fields" });
     }
 
