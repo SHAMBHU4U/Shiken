@@ -2,63 +2,74 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 
+// ✅ 100% SYNCED WITH BACKEND logic (IDs, Amounts, Days)
 const GOAL_PLANS: Record<string, { id: string; name: string; price: string; amount: number; days: number; period: string; tag: string | null; accent: string; emoji: string; features: string[] }[]> = {
   jee: [
     {
-      id: "jee_neet_weekly", name: "Weekly Pass", price: "\u20b929", amount: 29, days: 7,
-      period: "7 days", tag: null, accent: "#3b82f6", emoji: "\ud83d\udcc5",
-      features: ["Full access to all JEE subjects", "Unlimited tests for 7 days", "Shiken Engine questions & analysis"],
+      id: "jee_7d", name: "JEE Premium (7 Days)", price: "₹51", amount: 51, days: 7,
+      period: "7 days", tag: null, accent: "#3b82f6", emoji: "📆",
+      features: ["Full access to all JEE subjects", "Unlimited tests for 7 days", "Shiken Engine analysis"],
     },
     {
-      id: "jee_neet_monthly", name: "Monthly Plan", price: "\u20b969", amount: 69, days: 30,
-      period: "30 days", tag: null, accent: "#6366f1", emoji: "\ud83d\udcc6",
-      features: ["Full access to all JEE subjects", "Unlimited tests for 30 days", "Shiken Engine questions & analysis", "Priority counselling"],
+      id: "jee_1m", name: "JEE Premium (1 Month)", price: "₹75", amount: 75, days: 30,
+      period: "30 days", tag: "🔥 Popular", accent: "#6366f1", emoji: "🗓️",
+      features: ["Full access to all JEE subjects", "Unlimited tests for 30 days", "Shiken Engine analysis"],
     },
     {
-      id: "jee_neet_yearly", name: "Yearly Pro", price: "\u20b9499", amount: 499, days: 365,
-      period: "1 year", tag: "\ud83c\udfc6 Best Value", accent: "#f59e0b", emoji: "\ud83c\udfaf",
-      features: ["Full access to all JEE subjects", "Unlimited tests for 1 year", "Shiken Engine questions & analysis", "Priority counselling", "Golden badge & profile theme"],
+      id: "jee_6m", name: "JEE Premium (6 Months)", price: "₹399", amount: 399, days: 180,
+      period: "6 months", tag: "🏆 Best Value", accent: "#f59e0b", emoji: "🎯",
+      features: ["Full access to all JEE subjects", "Unlimited tests for 6 months", "Premium Analytics"],
     },
   ],
   neet: [
     {
-      id: "jee_neet_weekly", name: "Weekly Pass", price: "\u20b929", amount: 29, days: 7,
-      period: "7 days", tag: null, accent: "#10b981", emoji: "\ud83d\udcc5",
-      features: ["Full access to all NEET subjects", "Unlimited tests for 7 days", "Shiken Engine questions & analysis"],
+      id: "neet_7d", name: "NEET Premium (7 Days)", price: "₹51", amount: 51, days: 7,
+      period: "7 days", tag: null, accent: "#10b981", emoji: "📆",
+      features: ["Full access to all NEET subjects", "Unlimited tests for 7 days", "Shiken Engine analysis"],
     },
     {
-      id: "jee_neet_monthly", name: "Monthly Plan", price: "\u20b969", amount: 69, days: 30,
-      period: "30 days", tag: null, accent: "#059669", emoji: "\ud83d\udcc6",
-      features: ["Full access to all NEET subjects", "Unlimited tests for 30 days", "Shiken Engine questions & analysis", "Priority counselling"],
+      id: "neet_1m", name: "NEET Premium (1 Month)", price: "₹75", amount: 75, days: 30,
+      period: "30 days", tag: "🔥 Popular", accent: "#059669", emoji: "🗓️",
+      features: ["Full access to all NEET subjects", "Unlimited tests for 30 days", "Shiken Engine analysis"],
     },
     {
-      id: "jee_neet_yearly", name: "Yearly Pro", price: "\u20b9499", amount: 499, days: 365,
-      period: "1 year", tag: "\ud83c\udfc6 Best Value", accent: "#f59e0b", emoji: "\ud83c\udfaf",
-      features: ["Full access to all NEET subjects", "Unlimited tests for 1 year", "Shiken Engine questions & analysis", "Priority counselling", "Golden badge & profile theme"],
+      id: "neet_6m", name: "NEET Premium (6 Months)", price: "₹399", amount: 399, days: 180,
+      period: "6 months", tag: "🏆 Best Value", accent: "#f59e0b", emoji: "🎯",
+      features: ["Full access to all NEET subjects", "Unlimited tests for 6 months", "Premium Analytics"],
     },
   ],
   c10: [
     {
-      id: "c10_monthly", name: "Monthly Pass", price: "\u20b949", amount: 49, days: 30,
-      period: "30 days", tag: null, accent: "#f59e0b", emoji: "\ud83d\udcc5",
-      features: ["1 subject unlimited Full Tests", "Chapter-wise practice", "Shiken Engine questions & analysis"],
+      id: "c10_1m", name: "Class 10 Monthly", price: "₹49", amount: 49, days: 30,
+      period: "30 days", tag: null, accent: "#f59e0b", emoji: "📆",
+      features: ["Unlimited Full Tests for Class 10", "Chapter-wise practice", "Shiken Engine analysis"],
     },
     {
-      id: "c10_6month", name: "6 Months", price: "\u20b999", amount: 99, days: 180,
-      period: "6 months", tag: null, accent: "#10b981", emoji: "\ud83d\udcc6",
-      features: ["1 subject unlimited Full Tests", "Chapter-wise practice", "Shiken Engine questions & analysis"],
+      id: "c10_6m_single", name: "Class 10 (6M Single)", price: "₹99", amount: 99, days: 180,
+      period: "6 months", tag: "📘 1 Subject", accent: "#10b981", emoji: "📖",
+      features: ["1 Subject Unlimited Access", "6 Months validity", "Chapter-wise practice"],
+    },
+    {
+      id: "c10_6m_full", name: "Class 10 (6M Full)", price: "₹199", amount: 199, days: 180,
+      period: "6 months", tag: "🏆 Best Value", accent: "#6366f1", emoji: "🎯",
+      features: ["All Subjects Unlimited Access", "6 Months validity", "Premium Analytics"],
     },
   ],
   c12: [
     {
-      id: "c12_monthly", name: "Monthly Pass", price: "\u20b949", amount: 49, days: 30,
-      period: "30 days", tag: null, accent: "#8b5cf6", emoji: "\ud83d\udcc5",
-      features: ["1 subject unlimited Full Tests", "Chapter-wise practice", "Shiken Engine questions & analysis"],
+      id: "c12_1m", name: "Class 12 Monthly", price: "₹49", amount: 49, days: 30,
+      period: "30 days", tag: null, accent: "#8b5cf6", emoji: "📆",
+      features: ["Unlimited Full Tests for Class 12", "Chapter-wise practice", "Shiken Engine analysis"],
     },
     {
-      id: "c12_6month", name: "6 Months", price: "\u20b999", amount: 99, days: 180,
-      period: "6 months", tag: null, accent: "#10b981", emoji: "\ud83d\udcc6",
-      features: ["1 subject unlimited Full Tests", "Chapter-wise practice", "Shiken Engine questions & analysis"],
+      id: "c12_6m_single", name: "Class 12 (6M Single)", price: "₹99", amount: 99, days: 180,
+      period: "6 months", tag: "📘 1 Subject", accent: "#10b981", emoji: "📖",
+      features: ["1 Subject Unlimited Access", "6 Months validity", "Chapter-wise practice"],
+    },
+    {
+      id: "c12_6m_full", name: "Class 12 (6M Full)", price: "₹199", amount: 199, days: 180,
+      period: "6 months", tag: "🏆 Best Value", accent: "#6366f1", emoji: "🎯",
+      features: ["All Subjects Unlimited Access", "6 Months validity", "Premium Analytics"],
     },
   ],
 };
@@ -146,7 +157,7 @@ export default function ChoosePlanPage(props?: ChoosePlanPageProps) {
               </div>
 
               <motion.button
-                onClick={() => navigate(`/pricing?plan=${plan.id}`)}
+                onClick={() => navigate(`/pricing?plan=${plan.id}&days=${plan.days}`)}
                 whileTap={{ scale: 0.97 }}
                 className="w-full py-3 rounded-xl font-bold text-sm text-black"
                 style={{ background: `linear-gradient(135deg, ${plan.accent}, ${plan.accent}cc)`, boxShadow: `0 4px 20px ${plan.accent}40` }}>
