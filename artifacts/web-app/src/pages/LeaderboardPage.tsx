@@ -11,6 +11,7 @@ const GRADE_COLOR = (p: number) =>
 const SUBJECT_ICONS: Record<string, string> = {
   maths: "📐", english: "📖", hindi: "🔤",
   science: "🔬", social: "🌍", sanskrit: "📜",
+  physics: "⚡", chemistry: "🧪", biology: "🌿",
   "class12/physics": "⚡", "class12/chemistry": "🧪", "class12/biology": "🌿",
   "class12/maths": "📐", "class12/social": "🌍", "class12/hindi": "🔤", "class12/english": "📖",
   "entrance_exams/jee/physics": "⚡", "entrance_exams/jee/chemistry": "🧪", "entrance_exams/jee/maths": "📐",
@@ -20,15 +21,20 @@ const SUBJECT_ICONS: Record<string, string> = {
 const SUBJECT_LABELS: Record<string, string> = {
   maths: "Maths", english: "English", hindi: "Hindi",
   science: "Science", social: "Social Science", sanskrit: "Sanskrit",
+  physics: "Physics", chemistry: "Chemistry", biology: "Biology",
   "class12/physics": "Physics", "class12/chemistry": "Chemistry", "class12/biology": "Biology",
   "class12/maths": "Maths", "class12/social": "Social", "class12/hindi": "Hindi", "class12/english": "English",
   "entrance_exams/jee/physics": "JEE Physics", "entrance_exams/jee/chemistry": "JEE Chemistry", "entrance_exams/jee/maths": "JEE Maths",
   "entrance_exams/neet/physics": "NEET Physics", "entrance_exams/neet/chemistry": "NEET Chemistry", "entrance_exams/neet/biology": "NEET Biology",
 };
 
-function inferCategory(subject: string): "c10" | "c12" | "entrance" {
-  if (subject.startsWith("entrance_exams/")) return "entrance";
-  if (subject.startsWith("class12/")) return "c12";
+// ✅ FIX 1: JEE aur NEET ko unke subject paths se sahi tarike se pehchanna
+function inferCategory(subject: string): "c10" | "c12" | "jee" | "neet" {
+  if (!subject) return "c10";
+  const sLower = subject.toLowerCase();
+  if (sLower.includes("jee")) return "jee";
+  if (sLower.includes("neet")) return "neet";
+  if (sLower.startsWith("class12/") || sLower.includes("class12")) return "c12";
   return "c10";
 }
 
@@ -57,31 +63,53 @@ async function fetchLeaderboardByCategory(category: "c10" | "c12" | "jee" | "nee
     return (Object.entries(actData as Record<string, {
       meta?: { deviceId?: string; username?: string; lastActive?: number };
       sessions?: Record<string, { pct: number; subject: string; category?: string; timestamp?: number }>;
-      mockScores?: Record<string, { examType: string; pct: number; score: number; maxMarks: number; timestamp: number }>;
+      mockScores?: Record<string, { examType: string; pct: number; score: number; maxMarks: number; timestamp: number; subject?: string }>;
     }>)
       .map(([uid, u]) => {
+        const targetCatLower = category.toLowerCase();
+        
+        // 1. Fetch from mockScores with case-insensitive check
         const mockScores = u.mockScores ? Object.values(u.mockScores) : [];
-        const mockForCat = mockScores.filter((m) => m.examType === category);
+        const mockForCat = mockScores.filter((m) => m.examType?.toLowerCase() === targetCatLower);
+
+        // 2. Fetch from sessions safely without hard-blocking JEE/NEET
         const sessions = u.sessions ? Object.values(u.sessions) : [];
         const catSessions = sessions.filter((s) => {
-          const cat = s.category ?? inferCategory(s.subject);
-          if (category === "jee" || category === "neet") return false;
-          return cat === category;
+          const inferred = s.category ?? inferCategory(s.subject || "");
+          return inferred.toLowerCase() === targetCatLower;
         });
-        const allEntries: { pct: number; subject?: string; timestamp?: number }[] = [
-          ...mockForCat.map((m) => ({ pct: m.pct, subject: undefined, timestamp: m.timestamp })),
-          ...catSessions.map((s) => ({ pct: s.pct, subject: s.subject, timestamp: s.timestamp })),
+
+        // ✅ FIX 2: Dono sources ke data ko bundle karna aur Dynamic Subject ko support karna
+        const allEntries = [
+          ...mockForCat.map((m) => ({ 
+            pct: Number(m.pct) || 0, 
+            subject: m.subject || "General", 
+            timestamp: m.timestamp 
+          })),
+          ...catSessions.map((s) => ({ 
+            pct: Number(s.pct) || 0, 
+            subject: s.subject || "General", 
+            timestamp: s.timestamp 
+          })),
         ];
+
         if (allEntries.length < 1) return null;
 
-        const avgPct = Math.round(allEntries.reduce((s, r) => s + r.pct, 0) / allEntries.length);
-        const subjectCount = new Set(catSessions.map((s) => s.subject).filter(Boolean)).size;
+        // ✅ FIX 3: Safe calculation logic taaki NaN ka khatra zero ho jaye
+        const avgPct = Math.round(allEntries.reduce((sum, item) => sum + item.pct, 0) / allEntries.length);
+        
+        // All entries se total subjects analyze karna
+        const subjectCount = new Set(allEntries.map((e) => e.subject).filter(Boolean)).size;
 
+        // Best Subject nikalne ka automated dynamic loop
         const subjectScores: Record<string, number[]> = {};
-        catSessions.forEach((s) => {
-          if (!subjectScores[s.subject]) subjectScores[s.subject] = [];
-          subjectScores[s.subject].push(s.pct);
+        allEntries.forEach((e) => {
+          if (e.subject) {
+            if (!subjectScores[e.subject]) subjectScores[e.subject] = [];
+            subjectScores[e.subject].push(e.pct);
+          }
         });
+        
         const bestSubject = Object.entries(subjectScores)
           .map(([sub, scores]) => ({ sub, avg: scores.reduce((a, b) => a + b, 0) / scores.length }))
           .sort((a, b) => b.avg - a.avg)[0]?.sub ?? "";
@@ -376,8 +404,8 @@ export default function LeaderboardPage() {
                         {e.bestSubject && (
                           <>
                             <span className="text-white/15 text-xs">·</span>
-                            <span className="text-xs">{SUBJECT_ICONS[e.bestSubject] ?? "📚"}</span>
-                            <span className="text-white/20 text-xs truncate">{SUBJECT_LABELS[e.bestSubject] ?? e.bestSubject}</span>
+                            <span className="text-xs">{SUBJECT_ICONS[e.bestSubject.toLowerCase()] ?? SUBJECT_ICONS[e.bestSubject] ?? "📚"}</span>
+                            <span className="text-white/20 text-xs truncate">{SUBJECT_LABELS[e.bestSubject.toLowerCase()] ?? SUBJECT_LABELS[e.bestSubject] ?? e.bestSubject}</span>
                           </>
                         )}
                       </div>
