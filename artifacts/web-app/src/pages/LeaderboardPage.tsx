@@ -50,11 +50,12 @@ interface LeaderEntry {
   category: "c10" | "c12" | "jee" | "neet";
 }
 
-async function fetchLeaderboardByCategory(category: "c10" | "c12" | "jee" | "neet"): Promise<LeaderEntry[]> {
+async function fetchLeaderboardByCategory(category: "c10" | "c12" | "jee" | "neet", token?: string): Promise<LeaderEntry[]> {
   try {
+    const authSuffix = token ? `?auth=${token}` : "";
     const [actRes, usersRes] = await Promise.all([
-      fetch(`${DB_URL}/userActivity.json`),
-      fetch(`${DB_URL}/users.json`),
+      fetch(`${DB_URL}/userActivity.json${authSuffix}`),
+      fetch(`${DB_URL}/users.json${authSuffix}`),
     ]);
     const actData = actRes.ok ? await actRes.json() : null;
     const usersData = usersRes.ok ? await usersRes.json() : null;
@@ -155,20 +156,26 @@ export default function LeaderboardPage() {
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
-    setLoading(true);
-    fetchLeaderboardByCategory(category).then((data) => {
-      setEntries(data);
-      setLoading(false);
-      setLastRefresh(new Date());
-    });
-    const t = setInterval(() => {
-      fetchLeaderboardByCategory(category).then((data) => {
-        setEntries(data);
-        setLastRefresh(new Date());
-      });
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      let token: string | undefined;
+      try { if (user) token = await user.getIdToken(); } catch { /* ignore */ }
+      if (cancelled) return;
+      const data = await fetchLeaderboardByCategory(category, token);
+      if (!cancelled) { setEntries(data); setLoading(false); setLastRefresh(new Date()); }
+    }
+    load();
+    const t = setInterval(async () => {
+      let token: string | undefined;
+      try { if (user) token = await user.getIdToken(); } catch { /* ignore */ }
+      if (!cancelled) {
+        const data = await fetchLeaderboardByCategory(category, token);
+        if (!cancelled) { setEntries(data); setLastRefresh(new Date()); }
+      }
     }, 60_000);
-    return () => clearInterval(t);
-  }, [category]);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [category, user]);
 
   const myUid = user?.uid ?? "";
   const filtered = filter === "premium" ? entries.filter((e) => e.isPremium) : entries;

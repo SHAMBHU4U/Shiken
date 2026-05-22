@@ -324,14 +324,16 @@ function addRecord(subject: string, rec: TestRecord): TestRecord[] {
     const uid = auth.currentUser?.uid;
     const deviceId = uid ?? getDeviceId();
     const safeId = deviceId.replace(/[.#$/[\]]/g, "_");
+    const safeSubject = (typeof subject === "string" && subject.trim()) ? subject : "unknown";
+    const safePct = isFinite(rec.pct) ? rec.pct : 0;
     push(ref(db, `userActivity/${safeId}/sessions`), {
-      subject,
-      category: inferSubjectCategory(subject),
+      subject: safeSubject,
+      category: inferSubjectCategory(safeSubject),
       score: rec.score,
       total: rec.total,
-      pct: rec.pct,
+      pct: safePct,
       mode: rec.mode,
-      chapter: rec.chapter,
+      chapter: rec.chapter || "",
       timestamp: rec.date,
     }).catch(() => { /* offline — ignore */ });
     const username = localStorage.getItem("shiken_username") || auth.currentUser?.displayName || "";

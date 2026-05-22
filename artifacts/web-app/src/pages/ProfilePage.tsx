@@ -459,38 +459,46 @@ export default function ProfilePage() {
     if (!user) return;
     setStatsLoading(true);
     const safeId = user.uid.replace(/[.#$/[\]]/g, "_");
-    // Fetch sessions
-    fetch(`${DB_URL}/userActivity/${safeId}/sessions.json`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data || typeof data !== "object") return;
-        const list = (Object.values(data) as Session[]).map(s => ({
-          ...s,
-          pct: Number(s.pct) || 0,
-          score: Number(s.score) || 0,
-          total: Number(s.total) || 0,
-          timestamp: Number(s.timestamp) || 0,
-        }));
-        setSessions(list.sort((a, b) => b.timestamp - a.timestamp));
-      })
-      .catch(() => {})
-      .finally(() => setStatsLoading(false));
-    // Fetch saved phone + avatarId
-    fetch(`${DB_URL}/users/${user.uid}.json`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d && typeof d === "object") {
+    let cancelled = false;
+    (async () => {
+      let token = "";
+      try { token = await user.getIdToken(); } catch { /* ignore */ }
+      if (cancelled) return;
+      const authSuffix = token ? `?auth=${token}` : "";
+      // Fetch sessions
+      fetch(`${DB_URL}/userActivity/${safeId}/sessions.json${authSuffix}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (cancelled || !data || typeof data !== "object") return;
+          const list = (Object.values(data) as Session[]).map(s => ({
+            ...s,
+            subject: s.subject || "unknown",
+            pct: isFinite(Number(s.pct)) ? Number(s.pct) : 0,
+            score: Number(s.score) || 0,
+            total: Number(s.total) || 0,
+            timestamp: Number(s.timestamp) || 0,
+          }));
+          setSessions(list.sort((a, b) => b.timestamp - a.timestamp));
+        })
+        .catch(() => {})
+        .finally(() => setStatsLoading(false));
+      // Fetch saved phone + avatarId
+      fetch(`${DB_URL}/users/${user.uid}.json${authSuffix}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (cancelled || !d || typeof d !== "object") return;
           if (typeof d.phone === "string") setPhone(d.phone);
           if (typeof d.avatarId === "string") setAvatarId(d.avatarId);
-        }
-      })
-      .catch(() => {});
+        })
+        .catch(() => {});
+    })();
     // Check notification permission
     if (typeof Notification !== "undefined") {
       setNotifPerm(Notification.permission as "default"|"granted"|"denied");
     } else {
       setNotifPerm("unsupported");
     }
+    return () => { cancelled = true; };
   }, [user]);
 
   if (loading) return (
@@ -504,17 +512,73 @@ export default function ProfilePage() {
   if (!user) return <AuthForm />;
 
   const totalSessions = sessions.length;
-  const avgPct = totalSessions ? Math.round(sessions.reduce((s, r) => s + r.pct, 0) / totalSessions) : 0;
+  const validSessions = sessions.filter(s => isFinite(s.pct) && s.pct > 0);
+  const avgPct = validSessions.length ? Math.round(validSessions.reduce((s, r) => s + r.pct, 0) / validSessions.length) : 0;
   const subjectMap: Record<string, { count: number; total: number }> = {};
   sessions.forEach((s) => {
-    if (!subjectMap[s.subject]) subjectMap[s.subject] = { count: 0, total: 0 };
-    subjectMap[s.subject].count++;
-    subjectMap[s.subject].total += s.pct;
+    const key = s.subject && s.subject !== "unknown" ? s.subject : null;
+    if (!key) return;
+    if (!subjectMap[key]) subjectMap[key] = { count: 0, total: 0 };
+    subjectMap[key].count++;
+    subjectMap[key].total += s.pct;
   });
   const bestSubject = Object.entries(subjectMap).sort((a, b) => (b[1].total / b[1].count) - (a[1].total / a[1].count))[0]?.[0] ?? null;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "#07080f" }}>
+
+      {/* Avatar picker — fixed full-screen overlay */}
+      <AnimatePresence>
+        {avatarOpen && (
+          <motion.div
+            key="avatar-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="fixed inset-0 z-50 flex items-end justify-center"
+            style={{ background: "rgba(0,0,0,0.75)" }}
+            onClick={() => setAvatarOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+              className="w-full max-w-lg mx-auto rounded-t-3xl p-6 pb-10"
+              style={{ background: "#13131f", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 -8px 64px rgba(0,0,0,0.8)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-white font-bold text-base">Avatar चुनो</p>
+                <button onClick={() => setAvatarOpen(false)} className="text-white/40 hover:text-white/80 transition-colors text-lg leading-none">✕</button>
+              </div>
+              <div className="grid grid-cols-6 gap-3">
+                {AVATARS.map((av) => (
+                  <motion.button
+                    key={av.id}
+                    onClick={() => handleAvatarSelect(av.id)}
+                    whileTap={{ scale: 0.85 }}
+                    className="w-full aspect-square rounded-2xl flex items-center justify-center text-2xl transition-all"
+                    style={{
+                      background: avatarId === av.id
+                        ? isPremium ? "rgba(251,191,36,0.25)" : "rgba(139,92,246,0.3)"
+                        : "rgba(255,255,255,0.07)",
+                      border: avatarId === av.id
+                        ? isPremium ? "2px solid rgba(251,191,36,0.7)" : "2px solid rgba(139,92,246,0.7)"
+                        : "1px solid rgba(255,255,255,0.06)",
+                    }}
+                    title={av.label}
+                  >
+                    {av.emoji}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
@@ -540,50 +604,10 @@ export default function ProfilePage() {
               onClick={() => setAvatarOpen((o) => !o)}
               whileTap={{ scale: 0.9 }}
               title="Change avatar"
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center border-2 text-xs"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center border-2 text-sm z-10"
               style={{ background: isPremium ? "#d97706" : "#7c3aed", borderColor: "#07080f" }}
             >✏</motion.button>
           </div>
-
-          {/* Avatar selector sheet */}
-          <AnimatePresence>
-            {avatarOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                transition={{ duration: 0.2 }}
-                className="absolute top-24 left-4 right-4 z-20 rounded-2xl p-4"
-                style={{ background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 16px 64px rgba(0,0,0,0.7)" }}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-white/70 text-xs font-black uppercase tracking-widest">Avatar चुनो</p>
-                  <button onClick={() => setAvatarOpen(false)} className="text-white/30 hover:text-white/70 transition-colors text-sm">✕</button>
-                </div>
-                <div className="grid grid-cols-6 gap-2">
-                  {AVATARS.map((av) => (
-                    <motion.button
-                      key={av.id}
-                      onClick={() => handleAvatarSelect(av.id)}
-                      whileTap={{ scale: 0.88 }}
-                      className="w-full aspect-square rounded-xl flex items-center justify-center text-xl transition-all"
-                      style={{
-                        background: avatarId === av.id
-                          ? isPremium ? "rgba(251,191,36,0.25)" : "rgba(139,92,246,0.3)"
-                          : "rgba(255,255,255,0.06)",
-                        border: avatarId === av.id
-                          ? isPremium ? "2px solid rgba(251,191,36,0.6)" : "2px solid rgba(139,92,246,0.6)"
-                          : "1px solid rgba(0,0,0,0.08)",
-                      }}
-                      title={av.label}
-                    >
-                      {av.emoji}
-                    </motion.button>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
           <div className="flex-1 min-w-0">
             <AnimatePresence mode="wait">
               {editingName ? (

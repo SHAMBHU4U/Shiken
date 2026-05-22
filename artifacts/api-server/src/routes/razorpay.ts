@@ -3,6 +3,13 @@ import { Router } from "express";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { logger } from "../lib/logger";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getDatabase } from "firebase-admin/database";
+
+if (!getApps().length) {
+  initializeApp({ databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com" });
+}
+const adminDb = getDatabase();
 
 const router = Router();
 
@@ -80,17 +87,13 @@ async function creditReferrer(
   const reward = (category === "jee" || category === "neet") ? 5 : 10;
   const safeRef = String(referredBy).replace(/[#.$\/[\]]/g, "_");
   try {
-    const refRes = await fetch(`${DB_URL}/users/${safeRef}.json`);
-    const refData = refRes.ok ? (await refRes.json() as Record<string, unknown> | null) : null;
+    const snap = await adminDb.ref(`users/${safeRef}`).get();
+    const refData = snap.val() as Record<string, unknown> | null;
     const currentWallet = typeof refData?.walletBalance === "number" ? refData.walletBalance : 0;
     const currentCount  = typeof refData?.referralCount  === "number" ? refData.referralCount  : 0;
-    await fetch(`${DB_URL}/users/${safeRef}.json`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        walletBalance: currentWallet + reward,
-        referralCount: currentCount + 1,
-      }),
+    await adminDb.ref(`users/${safeRef}`).update({
+      walletBalance: currentWallet + reward,
+      referralCount: currentCount + 1,
     });
     logger.info({ referrer: safeRef, reward, category, planId }, "Referral reward credited (qualifying plan)");
   } catch (err) {
@@ -296,11 +299,7 @@ router.post("/razorpay/verify-payment", async (req, res) => {
             const currentCoupon = await couponFetch.json();
             if (currentCoupon) {
               const currentCount = typeof currentCoupon.usageCount === "number" ? currentCoupon.usageCount : 0;
-              await fetch(`${DB_URL}/coupons/${appliedCode}/usageCount.json`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(currentCount + 1),
-              });
+              await adminDb.ref(`coupons/${appliedCode}/usageCount`).set(currentCount + 1);
               logger.info({ couponCode: appliedCode, newCount: currentCount + 1 }, "Coupon usage count successfully incremented");
             }
           }
@@ -348,17 +347,13 @@ router.post("/razorpay/verify-payment", async (req, res) => {
         const pendingData = await pendingRes.json() as { uid: string; walletDiscount: number } | null;
         if (pendingData && typeof pendingData.walletDiscount === "number" && pendingData.walletDiscount > 0) {
           if (pendingData.uid === safeId) {
-            const walletRes = await fetch(`${DB_URL}/users/${safeId}/walletBalance.json`);
-            const currentBal = walletRes.ok ? (await walletRes.json() as number | null) : null;
-            const newBal = Math.max(0, (typeof currentBal === "number" ? currentBal : 0) - pendingData.walletDiscount);
-            await fetch(`${DB_URL}/users/${safeId}/walletBalance.json`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(newBal),
-            });
+            const walSnap = await adminDb.ref(`users/${safeId}/walletBalance`).get();
+            const currentBal = typeof walSnap.val() === "number" ? walSnap.val() : 0;
+            const newBal = Math.max(0, currentBal - pendingData.walletDiscount);
+            await adminDb.ref(`users/${safeId}/walletBalance`).set(newBal);
             logger.info({ uid: safeId, walletDiscount: pendingData.walletDiscount, newBal }, "Wallet balance deducted after payment");
           }
-          fetch(`${DB_URL}/pendingOrderWallet/${razorpay_order_id}.json`, { method: "DELETE" }).catch(() => {});
+          adminDb.ref(`pendingOrderWallet/${razorpay_order_id}`).remove().catch(() => {});
         }
       }
     } catch (walletErr) {
@@ -379,16 +374,7 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       firebasePayload.premiumSubjects = [];
     }
 
-    const firebaseRes = await fetch(`${DB_URL}/users/${safeId}.json`, {
-      method:  "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(firebasePayload),
-    });
-
-    if (!firebaseRes.ok) {
-      logger.error({ uid, status: firebaseRes.status }, "Firebase update failed after verified payment");
-      return res.status(502).json({ ok: false, error: "Payment verified but Firebase update failed — contact support" });
-    }
+    await adminDb.ref(`users/${safeId}`).update(firebasePayload);
 
     logger.info({ uid, planId, planSubject, razorpay_payment_id }, "Payment verified and Firebase updated");
 
