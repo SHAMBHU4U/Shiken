@@ -469,6 +469,26 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     }
   }
 
+  const collectFlatQuestions = (node: unknown, chapterHint?: string) => {
+    if (typeof node !== "object" || node === null || Array.isArray(node)) return;
+    const values = Object.values(node as Record<string, unknown>);
+    if (values.length === 0) return;
+    const looksFlat = values.some(isQuestionLike);
+    if (looksFlat) {
+      for (const v of values) {
+        if (isQuestionLike(v)) pairs.push([v as Record<string, unknown>, chapterHint]);
+      }
+      return;
+    }
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      collectFlatQuestions(value, key.replace(/_/g, " "));
+    }
+  };
+
+  if (subject === "hindi") {
+    collectFlatQuestions(dataObj);
+  }
+
   return pairs.map(([q, chapterHint]) => {
     // ── Options ──────────────────────────────────────────────────────────────
     let opts: string[] = [];
