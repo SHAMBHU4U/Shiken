@@ -436,30 +436,53 @@ function PaymentSheet({
         modal: { ondismiss: () => setPaying(false) },
 
         handler: async (response: RazorpayResponse) => {
+          const VERIFY_URL = `https://us-central1-shiken-d8789.cloudfunctions.net/api/api/razorpay/verify-payment`;
+          const verifyBody = {
+            razorpay_order_id:   response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature:  response.razorpay_signature,
+            uid,
+            planId: plan.id,
+            days:   plan.days,
+            planSubject: plan.singleSubject ? selectedSubject : undefined,
+          };
+
+          console.log("[SHIKEN] verify-payment URL:", VERIFY_URL);
+          console.log("[SHIKEN] verify-payment body:", JSON.stringify(verifyBody, null, 2));
+
           try {
             setPaying(true);
-            const verifyRes = await fetch(`https://us-central1-shiken-d8789.cloudfunctions.net/api/api/razorpay/verify-payment`, {
+            const verifyRes = await fetch(VERIFY_URL, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id:   response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature:  response.razorpay_signature,
-                uid,
-                planId: plan.id,
-                days:   plan.days,
-                planSubject: plan.singleSubject ? selectedSubject : undefined,
-              }),
+              body: JSON.stringify(verifyBody),
             });
-            const verifyData = await verifyRes.json();
+
+            console.log("[SHIKEN] verify-payment HTTP status:", verifyRes.status, verifyRes.statusText);
+
+            let verifyData: Record<string, unknown> = {};
+            try {
+              verifyData = await verifyRes.json();
+              console.log("[SHIKEN] verify-payment response body:", JSON.stringify(verifyData, null, 2));
+            } catch (parseErr) {
+              const raw = await verifyRes.text().catch(() => "(could not read body)");
+              console.error("[SHIKEN] verify-payment response is NOT valid JSON. Raw text:", raw);
+              setError("Server returned an unexpected response. Contact support with Payment ID: " + response.razorpay_payment_id);
+              setPaying(false);
+              return;
+            }
 
             if (!verifyRes.ok || !verifyData.ok) {
+              console.error("[SHIKEN] verify-payment failed:", verifyData);
               setError(normalizeErrorMessage(verifyData, "Verification failed. Contact support with Payment ID: " + response.razorpay_payment_id));
               setPaying(false);
               return;
             }
 
-            await fetch(`${API_BASE}api/notify-whatsapp`, {
+            console.log("[SHIKEN] Payment verified successfully. Sending WhatsApp notification...");
+
+            // Fire-and-forget WhatsApp notification
+            fetch(`${API_BASE}api/notify-whatsapp`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -472,10 +495,14 @@ function PaymentSheet({
                   `🔑 Payment ID: ${response.razorpay_payment_id}`,
                 ].filter(Boolean).join("\n"),
               }),
-            }).catch(() => {});
+            }).catch((e) => console.warn("[SHIKEN] WhatsApp notify failed (non-critical):", e));
 
-            onSuccess(uid, response.razorpay_payment_id);
-          } catch {
+            // Success — show confirmation and reload so premium status loads fresh
+            alert("Payment Successful and Account Upgraded!");
+            window.location.reload();
+
+          } catch (err) {
+            console.error("[SHIKEN] verify-payment threw an exception:", err);
             setError("Payment captured but activation failed. Contact support with Payment ID: " + response.razorpay_payment_id);
             setPaying(false);
           }
