@@ -101,7 +101,7 @@ const SECTIONS: Section[] = [
     icon: "🎓",
     title: "Students & Minors",
     content: [
-      "SHIKEN is designed for Class 10 and 12 board students, who are typically 14–18 years old. We are aware that our primary users may be minors.",
+      "SHIKEN is designed for board & competitive students, who are typically 14–18 years old. We are aware that our primary users may be minors.",
       "We do not knowingly collect sensitive personal information from minors beyond what is described in this policy. We do not run targeted advertising.",
       "Parents or guardians who believe their child's data has been collected inappropriately may contact us to request review or deletion.",
     ],
