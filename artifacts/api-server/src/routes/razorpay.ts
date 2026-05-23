@@ -3,11 +3,21 @@ import { Router } from "express";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { logger } from "../lib/logger";
-import { initializeApp, getApps } from "firebase-admin/app";
+import { initializeApp, getApps, applicationDefault } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
 
 if (!getApps().length) {
-  initializeApp({ databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com" });
+  try {
+    // In Cloud Functions, applicationDefault() gives the service-account credential
+    // automatically — this is what allows the Admin SDK to bypass DB security rules.
+    initializeApp({
+      credential: applicationDefault(),
+      databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com",
+    });
+  } catch {
+    // Fallback for local dev where ADC is not set up
+    initializeApp({ databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com" });
+  }
 }
 const adminDb = getDatabase();
 
@@ -374,9 +384,16 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       firebasePayload.premiumSubjects = [];
     }
 
-    await adminDb.ref(`users/${safeId}`).update(firebasePayload);
+    logger.info({ uid: safeId, payloadKeys: Object.keys(firebasePayload) }, "Writing premium payload to Firebase...");
 
-    logger.info({ uid, planId, planSubject, razorpay_payment_id }, "Payment verified and Firebase updated");
+    try {
+      await adminDb.ref(`users/${safeId}`).update(firebasePayload);
+      logger.info({ uid, planId, planSubject, razorpay_payment_id }, "✅ Payment verified and Firebase updated successfully");
+    } catch (dbErr: unknown) {
+      const dbMsg = errorText(dbErr);
+      logger.error({ dbErr: dbMsg, uid: safeId, path: `users/${safeId}` }, "❌ Firebase Admin DB write failed — check service account permissions");
+      return res.status(500).json({ ok: false, error: `Firebase update failed: ${dbMsg}` });
+    }
 
     return res.json({ ok: true, paymentId: razorpay_payment_id });
   } catch (err: unknown) {
