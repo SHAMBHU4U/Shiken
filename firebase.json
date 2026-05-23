@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "source": "functions"
+  },
   "hosting": {
     "site": "shiken-d8789",
     "public": "artifacts/web-app/dist/public",
