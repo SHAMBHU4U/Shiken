@@ -1,4 +1,4 @@
-name: Deploy to Firebase Hosting + Functions
+name: Deploy to Firebase Hosting
 
 on:
   push:
@@ -39,25 +39,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build web app (Hosting)
+      - name: Build production app
         run: pnpm --filter @workspace/web-app run build
         env:
           FIREBASE_DEPLOY: true
           NODE_ENV: production
 
-      - name: Build Cloud Functions
-        run: pnpm --filter @workspace/firebase-functions run build
-
-      - name: Deploy Hosting to Firebase
+      - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}
           projectId: shiken-d8789
           channelId: live
-
-      - name: Deploy Cloud Functions to Firebase
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
-          GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json pnpm exec firebase deploy --only functions --project shiken-d8789
-          rm /tmp/sa.json

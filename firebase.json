@@ -33,17 +33,5 @@
         ]
       }
     ]
-  },
-  "functions": {
-    "source": "functions",
-    "runtime": "nodejs20",
-    "ignore": [
-      "src",
-      "*.mjs",
-      "tsconfig.json",
-      "build.mjs",
-      ".gitignore",
-      "node_modules"
-    ]
   }
 }
