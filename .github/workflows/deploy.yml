@@ -1,0 +1,12 @@
+# This file is intentionally inactive — see firebase-deploy.yml for the active workflow.
+# Kept as placeholder; change on: to push if you want to use it separately.
+name: Deploy (inactive placeholder)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Use firebase-deploy.yml instead"

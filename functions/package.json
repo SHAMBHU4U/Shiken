@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/firebase-functions",
+  "version": "0.0.0",
+  "private": true,
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.10.0",
+    "firebase-functions": "^6.0.0",
+    "pino": "^9"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.3",
+    "esbuild-plugin-pino": "^2.3.3",
+    "typescript": "^5"
+  }
+}
