@@ -49,7 +49,7 @@ jobs:
         run: |
           cd functions
           # functions/ is NOT part of pnpm workspace — use npm instead
-          npm install
+          npm install --legacy-peer-deps
 
       - name: Build Cloud Functions
         run: |
