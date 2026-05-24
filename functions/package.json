@@ -15,7 +15,7 @@
     "pino": "^9"
   },
   "devDependencies": {
-    "esbuild": "^0.27.3",
+    "esbuild": "0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
     "typescript": "^5"
   }

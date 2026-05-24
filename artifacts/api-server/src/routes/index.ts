@@ -12,6 +12,7 @@ import comprehensionRouter from "./comprehension";
 import generateMockRouter from "./generate-mock";
 import referralRouter from "./referral";
 import withdrawalRouter from "./withdrawal";
+import leaderboardRouter from "./leaderboard";
 
 const router: IRouter = Router();
 
@@ -27,5 +28,6 @@ router.use(comprehensionRouter);
 router.use(generateMockRouter);
 router.use(referralRouter);
 router.use(withdrawalRouter);
+router.use(leaderboardRouter);
 
 export default router;

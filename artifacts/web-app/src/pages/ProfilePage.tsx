@@ -382,7 +382,9 @@ export default function ProfilePage() {
   const [nameVal,      setNameVal]      = useState("");
   const [nameSaving,   setNameSaving]   = useState(false);
   const [nameSaved,    setNameSaved]    = useState(false);
-  const [avatarId,     setAvatarId]     = useState<string | null>(null);
+  const [avatarId,     setAvatarId]     = useState<string | null>(() => {
+    try { return localStorage.getItem("shiken_avatar_id"); } catch { return null; }
+  });
   const [avatarOpen,   setAvatarOpen]   = useState(false);
   const [phone,        setPhone]        = useState("");
   const [phoneSaving,  setPhoneSaving]  = useState(false);
@@ -394,21 +396,23 @@ export default function ProfilePage() {
   async function handleAvatarSelect(id: string) {
     setAvatarId(id);
     setAvatarOpen(false);
+    // Persist locally first so it survives refreshes even if Firebase fails
+    try { localStorage.setItem("shiken_avatar_id", id); } catch { /* ignore */ }
     if (!auth.currentUser) return;
     const uid = auth.currentUser.uid;
     try {
       const token = await auth.currentUser.getIdToken();
-      fetch(`${DB_URL}/users/${uid}.json?auth=${token}`, {
+      await fetch(`${DB_URL}/users/${uid}.json?auth=${token}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ avatarId: id }),
-      }).catch(() => {});
+      });
       const safeId = uid.replace(/[.#$/[\]]/g, "_");
-      fetch(`${DB_URL}/userActivity/${safeId}/meta.json?auth=${token}`, {
+      await fetch(`${DB_URL}/userActivity/${safeId}/meta.json?auth=${token}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ avatarId: id }),
-      }).catch(() => {});
+      });
     } catch { /* ignore */ }
   }
 
@@ -489,8 +493,17 @@ export default function ProfilePage() {
           if (cancelled || !d || typeof d !== "object") return;
           if (typeof d.phone === "string") setPhone(d.phone);
           if (typeof d.avatarId === "string") setAvatarId(d.avatarId);
+          // Fallback: if Firebase has no avatarId but localStorage does, restore it
+          else {
+            const savedAvatar = localStorage.getItem("shiken_avatar_id");
+            if (savedAvatar) setAvatarId(savedAvatar);
+          }
         })
-        .catch(() => {});
+        .catch(() => {
+          // If Firebase fetch fails, restore avatar from localStorage
+          const savedAvatar = localStorage.getItem("shiken_avatar_id");
+          if (savedAvatar) setAvatarId(savedAvatar);
+        });
     })();
     // Check notification permission
     if (typeof Notification !== "undefined") {
@@ -512,8 +525,10 @@ export default function ProfilePage() {
   if (!user) return <AuthForm />;
 
   const totalSessions = sessions.length;
-  const validSessions = sessions.filter(s => isFinite(s.pct) && s.pct > 0);
-  const avgPct = validSessions.length ? Math.round(validSessions.reduce((s, r) => s + r.pct, 0) / validSessions.length) : 0;
+  const validSessions = sessions.filter(s => isFinite(Number(s.pct)) && Number(s.pct) > 0);
+  const avgPct = validSessions.length
+    ? Math.round(validSessions.reduce((s, r) => s + Number(r.pct), 0) / validSessions.length)
+    : 0;
   const subjectMap: Record<string, { count: number; total: number }> = {};
   sessions.forEach((s) => {
     const key = s.subject && s.subject !== "unknown" ? s.subject : null;

@@ -44,7 +44,7 @@ async function fetchUsers(): Promise<UserRecord[]> {
   if (!data) return [];
   return Object.entries(data).map(([uid, u]) => {
     const sessions = u.sessions ? Object.values(u.sessions) : [];
-    const avgPct = sessions.length ? Math.round(sessions.reduce((s, r) => s + r.pct, 0) / sessions.length) : 0;
+    const avgPct = sessions.length ? Math.round(sessions.reduce((s, r) => s + Number(r.pct || 0), 0) / sessions.length) : 0;
     const subjectSet = [...new Set(sessions.map((s) => s.subject))];
     return {
       uid,
@@ -3375,7 +3375,7 @@ function WithdrawalsPanel() {
       const all: AdminWithdrawal[] = [];
       for (const [uid, reqs] of Object.entries(data)) {
         for (const [id, req] of Object.entries(reqs)) {
-          all.push({ id, uid, ...req });
+          all.push({ id, ...req, uid });
         }
       }
       all.sort((a, b) => b.requestedAt - a.requestedAt);

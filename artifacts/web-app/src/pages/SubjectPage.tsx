@@ -830,8 +830,10 @@ function ModeSelect({
   const hasSaved = savedCount > 0;
   const safeHistory = history ?? [];
   const hasHistory = safeHistory.length > 0;
-  const avgPct = hasHistory ? Math.round(safeHistory.reduce((a, r) => a + r.pct, 0) / safeHistory.length) : 0;
-  const bestPct = hasHistory ? Math.max(...safeHistory.map((r) => r.pct)) : 0;
+  const avgPct = hasHistory
+    ? Math.round(safeHistory.reduce((a, r) => a + Number(r.pct || 0), 0) / safeHistory.length)
+    : 0;
+  const bestPct = hasHistory ? Math.max(...safeHistory.map((r) => Number(r.pct || 0))) : 0;
 
   function formatRelativeTime(ts: number) {
     const diffMin = Math.round((Date.now() - ts) / 60000);

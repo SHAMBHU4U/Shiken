@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSubscription } from "@/hooks/useSubscription";
 
-const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const RANK_MEDALS = ["🥇", "🥈", "🥉"];
 const GRADE_COLOR = (p: number) =>
   p >= 80 ? "#10b981" : p >= 60 ? "#f59e0b" : p >= 40 ? "#fb923c" : "#ef4444";
@@ -28,16 +27,6 @@ const SUBJECT_LABELS: Record<string, string> = {
   "entrance_exams/neet/physics": "NEET Physics", "entrance_exams/neet/chemistry": "NEET Chemistry", "entrance_exams/neet/biology": "NEET Biology",
 };
 
-// ✅ FIX 1: JEE aur NEET ko unke subject paths se sahi tarike se pehchanna
-function inferCategory(subject: string): "c10" | "c12" | "jee" | "neet" {
-  if (!subject) return "c10";
-  const sLower = subject.toLowerCase();
-  if (sLower.includes("jee")) return "jee";
-  if (sLower.includes("neet")) return "neet";
-  if (sLower.startsWith("class12/") || sLower.includes("class12")) return "c12";
-  return "c10";
-}
-
 interface LeaderEntry {
   uid: string;
   username: string;
@@ -50,88 +39,24 @@ interface LeaderEntry {
   category: "c10" | "c12" | "jee" | "neet";
 }
 
-async function fetchLeaderboardByCategory(category: "c10" | "c12" | "jee" | "neet", token?: string): Promise<LeaderEntry[]> {
+// Server-side leaderboard API — no client auth token needed
+// Dev proxy: /api/leaderboard -> localhost:3000/api/leaderboard
+// Production: /api/leaderboard -> Firebase Functions
+async function fetchLeaderboardByCategory(category: "c10" | "c12" | "jee" | "neet"): Promise<LeaderEntry[]> {
   try {
-    const authSuffix = token ? `?auth=${token}` : "";
-    const [actRes, usersRes] = await Promise.all([
-      fetch(`${DB_URL}/userActivity.json${authSuffix}`),
-      fetch(`${DB_URL}/users.json${authSuffix}`),
-    ]);
-    const actData = actRes.ok ? await actRes.json() : null;
-    const usersData = usersRes.ok ? await usersRes.json() : null;
-    if (!actData) return [];
-
-    return (Object.entries(actData as Record<string, {
-      meta?: { deviceId?: string; username?: string; lastActive?: number };
-      sessions?: Record<string, { pct: number; subject: string; category?: string; timestamp?: number }>;
-      mockScores?: Record<string, { examType: string; pct: number; score: number; maxMarks: number; timestamp: number; subject?: string }>;
-    }>)
-      .map(([uid, u]) => {
-        const targetCatLower = category.toLowerCase();
-        
-        // 1. Fetch from mockScores with case-insensitive check
-        const mockScores = u.mockScores ? Object.values(u.mockScores) : [];
-        const mockForCat = mockScores.filter((m) => m.examType?.toLowerCase() === targetCatLower);
-
-        // 2. Fetch from sessions safely without hard-blocking JEE/NEET
-        const sessions = u.sessions ? Object.values(u.sessions) : [];
-        const catSessions = sessions.filter((s) => {
-          const inferred = s.category ?? inferCategory(s.subject || "");
-          return inferred.toLowerCase() === targetCatLower;
-        });
-
-        // ✅ FIX 2: Dono sources ke data ko bundle karna aur Dynamic Subject ko support karna
-        const allEntries = [
-          ...mockForCat.map((m) => ({ 
-            pct: Number(m.pct) || 0, 
-            subject: m.subject || "General", 
-            timestamp: m.timestamp 
-          })),
-          ...catSessions.map((s) => ({ 
-            pct: Number(s.pct) || 0, 
-            subject: s.subject || "General", 
-            timestamp: s.timestamp 
-          })),
-        ];
-
-        if (allEntries.length < 1) return null;
-
-        // ✅ FIX 3: Safe calculation logic taaki NaN ka khatra zero ho jaye
-        const avgPct = Math.round(allEntries.reduce((sum, item) => sum + item.pct, 0) / allEntries.length);
-        
-        // All entries se total subjects analyze karna
-        const subjectCount = new Set(allEntries.map((e) => e.subject).filter(Boolean)).size;
-
-        // Best Subject nikalne ka automated dynamic loop
-        const subjectScores: Record<string, number[]> = {};
-        allEntries.forEach((e) => {
-          if (e.subject) {
-            if (!subjectScores[e.subject]) subjectScores[e.subject] = [];
-            subjectScores[e.subject].push(e.pct);
-          }
-        });
-        
-        const bestSubject = Object.entries(subjectScores)
-          .map(([sub, scores]) => ({ sub, avg: scores.reduce((a, b) => a + b, 0) / scores.length }))
-          .sort((a, b) => b.avg - a.avg)[0]?.sub ?? "";
-
-        const isPremium = usersData?.[uid]?.subscriptionType === "premium";
-
-        return {
-          uid,
-          username: u.meta?.username?.trim() || "Anonymous",
-          avgPct,
-          totalSessions: allEntries.length,
-          subjectCount,
-          bestSubject,
-          isPremium,
-          lastActive: u.meta?.lastActive ?? 0,
-          category,
-        } as LeaderEntry;
-      })
-      .filter(Boolean) as LeaderEntry[])
-      .sort((a, b) => b.avgPct - a.avgPct || b.totalSessions - a.totalSessions);
-  } catch {
+    const res = await fetch(`/api/leaderboard?category=${encodeURIComponent(category)}`);
+    if (!res.ok) {
+      console.error("[Leaderboard] server fetch failed:", res.status, res.statusText);
+      return [];
+    }
+    const data = await res.json();
+    if (!data.ok || !Array.isArray(data.entries)) {
+      console.warn("[Leaderboard] invalid server response:", data);
+      return [];
+    }
+    return data.entries as LeaderEntry[];
+  } catch (err) {
+    console.error("[Leaderboard] fetchLeaderboardByCategory error:", err);
     return [];
   }
 }
@@ -159,18 +84,14 @@ export default function LeaderboardPage() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      let token: string | undefined;
-      try { if (user) token = await user.getIdToken(); } catch { /* ignore */ }
       if (cancelled) return;
-      const data = await fetchLeaderboardByCategory(category, token);
+      const data = await fetchLeaderboardByCategory(category);
       if (!cancelled) { setEntries(data); setLoading(false); setLastRefresh(new Date()); }
     }
     load();
     const t = setInterval(async () => {
-      let token: string | undefined;
-      try { if (user) token = await user.getIdToken(); } catch { /* ignore */ }
       if (!cancelled) {
-        const data = await fetchLeaderboardByCategory(category, token);
+        const data = await fetchLeaderboardByCategory(category);
         if (!cancelled) { setEntries(data); setLastRefresh(new Date()); }
       }
     }, 60_000);

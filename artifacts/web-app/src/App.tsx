@@ -72,7 +72,7 @@ async function fetchLeaderboard(): Promise<LeaderEntry[]> {
       .map((u) => {
         const sessions = u.sessions ? Object.values(u.sessions) : [];
         if (sessions.length < 1) return null;
-        const avgPct = Math.round(sessions.reduce((s, r) => s + r.pct, 0) / sessions.length);
+        const avgPct = Math.round(sessions.reduce((s, r) => s + Number(r.pct || 0), 0) / sessions.length);
         const subjectCount = new Set(sessions.map((s) => s.subject)).size;
         return {
           deviceId: u.meta?.deviceId ?? "",
