@@ -48,7 +48,8 @@ jobs:
       - name: Install Functions Dependencies
         run: |
           cd functions
-          pnpm install --no-frozen-lockfile
+          # functions/ is NOT part of pnpm workspace — use npm instead
+          npm install
 
       - name: Build Cloud Functions
         run: |
