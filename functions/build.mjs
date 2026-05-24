@@ -16,15 +16,10 @@ await build({
   logLevel: "info",
   sourcemap: false,
   // firebase-admin and firebase-functions are provided by Cloud Functions runtime
-  // pino and thread-stream are externalized to avoid worker bundling issues
+  // everything else (pino, pino-http, etc.) is BUNDLED into the output
   external: [
     "firebase-admin",
     "firebase-functions",
-    "pino",
-    "pino-http",
-    "pino-pretty",
-    "pino-worker",
-    "thread-stream",
     "*.node",
   ],
 });
