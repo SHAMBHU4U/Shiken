@@ -45,8 +45,15 @@ jobs:
           FIREBASE_DEPLOY: true
           NODE_ENV: production
 
+      - name: Install Functions Dependencies
+        run: |
+          cd functions
+          pnpm install --no-frozen-lockfile
+
       - name: Build Cloud Functions
-        run: pnpm --filter @workspace/firebase-functions run build
+        run: |
+          cd functions
+          pnpm run build
 
       - name: Set up Firebase CLI & Service Account
         run: |
