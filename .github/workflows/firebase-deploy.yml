@@ -17,7 +17,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -54,7 +54,8 @@ jobs:
       - name: Build Cloud Functions
         run: |
           cd functions
-          pnpm run build
+          rm -rf lib
+          node build.mjs
 
       - name: Set up Firebase CLI & Service Account
         run: |
