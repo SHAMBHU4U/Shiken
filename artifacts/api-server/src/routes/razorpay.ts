@@ -3,23 +3,34 @@ import { Router } from "express";
 import crypto from "crypto";
 import Razorpay from "razorpay";
 import { logger } from "../lib/logger";
-import { initializeApp, getApps, applicationDefault } from "firebase-admin/app";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getDatabase } from "firebase-admin/database";
 
-if (!getApps().length) {
+function initFirebaseAdmin() {
+  if (getApps().length) return getDatabase();
+  const svcJson = process.env["FIREBASE_SERVICE_ACCOUNT"];
+  if (svcJson) {
+    try {
+      const credential = cert(JSON.parse(svcJson));
+      initializeApp({ credential, databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com" });
+      return getDatabase();
+    } catch (e) {
+      logger.error({ err: e }, "Failed to parse FIREBASE_SERVICE_ACCOUNT");
+    }
+  }
+  // Fallback: try applicationDefault (works in Cloud Functions / GCP)
   try {
-    // In Cloud Functions, applicationDefault() gives the service-account credential
-    // automatically — this is what allows the Admin SDK to bypass DB security rules.
+    const { applicationDefault } = require("firebase-admin/app");
     initializeApp({
       credential: applicationDefault(),
       databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com",
     });
   } catch {
-    // Fallback for local dev where ADC is not set up
     initializeApp({ databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com" });
   }
+  return getDatabase();
 }
-const adminDb = getDatabase();
+const adminDb = initFirebaseAdmin();
 
 const router = Router();
 
