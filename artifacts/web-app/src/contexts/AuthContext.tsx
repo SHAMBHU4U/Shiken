@@ -45,16 +45,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncUserToDB = async (u: User) => {
     const userRef  = ref(db, `users/${u.uid}`);
     const userSnap = await get(userRef);
+    const safeId = u.uid.replace(/[.#$/[\]]/g, "_");
+    const name = u.displayName || "New Student";
+
     if (!userSnap.exists()) {
       await set(userRef, {
         uid: u.uid,
-        name: u.displayName || "New Student",
+        name,
         email: u.email,
         photoURL: u.photoURL,
         createdAt: serverTimestamp(),
         role: "student",
       });
     }
+
+    // Sync username to leaderboard meta (idempotent — no overwrite if already set)
+    try {
+      const metaRef = ref(db, `userActivity/${safeId}/meta`);
+      const metaSnap = await get(metaRef);
+      const meta = metaSnap.exists() ? (metaSnap.val() as Record<string, unknown>) : {};
+      if (!meta.username) {
+        await set(metaRef, {
+          ...meta,
+          username: name,
+          lastActive: Date.now(),
+        });
+      }
+    } catch { /* non-blocking */ }
   };
 
   const loadGoal = async (u: User) => {

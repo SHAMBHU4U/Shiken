@@ -336,12 +336,18 @@ function addRecord(subject: string, rec: TestRecord): TestRecord[] {
       chapter: rec.chapter || "",
       timestamp: rec.date,
     }).catch(() => { /* offline — ignore */ });
-    const username = localStorage.getItem("shiken_username") || auth.currentUser?.displayName || "";
-    set(ref(db, `userActivity/${safeId}/meta`), {
+    const username =
+      localStorage.getItem("shiken_username") ||
+      auth.currentUser?.displayName ||
+      "";
+    const metaPayload: Record<string, unknown> = {
       lastActive: rec.date,
       deviceId,
-      ...(username ? { username } : {}),
-    }).catch(() => { /* offline — ignore */ });
+    };
+    if (username) metaPayload.username = username;
+    set(ref(db, `userActivity/${safeId}/meta`), metaPayload).catch(
+      () => { /* offline — ignore */ }
+    );
   } catch { /* never block quiz flow */ }
 
   return next;
@@ -470,32 +476,9 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     }
   };
 
-  if (subject === "hindi") {
-    // For Hindi, ONLY use the recursive collector so we don't get duplicates
-    // from mixing the 2-level parser with the deep parser.
-    collectRecursive(dataObj);
-  } else {
-    // For all other subjects: use the original 2-level parser which is fast
-    // and already correct for maths/science/english/social/sanskrit schemas.
-    const firstVal = Object.values(dataObj)[0];
-    if (isQuestionLike(firstVal)) {
-      for (const v of Object.values(dataObj)) {
-        if (typeof v === "object" && v !== null) {
-          pairs.push([v as Record<string, unknown>, undefined]);
-        }
-      }
-    } else {
-      for (const [chapterSlug, chapterNode] of Object.entries(dataObj)) {
-        if (typeof chapterNode === "object" && chapterNode !== null) {
-          for (const v of Object.values(chapterNode as Record<string, unknown>)) {
-            if (isQuestionLike(v)) {
-              pairs.push([v as Record<string, unknown>, chapterSlug.replace(/_/g, " ")]);
-            }
-          }
-        }
-      }
-    }
-  }
+  // Use the recursive collector for ALL subjects — it handles any nesting
+  // depth (chapter → topic → question, or flat lists) without duplicating.
+  collectRecursive(dataObj);
 
   return pairs.map(([q, chapterHint]) => {
     // ── Options ──────────────────────────────────────────────────────────────
@@ -1999,7 +1982,7 @@ export default function SubjectPage() {
 
     setScreen("loading");
     const controller = new AbortController();
-    const dbPath = meta.path.toLowerCase();
+    const dbPath = meta.path; // preserve exact case to match Firebase paths
 
     const doFetch = async () => {
       // Get auth token if user is logged in so Firebase rules allow the read

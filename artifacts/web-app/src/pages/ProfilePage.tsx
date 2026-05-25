@@ -422,6 +422,8 @@ export default function ProfilePage() {
     setNameSaving(true);
     try {
       await updateProfile(auth.currentUser, { displayName: trimmed });
+      // Persist to localStorage so test recordings pick it up immediately
+      try { localStorage.setItem("shiken_username", trimmed); } catch { /* ignore */ }
       // Also sync to leaderboard meta
       const safeId = auth.currentUser.uid.replace(/[.#$/[\]]/g, "_");
       fetch(`https://shiken-d8789-default-rtdb.firebaseio.com/userActivity/${safeId}/meta.json`, {
@@ -490,14 +492,20 @@ export default function ProfilePage() {
       fetch(`${DB_URL}/users/${user.uid}.json${authSuffix}`)
         .then((r) => r.json())
         .then((d) => {
-          if (cancelled || !d || typeof d !== "object") return;
-          if (typeof d.phone === "string") setPhone(d.phone);
-          if (typeof d.avatarId === "string") setAvatarId(d.avatarId);
-          // Fallback: if Firebase has no avatarId but localStorage does, restore it
-          else {
-            const savedAvatar = localStorage.getItem("shiken_avatar_id");
-            if (savedAvatar) setAvatarId(savedAvatar);
+          if (cancelled) return;
+          // d may be null if the user node doesn't exist yet — still restore localStorage
+          if (d && typeof d === "object") {
+            if (typeof d.phone === "string") setPhone(d.phone);
+            if (typeof d.avatarId === "string") {
+              setAvatarId(d.avatarId);
+              // sync Firebase value back to localStorage so both are consistent
+              try { localStorage.setItem("shiken_avatar_id", d.avatarId); } catch { /* ignore */ }
+            }
           }
+          // Always restore from localStorage if Firebase has no avatarId
+          // (covers first-time users, null responses, or missing field)
+          const savedAvatar = localStorage.getItem("shiken_avatar_id");
+          if (savedAvatar && !d?.avatarId) setAvatarId(savedAvatar);
         })
         .catch(() => {
           // If Firebase fetch fails, restore avatar from localStorage
@@ -525,7 +533,7 @@ export default function ProfilePage() {
   if (!user) return <AuthForm />;
 
   const totalSessions = sessions.length;
-  const validSessions = sessions.filter(s => isFinite(Number(s.pct)) && Number(s.pct) > 0);
+  const validSessions = sessions.filter(s => isFinite(Number(s.pct)));
   const avgPct = validSessions.length
     ? Math.round(validSessions.reduce((s, r) => s + Number(r.pct), 0) / validSessions.length)
     : 0;
@@ -533,9 +541,10 @@ export default function ProfilePage() {
   sessions.forEach((s) => {
     const key = s.subject && s.subject !== "unknown" ? s.subject : null;
     if (!key) return;
+    const pct = isFinite(Number(s.pct)) ? Number(s.pct) : 0;
     if (!subjectMap[key]) subjectMap[key] = { count: 0, total: 0 };
     subjectMap[key].count++;
-    subjectMap[key].total += s.pct;
+    subjectMap[key].total += pct;
   });
   const bestSubject = Object.entries(subjectMap).sort((a, b) => (b[1].total / b[1].count) - (a[1].total / a[1].count))[0]?.[0] ?? null;
 

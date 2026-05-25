@@ -39,13 +39,13 @@ function getMyId(): string { return auth.currentUser?.uid ?? getDeviceId(); }
 
 function saveUsername(name: string) {
   localStorage.setItem(USERNAME_KEY, name);
-  const deviceId = getDeviceId();
-  if (!deviceId) return;
-  const safeId = deviceId.replace(/[.#$/[\]]/g, "_");
+  const myId = getMyId();
+  if (!myId) return;
+  const safeId = myId.replace(/[.#$/[\]]/g, "_");
   fetch(`${DB_URL}/userActivity/${safeId}/meta.json`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: name, deviceId }),
+    body: JSON.stringify({ username: name, deviceId: getDeviceId() }),
   }).catch(() => {});
 }
 
@@ -601,6 +601,27 @@ function AuthGuard({ children }: { children: ReactNode }) {
   if (!goal) return <GoalSelectPage />;
 
   return <>{children}</>;
+}
+
+// ─── Username prompt wrapper ──────────────────────────────────────────────────
+
+function UsernamePromptWrap({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const [location] = useLocation();
+  const [done, setDone] = useState(false);
+
+  const isPublic = PUBLIC_PATHS.some((p) => location === p || location.startsWith(p + "/"));
+  if (isPublic) return <>{children}</>;
+
+  const hasName = !!(localStorage.getItem(USERNAME_KEY) || user?.displayName);
+  if (!user || hasName || done) return <>{children}</>;
+
+  return (
+    <>
+      <UsernameSetup onDone={() => setDone(true)} />
+      {children}
+    </>
+  );
 }
 
 const queryClient = new QueryClient();
@@ -1318,27 +1339,29 @@ function AppRoutes() {
     <>
       <OfflineBanner />
       <AuthGuard>
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/admin" component={AdminGuard} />
-          <Route path="/progress" component={ProgressPage} />
-          <Route path="/profile" component={ProfilePage} />
-          <Route path="/counselling" component={CounsellingPage} />
-          <Route path="/contact" component={ContactPage} />
-          <Route path="/leaderboard" component={LeaderboardPage} />
-          <Route path="/pricing" component={PricingPage} />
-          <Route path="/referral" component={ReferralPage} />
-          <Route path="/choose-plan" component={() => <ChoosePlanPage />} />
-          <Route path="/privacy" component={PrivacyPage} />
-          <Route path="/terms" component={TermsPage} />
-          <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
-          <Route path="/mock-test/:examType" component={MockTestPage} />
-          <Route path="/jee/:subject" component={SubjectPage} />
-          <Route path="/neet/:subject" component={SubjectPage} />
-          <Route path="/c10/:subject" component={SubjectPage} />
-          <Route path="/c12/:subject" component={SubjectPage} />
-          <Route path="/:subject" component={SubjectPage} />
-        </Switch>
+        <UsernamePromptWrap>
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/admin" component={AdminGuard} />
+            <Route path="/progress" component={ProgressPage} />
+            <Route path="/profile" component={ProfilePage} />
+            <Route path="/counselling" component={CounsellingPage} />
+            <Route path="/contact" component={ContactPage} />
+            <Route path="/leaderboard" component={LeaderboardPage} />
+            <Route path="/pricing" component={PricingPage} />
+            <Route path="/referral" component={ReferralPage} />
+            <Route path="/choose-plan" component={() => <ChoosePlanPage />} />
+            <Route path="/privacy" component={PrivacyPage} />
+            <Route path="/terms" component={TermsPage} />
+            <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
+            <Route path="/mock-test/:examType" component={MockTestPage} />
+            <Route path="/jee/:subject" component={SubjectPage} />
+            <Route path="/neet/:subject" component={SubjectPage} />
+            <Route path="/c10/:subject" component={SubjectPage} />
+            <Route path="/c12/:subject" component={SubjectPage} />
+            <Route path="/:subject" component={SubjectPage} />
+          </Switch>
+        </UsernamePromptWrap>
       </AuthGuard>
       <BottomNav />
     </>

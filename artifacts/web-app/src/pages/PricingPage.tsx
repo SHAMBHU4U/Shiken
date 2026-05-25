@@ -361,7 +361,7 @@ function PaymentSheet({
     if (!code) return;
     setCouponChecking(true); setCouponError(""); setCouponResult(null);
     try {
-      const res = await fetch(`https://us-central1-shiken-d8789.cloudfunctions.net/api/api/razorpay/validate-coupon`, {
+      const res = await fetch(`/api/razorpay/validate-coupon`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ couponCode: code, amount: plan.amount }),
@@ -394,7 +394,7 @@ function PaymentSheet({
     setError("");
 
     try {
-      const orderRes = await fetch('https://us-central1-shiken-d8789.cloudfunctions.net/api/api/razorpay/create-order', {
+      const orderRes = await fetch('/api/razorpay/create-order', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -436,7 +436,7 @@ function PaymentSheet({
         modal: { ondismiss: () => setPaying(false) },
 
         handler: async (response: RazorpayResponse) => {
-          const VERIFY_URL = `https://us-central1-shiken-d8789.cloudfunctions.net/api/api/razorpay/verify-payment`;
+          const VERIFY_URL = `/api/razorpay/verify-payment`;
           const verifyBody = {
             razorpay_order_id:   response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,

@@ -191,12 +191,18 @@ function saveMockScore(
       timestamp: Date.now(),
     }).catch(() => { /* offline */ });
 
-    const username = localStorage.getItem("shiken_username") || "";
-    set(ref(db, `userActivity/${safeId}/meta`), {
+    const username =
+      localStorage.getItem("shiken_username") ||
+      auth.currentUser?.displayName ||
+      "";
+    const metaPayload: Record<string, unknown> = {
       lastActive: Date.now(),
       deviceId,
-      ...(username ? { username } : {}),
-    }).catch(() => { /* offline */ });
+    };
+    if (username) metaPayload.username = username;
+    set(ref(db, `userActivity/${safeId}/meta`), metaPayload).catch(
+      () => { /* offline */ }
+    );
   } catch { /* never block result screen */ }
 }
 
