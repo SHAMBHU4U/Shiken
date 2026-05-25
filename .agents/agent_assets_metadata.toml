@@ -1,0 +1,26 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "boHOABYpPN6RRX7jwZ5In"
+uri = "file://screenshots/bug1_questions_loading.jpg"
+type = "image"
+title = "Bug 1 Fix: Subject Page (questions now load)"
+
+[[outputs]]
+id = "WyBQUu5riGvImHrUFl5hT"
+uri = "file://screenshots/bug3_avatar_score.jpg"
+type = "image"
+title = "Bug 3 Fix: Profile Page (avatar + avgScore)"
+
+[[outputs]]
+id = "UnwnGNWFHPsCOXNSwhpO5"
+uri = "file://screenshots/bug4_leaderboard.jpg"
+type = "image"
+title = "Bug 4 Fix: Dashboard → Leaderboard"
+
+[[outputs]]
+id = "Ue0yCxuKP_ARrK1VBXoAa"
+uri = "file://screenshots/bug2_payment.jpg"
+type = "image"
+title = "Bug 2 Fix: Pricing Page (payment URLs)"
