@@ -64,6 +64,15 @@ jobs:
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
           pnpm exec firebase use shiken-d8789 --add || true
 
+      - name: Delete stale function (clears old CPU metadata)
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          # Delete the old function to clear its derived CPU metadata from runWith()
+          # The new deployment will create it fresh with no CPU settings
+          pnpm exec firebase functions:delete api --project shiken-d8789 -f || true
+          rm -f /tmp/sa.json
+
       - name: Deploy Hosting + Functions (Unified)
         env:
           RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
