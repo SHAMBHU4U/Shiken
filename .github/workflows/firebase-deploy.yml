@@ -48,10 +48,7 @@ jobs:
       - name: Install Functions Dependencies
         run: |
           cd functions
-          # functions/ is NOT part of pnpm workspace — use npm instead
-          # --ignore-scripts skips gulp build (not needed for runtime)
-          rm -rf node_modules
-          npm install --ignore-scripts
+          pnpm install --ignore-scripts
 
       - name: Build Cloud Functions
         run: |
