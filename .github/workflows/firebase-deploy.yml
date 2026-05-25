@@ -49,7 +49,8 @@ jobs:
         run: |
           cd functions
           # functions/ is NOT part of pnpm workspace — use npm instead
-          npm install --legacy-peer-deps
+          # --ignore-scripts skips gulp build (not needed for runtime)
+          npm install --legacy-peer-deps --ignore-scripts
 
       - name: Build Cloud Functions
         run: |
@@ -62,34 +63,6 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
           pnpm exec firebase use shiken-d8789 --add || true
-
-      - name: Set Firebase Functions Environment Variables
-        env:
-          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
-          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          CALLMEBOT_API_KEY: ${{ secrets.CALLMEBOT_API_KEY }}
-          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
-          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-          # Set both config (legacy) and env vars (modern) for maximum compatibility
-          pnpm exec firebase functions:config:set \
-            razorpay.key_id="$RAZORPAY_KEY_ID" \
-            razorpay.key_secret="$RAZORPAY_KEY_SECRET" \
-            gemini.api_key="$GEMINI_API_KEY" \
-            callmebot.key="$CALLMEBOT_API_KEY" \
-            callmebot.phone="$CALLMEBOT_PHONE" \
-            --project shiken-d8789 || true
-          # Also set as direct env vars (process.env access)
-          pnpm exec firebase functions:env:set \
-            RAZORPAY_KEY_ID="$RAZORPAY_KEY_ID" \
-            RAZORPAY_KEY_SECRET="$RAZORPAY_KEY_SECRET" \
-            GEMINI_API_KEY="$GEMINI_API_KEY" \
-            CALLMEBOT_API_KEY="$CALLMEBOT_API_KEY" \
-            CALLMEBOT_PHONE="$CALLMEBOT_PHONE" \
-            --project shiken-d8789 || true
-          rm -f /tmp/sa.json
 
       - name: Deploy Hosting + Functions (Unified)
         env:
