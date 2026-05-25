@@ -50,7 +50,8 @@ jobs:
           cd functions
           # functions/ is NOT part of pnpm workspace — use npm instead
           # --ignore-scripts skips gulp build (not needed for runtime)
-          npm install --legacy-peer-deps --ignore-scripts
+          rm -rf node_modules
+          npm install --ignore-scripts
 
       - name: Build Cloud Functions
         run: |
