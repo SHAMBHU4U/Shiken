@@ -595,6 +595,9 @@ function AuthGuard({ children }: { children: ReactNode }) {
   const isPublic = PUBLIC_PATHS.some((p) => location === p || location.startsWith(p + "/"));
   if (isPublic) return <>{children}</>;
 
+  // Dev bypass: allow all routes without auth for testing
+  if (import.meta.env.DEV) return <>{children}</>;
+
   if (loading) return <SplashLoader />;
   if (!user) return <ProfilePage />;
   if (goalLoading) return <SplashLoader />;

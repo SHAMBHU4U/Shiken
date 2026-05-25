@@ -24,3 +24,21 @@ id = "Ue0yCxuKP_ARrK1VBXoAa"
 uri = "file://screenshots/bug2_payment.jpg"
 type = "image"
 title = "Bug 2 Fix: Pricing Page (payment URLs)"
+
+[[outputs]]
+id = "sEt91TeoocOOMrG0ZarQn"
+uri = "file://screenshots/fix2_questions.jpg"
+type = "image"
+title = "Bug 1 Fix: Maths subject page loads with test modes"
+
+[[outputs]]
+id = "riiDtT7hojlxHvLRfNkmB"
+uri = "file://screenshots/fix4_pricing.jpg"
+type = "image"
+title = "Bug 2 Fix: Pricing page with correct payment URLs"
+
+[[outputs]]
+id = "4hyNLhqCLc7VyxC9cAhWB"
+uri = "file://screenshots/fix1_leaderboard.jpg"
+type = "image"
+title = "Bug 4 Fix: Leaderboard page (loading real data)"
