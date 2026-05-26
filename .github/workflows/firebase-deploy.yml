@@ -79,7 +79,7 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
           # Deploy hosting and functions together — DO NOT delete function first
-          pnpm exec firebase deploy --only hosting,functions --project shiken-d8789
+          pnpm exec firebase deploy --only hosting,functions --project shiken-d8789 --force
           rm -f /tmp/sa.json
 
       - name: Verify Cloud Function Deployed
