@@ -60,16 +60,15 @@ jobs:
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-          pnpm exec firebase use shiken-d8789 --add || true
+          pnpm exec firebase use shiken-d8789 --add
 
-      - name: Delete stale function (clears old CPU metadata)
+      - name: Verify Function Build Output Exists
         run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
-          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-          # Delete the old function to clear its derived CPU metadata from runWith()
-          # The new deployment will create it fresh with no CPU settings
-          pnpm exec firebase functions:delete api --project shiken-d8789 -f || true
-          rm -f /tmp/sa.json
+          if [ ! -f "functions/lib/index.js" ]; then
+            echo "ERROR: functions/lib/index.js not found — build step failed"
+            exit 1
+          fi
+          echo "Function build output verified ($(wc -c < functions/lib/index.js) bytes)"
 
       - name: Deploy Hosting + Functions (Unified)
         env:
@@ -79,6 +78,18 @@ jobs:
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-          # Unified deploy ensures BOTH hosting and functions deploy together
+          # Deploy hosting and functions together — DO NOT delete function first
           pnpm exec firebase deploy --only hosting,functions --project shiken-d8789
+          rm -f /tmp/sa.json
+
+      - name: Verify Cloud Function Deployed
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+          echo "Checking if api function exists..."
+          pnpm exec firebase functions:list --project shiken-d8789 | grep -q "api" || {
+            echo "ERROR: Cloud Function 'api' not found after deploy!"
+            exit 1
+          }
+          echo "SUCCESS: Cloud Function 'api' is deployed"
           rm -f /tmp/sa.json
