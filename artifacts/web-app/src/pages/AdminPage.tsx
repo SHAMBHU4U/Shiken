@@ -2264,7 +2264,7 @@ function UploadPanel() {
   ) {
     setSaving(true);
     setStatus({ type: "idle", msg: "" });
-    const dbPath = subject.path.toLowerCase();
+    const dbPath = subject.path;
     const testId = buildTestId();
     let successCount = 0;
     for (const q of questions) {

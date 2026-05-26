@@ -2095,7 +2095,7 @@ export default function SubjectPage() {
   // ── Firebase: save Shiken Engine-generated questions (dedup by english text) ─────────────
   async function saveAIQuestionsToFirebase(generated: Question[]) {
     if (!meta || generated.length === 0) return;
-    const dbPath = meta.path.toLowerCase();
+    const dbPath = meta.path; // preserve exact case to match Firebase paths
     try {
       const subjectRef = ref(db, dbPath);
       const snap = await get(subjectRef);
