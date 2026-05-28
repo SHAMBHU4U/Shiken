@@ -20,4 +20,9 @@ wrapper.use((req, _res, next) => {
 });
 wrapper.use(app);
 
-export const api = functions.https.onRequest(wrapper);
+// YAHAN SECRETS ADD KIYE GAYE HAIN:
+export const api = functions
+  .runWith({ 
+    secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"] 
+  })
+  .https.onRequest(wrapper);
