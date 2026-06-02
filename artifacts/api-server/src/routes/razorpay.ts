@@ -208,6 +208,8 @@ router.post("/razorpay/create-order", async (req, res) => {
 
     logger.info({ orderId: order.id, uid, planId, finalAmount, discount, walletDiscount }, "Razorpay order created");
 
+    const keyId = process.env["RAZORPAY_KEY_ID"];
+
     return res.json({
       ok:            true,
       orderId:       order.id,
@@ -215,6 +217,7 @@ router.post("/razorpay/create-order", async (req, res) => {
       discount,
       couponApplied,
       walletDiscount,
+      key:           keyId,
     });
   } catch (err: unknown) {
     const msg = errorText(err);
@@ -342,24 +345,51 @@ router.post("/razorpay/verify-payment", async (req, res) => {
 
     const { days: planDays, category } = planMeta(planId);
     const effectiveDays = Number(days) || planDays;
-    const premiumUntil  = Date.now() + effectiveDays * 86_400_000;
+    const now = Date.now();
+    const newExpiry = now + effectiveDays * 86_400_000;
+
+    // ── Fetch existing user data so we can merge purchased_tests ──
+    let existingPurchases: Record<string, unknown> = {};
+    let existingExpiry = 0;
+    let existingSubType: string | null = null;
+    try {
+      const userSnap = await adminDb.ref(`users/${safeId}`).get();
+      const val = userSnap.val() as Record<string, unknown> | null;
+      if (val) {
+        existingPurchases = val.purchased_tests && typeof val.purchased_tests === "object"
+          ? (val.purchased_tests as Record<string, unknown>)
+          : {};
+        existingExpiry = typeof val.premiumUntil === "number" ? val.premiumUntil : 0;
+        existingSubType = typeof val.subscriptionType === "string" ? val.subscriptionType : null;
+      }
+    } catch {
+      logger.warn({ uid: safeId }, "Could not fetch existing user data for merge");
+    }
+
+    // Extend expiry if already premium and current expiry is in the future
+    const premiumUntil = (existingSubType === "premium" && existingExpiry > now)
+      ? Math.max(newExpiry, existingExpiry)
+      : newExpiry;
+
+    const mergedPurchases = {
+      ...existingPurchases,
+      [planId]: {
+        active:      true,
+        activatedAt: now,
+        expiresAt:   premiumUntil,
+        paymentId:   razorpay_payment_id,
+      },
+    };
 
     const firebasePayload: Record<string, unknown> = {
       subscriptionType:  "premium",
       premiumUntil:      premiumUntil,
       plan:              planId,
-      activatedAt:       Date.now(),
+      activatedAt:       now,
       paymentVerified:   true,
       razorpayPaymentId: razorpay_payment_id,
       razorpayOrderId:   razorpay_order_id,
-      purchased_tests: {
-        [planId]: {
-          active:      true,
-          activatedAt: Date.now(),
-          expiresAt:   premiumUntil,
-          paymentId:   razorpay_payment_id,
-        },
-      },
+      purchased_tests:   mergedPurchases,
     };
 
     try {

@@ -11,10 +11,8 @@ wrapper.use((req, _res, next) => {
 });
 wrapper.use(app);
 
-// Yahan dekho, runWith ki jagah secrets ko onRequest mein daala hai:
-export const api = functions.https.onRequest(
-  { 
-    secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"] 
-  }, 
-  wrapper
-);// Deployment check
+export const api = functions
+  .runWith({
+    secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
+  })
+  .https.onRequest(wrapper);// Deployment check

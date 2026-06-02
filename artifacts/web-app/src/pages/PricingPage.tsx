@@ -414,6 +414,7 @@ function PaymentSheet({
 
       const orderId  = typeof orderData.orderId === "string" ? orderData.orderId : "";
       const amountRs = Number(orderData.amount);
+      const key      = typeof orderData.key === "string" ? orderData.key : RAZORPAY_KEY;
       if (!orderId || !Number.isFinite(amountRs)) {
         setError("Payment gateway returned invalid order data. Please try again.");
         setPaying(false);
@@ -422,7 +423,7 @@ function PaymentSheet({
       const amount = Math.round(amountRs * 100);
 
       const options: RazorpayOptions = {
-        key:        RAZORPAY_KEY,
+        key,
         amount,
         currency:    "INR",
         name:        "SHIKEN",
