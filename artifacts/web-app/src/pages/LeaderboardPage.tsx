@@ -44,7 +44,8 @@ interface LeaderEntry {
 // Production: /api/leaderboard -> Firebase Functions
 async function fetchLeaderboardByCategory(category: "c10" | "c12" | "jee" | "neet"): Promise<LeaderEntry[]> {
   try {
-    const res = await fetch(`/api/leaderboard?category=${encodeURIComponent(category)}`);
+    const res = await fetch(`
+https://api-jjfwuxybja-uc.a.run.app/api/leaderboard?category=${encodeURIComponent(category)}`);
     if (!res.ok) {
       console.error("[Leaderboard] server fetch failed:", res.status, res.statusText);
       return [];
