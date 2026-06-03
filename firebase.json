@@ -13,11 +13,7 @@
     "rewrites": [
       {
         "source": "/api/**",
-        "function": {
-          "functionId": "api",
-          "region": "us-central1",
-          "pinTag": true
-        }
+        "function": "api"
       },
       {
         "source": "**",
