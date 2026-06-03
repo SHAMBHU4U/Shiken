@@ -1,4 +1,4 @@
-import * as functions from "firebase-functions/v1";
+import { onRequest } from "firebase-functions/v2/https";
 import express from "express";
 import app from "../../artifacts/api-server/src/app";
 
@@ -11,10 +11,9 @@ wrapper.use((req, _res, next) => {
 });
 wrapper.use(app);
 
-export const api = functions
-  .runWith({
-    secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
-    // Firebase ko batane ke liye ki isi active account ko use kare
-    serviceAccount: "101540280667-compute@developer.gserviceaccount.com", 
-  })
-  .https.onRequest(wrapper);// Deployment check
+// Gen 2 shifted: Isse purana deleted account bypass ho jayega
+export const api = onRequest({
+  secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
+  serviceAccount: "101540280667-compute@developer.gserviceaccount.com",
+  cors: true // APIs ke liye sahi rehta hai
+}, wrapper);
