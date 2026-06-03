@@ -4,8 +4,6 @@ import { genai } from "../lib/gemini";
 
 const router = Router();
 
-// ─── JSON helpers ─────────────────────────────────────────────────────────────
-
 function extractJsonObjects(text: string): Record<string, unknown>[] {
   const objects: Record<string, unknown>[] = [];
   let depth = 0;
@@ -20,17 +18,13 @@ function extractJsonObjects(text: string): Record<string, unknown>[] {
         const slice = text.slice(start, i + 1)
           .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
           .replace(/,(\s*[}\]])/g, "$1");
-        try {
-          objects.push(JSON.parse(slice));
-        } catch { /* skip bad object */ }
+        try { objects.push(JSON.parse(slice)); } catch { /* skip */ }
         start = -1;
       }
     }
   }
   return objects;
 }
-
-// ─── Topic banks ──────────────────────────────────────────────────────────────
 
 const JEE_TOPICS: Record<string, string[]> = {
   physics: [
@@ -129,8 +123,6 @@ function pickTopics(bank: string[], count: number): string {
   return shuffled.slice(0, Math.min(count, shuffled.length)).join(", ");
 }
 
-// ─── Route ────────────────────────────────────────────────────────────────────
-
 router.post("/generate-mock-questions", async (req, res) => {
   try {
     const { examType, subject, section, count } = req.body as {
@@ -151,29 +143,30 @@ router.post("/generate-mock-questions", async (req, res) => {
     const topics = pickTopics(topicBank, 5);
     const examName = examType === "jee" ? "JEE Main" : "NEET";
     const isNumerical = section === "B";
+    const isNEET = examType === "neet";
 
     let prompt: string;
 
     if (isNumerical) {
-      // JEE Section B – Numerical Answer Type
-      prompt = `You are an expert ${examName} question setter specializing in ${subject.toUpperCase()}.
+      prompt = `You are an expert JEE Main question setter for ${subject.toUpperCase()} with 10+ years of NTA paper-setting experience.
 
-Generate EXACTLY ${count} JEE Main Session-level NUMERICAL ANSWER TYPE questions covering these topics: ${topics}.
+Generate EXACTLY ${count} JEE Main NUMERICAL ANSWER TYPE (Section B) questions covering: ${topics}.
 
-Rules:
-- Each question requires a specific numerical answer (integer 0-9 or decimal ≤ 2 places)
-- Difficulty: Medium to Hard (matching actual JEE Main difficulty)
-- Use $...$ for inline math and $$...$$ for display math (LaTeX/KaTeX format)
-- Provide a brief Hindi translation of each question
-- Answer must be deterministic — no ambiguity
-- Do NOT generate MCQ — these are numerical type only
+Strictly follow NTA JEE Main 2022-2025 Numerical Type pattern:
+- Answer is a non-negative integer (0-9) or decimal rounded to 2 decimal places
+- No options — purely numerical
+- Difficulty: 60% medium, 40% hard (matching actual JEE Main Session paper difficulty)
+- Question types: derive a value, calculate a result, find n/coefficient/ratio
+- Use $...$ for inline math and $$...$$ for display equations (KaTeX)
+- Based on NCERT Class 11-12 + JEE advanced concepts
+- Answer must be unique and deterministic — no ambiguity
 
 Return ONLY a valid JSON array. No markdown. No explanation.
 
 [
   {
-    "english": "A block of mass $2$ kg is released from rest on a frictionless incline making angle $30°$...",
-    "hindi": "एक $2$ kg द्रव्यमान का ब्लॉक...",
+    "english": "A block of mass $m = 2$ kg rests on a frictionless incline at $30°$...",
+    "hindi": "एक $m = 2$ kg का ब्लॉक $30°$ के घर्षण-रहित आनत तल पर...",
     "options": [],
     "optionsHindi": [],
     "answerIndex": -1,
@@ -181,33 +174,70 @@ Return ONLY a valid JSON array. No markdown. No explanation.
     "correctNumerical": "5"
   }
 ]`;
-    } else {
-      // MCQ questions (Section A for JEE, all for NEET)
-      const difficultyLine = examType === "jee"
-        ? "Difficulty: Mix of Medium and Hard (60% medium, 40% hard). Only 1 correct option."
-        : "Difficulty: Mix of Easy, Medium, and Hard (NCERT-based). 1 correct option from 4.";
+    } else if (isNEET) {
+      prompt = `You are an expert NTA NEET question setter for ${subject.toUpperCase()} with deep knowledge of NEET 2020-2025 papers.
 
-      prompt = `You are an expert ${examName} question setter specializing in ${subject.toUpperCase()}.
+Generate EXACTLY ${count} NEET MCQ questions covering high-weightage topics: ${topics}.
 
-Generate EXACTLY ${count} ${examName}-level MCQ questions covering these high-yield topics: ${topics}.
+Strictly follow NTA NEET official pattern:
+- 100% based on NCERT Class 11 & 12 ${subject} textbooks (NEET is strictly NCERT-based)
+- Question types: factual recall (30%), conceptual understanding (40%), application/diagram-based (30%)
+- Include 1-2 assertion-reason or match-the-column type questions (as in recent NEET papers)
+- Difficulty: 50% medium (direct NCERT), 30% conceptual, 20% application-based
+- Distractors must be from NCERT content (closely related facts that students commonly confuse)
+- Avoid trick questions — focus on genuine conceptual clarity
 
-${difficultyLine}
-
-Rules:
-- Questions must match the actual ${examName} pattern and style
-- Use $...$ for inline math and $$...$$ for display math (KaTeX/LaTeX compatible)
-- Each question has EXACTLY 4 options (A, B, C, D)
-- Provide Hindi translations for both question and options
+STRICT RULES:
+- Each question has EXACTLY 4 options (only 1 correct)
 - answerIndex: 0=A, 1=B, 2=C, 3=D
-- Vary question types: conceptual, numerical calculation, assertion-reason style
-- Avoid trivial or definition-only questions
+- Use $...$ for inline math, $$...$$ for equations (KaTeX)
+- "hindi": Hindi translation of the question
+- "optionsHindi": same 4 options in Hindi
+- "section": "A"
+- "correctNumerical": null
 
-Return ONLY a valid JSON array. No markdown. No code fences. No explanation.
+Return ONLY a valid JSON array. No markdown. No code fences.
 
 [
   {
-    "english": "An electron is moving with velocity $v$ in a magnetic field $B$...",
-    "hindi": "एक इलेक्ट्रॉन वेग $v$ से चुंबकीय क्षेत्र $B$ में गति कर रहा है...",
+    "english": "Which of the following is the site of ribosome synthesis in eukaryotic cells?",
+    "hindi": "यूकेरियोटिक कोशिकाओं में राइबोसोम संश्लेषण का स्थल कौन सा है?",
+    "options": ["Nucleolus", "Nucleus", "Endoplasmic Reticulum", "Golgi Apparatus"],
+    "optionsHindi": ["न्यूक्लियोलस", "केंद्रक", "अंतर्प्रद्रव्यी जालिका", "गॉल्जी उपकरण"],
+    "answerIndex": 0,
+    "section": "A",
+    "correctNumerical": null
+  }
+]`;
+    } else {
+      // JEE Main Section A MCQ
+      prompt = `You are an expert NTA JEE Main question setter for ${subject.toUpperCase()} with 10+ years of NTA paper-setting experience.
+
+Generate EXACTLY ${count} JEE Main Section A MCQ questions covering: ${topics}.
+
+Strictly follow NTA JEE Main 2022-2025 MCQ pattern:
+- Mix of question types as per actual JEE Main: conceptual (30%), numerical-based MCQ (40%), statement/assertion-reason (15%), match-the-column/diagram (15%)
+- Difficulty: 40% medium, 60% hard (JEE Main standard — not trivial, not impossible)
+- Based on NCERT Class 11-12 + standard JEE reference level
+- All 4 options must be plausible — distractors should target common JEE misconceptions
+- Include at least 1 question involving multi-step reasoning or calculation
+- Only 1 correct option from 4
+
+STRICT RULES:
+- Each question has EXACTLY 4 options (only 1 correct)
+- answerIndex: 0=A, 1=B, 2=C, 3=D
+- Use $...$ for inline math, $$...$$ for display equations (KaTeX)
+- "hindi": Hindi translation of the question
+- "optionsHindi": same 4 options in Hindi
+- "section": "A"
+- "correctNumerical": null
+
+Return ONLY a valid JSON array. No markdown. No code fences.
+
+[
+  {
+    "english": "An electron is accelerated through a potential difference of $V$ volts...",
+    "hindi": "एक इलेक्ट्रॉन को $V$ वोल्ट के विभवांतर से त्वरित किया जाता है...",
     "options": ["Option A text", "Option B text", "Option C text", "Option D text"],
     "optionsHindi": ["विकल्प A", "विकल्प B", "विकल्प C", "विकल्प D"],
     "answerIndex": 1,
@@ -222,14 +252,13 @@ Return ONLY a valid JSON array. No markdown. No code fences. No explanation.
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       config: {
         maxOutputTokens: 16384,
-        temperature: 0.7,
+        temperature: 0.6,
         responseMimeType: "application/json",
       },
     });
 
     const rawText = (response.text ?? "").trim();
     let raw = rawText;
-    // Strip markdown fences
     raw = raw.replace(/^```json\s*/, "").replace(/\s*```$/, "").trim();
 
     let parsed: unknown;
@@ -238,18 +267,12 @@ Return ONLY a valid JSON array. No markdown. No code fences. No explanation.
       parsed = JSON.parse(raw);
     } catch (e1) {
       parseError = String(e1);
-      // Try to extract JSON array/object from the response, handling Gemini quirks
       const match = raw.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
       if (match) {
         let cleaned = match[0]
-          // Fix common Gemini escape issues
-          .replace(/\\\n/g, "\\n")
-          .replace(/\\\t/g, "\\t")
-          .replace(/\\"/g, '\\"')
-          .replace(/\\'/g, "'")
-          // Remove unescaped control chars
+          .replace(/\\\n/g, "\\n").replace(/\\\t/g, "\\t")
+          .replace(/\\"/g, '\\"').replace(/\\'/g, "'")
           .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
-          // Remove trailing commas before ] or }
           .replace(/,(\s*[}\]])/g, "$1");
         try {
           parsed = JSON.parse(cleaned);
@@ -263,7 +286,6 @@ Return ONLY a valid JSON array. No markdown. No code fences. No explanation.
       }
     }
 
-    // Gemini sometimes returns a single object instead of an array for count=1
     let questions: unknown[];
     if (Array.isArray(parsed)) {
       questions = parsed;
@@ -273,17 +295,15 @@ Return ONLY a valid JSON array. No markdown. No code fences. No explanation.
       questions = [];
     }
 
-    // Last-resort: try to extract individual objects from truncated responses
     if (questions.length === 0 && rawText.includes("{") && rawText.includes("}")) {
       questions = extractJsonObjects(rawText);
     }
 
     if (questions.length === 0) {
-      console.error("generate-mock: empty questions. raw length:", rawText.length, "parseError:", parseError, "raw preview:", rawText.slice(0, 200));
+      console.error("generate-mock: empty questions. parseError:", parseError, "raw preview:", rawText.slice(0, 200));
       return res.status(500).json({ error: "AI returned no questions", detail: parseError || "empty array" });
     }
 
-    // Validate and clean
     const cleaned = (questions as Record<string, unknown>[])
       .map((q) => ({
         english:          String(q.english          ?? ""),

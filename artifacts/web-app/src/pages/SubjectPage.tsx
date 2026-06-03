@@ -1098,7 +1098,7 @@ function ChapterSelect({
 
 function ResultScreen({
   questions, answers, accent, label, icon, isDemo, isOfflineCached, mode, chapter, subject, onHome, onRetry,
-  isPremium, onUpgrade,
+  isPremium, onUpgrade, classId,
 }: {
   questions: Question[];
   answers: Record<number, number>;
@@ -1106,6 +1106,7 @@ function ResultScreen({
   mode: "full" | "chapter" | "ai" | "mini"; chapter: string; subject: string;
   onHome: () => void; onRetry: () => void;
   isPremium: boolean; onUpgrade: () => void;
+  classId: string;
 }) {
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answerIndex ? 1 : 0), 0);
   const pct   = Math.round((score / questions.length) * 100);
@@ -1210,6 +1211,7 @@ function ResultScreen({
             correctAnswer:   q.options[q.answerIndex] ?? "",
             subject:         label,
             lang:            effectiveLang,
+            classId,
           },
           (chunk) => setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + chunk })),
         );
@@ -1232,6 +1234,7 @@ function ResultScreen({
             correctAnswer:   q.options[q.answerIndex] ?? "",
             subject:         label,
             lang:            effectiveLang,
+            classId,
           }),
         });
         const reader = resp.body?.getReader();
@@ -1291,7 +1294,7 @@ function ResultScreen({
       const resp = await fetch("/api/analyze-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subject, score, total: questions.length, mode, chapter, wrong }),
+        body: JSON.stringify({ subject, score, total: questions.length, mode, chapter, wrong, classId }),
       });
       const reader = resp.body?.getReader();
       const decoder = new TextDecoder();
@@ -2166,12 +2169,12 @@ export default function SubjectPage() {
         // ── 2. Generate via Shiken Engine (browser-direct, server fallback) ────────────
         const fetched = await (async () => {
           try {
-            return await generateQuestions(subjectLabel, chapterKey, AI_COUNT);
+            return await generateQuestions(subjectLabel, chapterKey, AI_COUNT, classId);
           } catch {
             const resp = await fetch("/api/generate-questions", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subject: subjectLabel, chapter: chapterKey, count: AI_COUNT }),
+              body: JSON.stringify({ subject: subjectLabel, chapter: chapterKey, count: AI_COUNT, classId }),
             });
             const data = await resp.json() as { questions?: unknown[] };
             if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("empty");
@@ -2392,12 +2395,12 @@ export default function SubjectPage() {
         // ── 2. Generate via Shiken Engine (browser-direct, server fallback) ────────────
         fetched = await (async () => {
           try {
-            return await generateQuestions(subjectLabel, chapter, 5);
+            return await generateQuestions(subjectLabel, chapter, 5, classId);
           } catch {
             const resp = await fetch("/api/generate-questions", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subject: subjectLabel, chapter, count: 5 }),
+              body: JSON.stringify({ subject: subjectLabel, chapter, count: 5, classId }),
             });
             const data = await resp.json() as { questions?: unknown[]; error?: string };
             if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("No questions returned");
@@ -2791,7 +2794,7 @@ export default function SubjectPage() {
           accent={meta.accent} label={meta.label} icon={meta.icon}
           isDemo={isDemo} isOfflineCached={isOfflineCached} mode={mode} chapter={selectedChapter}
           onHome={() => { refreshHistory(); setScreen("mode-select"); }} onRetry={retryTest} subject={subject}
-          isPremium={isPremium} onUpgrade={() => setUpgradeOpen(true)}
+          isPremium={isPremium} onUpgrade={() => setUpgradeOpen(true)} classId={classId}
         />
         <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
       </>

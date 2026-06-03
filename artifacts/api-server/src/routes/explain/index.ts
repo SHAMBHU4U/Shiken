@@ -5,7 +5,6 @@ import { streamGemini } from "../../lib/gemini";
 
 const router = Router();
 
-// ─── Per-IP rate limiter (in-memory, resets daily) ────────────────────────────
 const DAILY_LIMIT = 30;
 const ipUsage = new Map<string, { date: string; count: number }>();
 
@@ -16,7 +15,7 @@ function getClientIp(req: import("express").Request): string {
 }
 
 function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
-  const today = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const today = new Date().toISOString().slice(0, 10);
   const entry = ipUsage.get(ip);
   if (!entry || entry.date !== today) {
     ipUsage.set(ip, { date: today, count: 1 });
@@ -29,8 +28,6 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   return { allowed: true, remaining: DAILY_LIMIT - entry.count };
 }
 
-// ─── Schema ───────────────────────────────────────────────────────────────────
-
 const ExplainBodySchema = z.object({
   questionEnglish: z.string().min(1),
   questionHindi:   z.string().optional(),
@@ -39,10 +36,10 @@ const ExplainBodySchema = z.object({
   correctAnswer:   z.string().min(1),
   subject:         z.string().min(1),
   lang:            z.enum(["en", "hi"]).default("hi"),
+  classId:         z.string().optional().default("10"),
 });
 
 router.post("/explain", async (req, res) => {
-  // Rate limit check
   const ip = getClientIp(req);
   const { allowed, remaining } = checkRateLimit(ip);
   if (!allowed) {
@@ -62,7 +59,12 @@ router.post("/explain", async (req, res) => {
     return;
   }
 
-  const { questionEnglish, questionHindi, options, optionsHindi, correctAnswer, subject, lang } = parsed.data;
+  const { questionEnglish, questionHindi, options, optionsHindi, correctAnswer, subject, lang, classId } = parsed.data;
+
+  const isEntrance = classId === "entrance";
+  const cls = classId === "12" ? "12" : isEntrance ? "" : "10";
+  const isNEET = isEntrance && subject.toLowerCase().includes("biology");
+  const isJEE  = isEntrance && !isNEET;
 
   const optsList = options
     .map((opt, i) => {
@@ -72,56 +74,102 @@ router.post("/explain", async (req, res) => {
     })
     .join("\n");
 
-  const questionLine =
-    lang === "en" ? questionEnglish
-    : (questionHindi || questionEnglish);
+  const questionLine = lang === "en" ? questionEnglish : (questionHindi || questionEnglish);
 
   const writingRule = lang === "en"
     ? "Write ENTIRELY in simple English. Short sentences. Beginner-friendly."
-    : "पूरा जवाब Hindi (Devanagari) में लिखो। English सिर्फ formulas, numbers, और scientific terms के लिए। सरल और आम Hindi words use करो।";
+    : "पूरा जवाब Hindi (Devanagari) में लिखो। English सिर्फ formulas, numbers, technical terms, और NCERT chapter names के लिए। सरल आम Hindi use करो।";
 
-  const sectionLabels = lang === "en"
-    ? { answer: `Correct Answer: ${correctAnswer}`, solution: "Solution:", formula: "Formula / Theory:", notes: "Remember:" }
-    : { answer: `सही जवाब: ${correctAnswer}`, solution: "हल:", formula: "सूत्र / सिद्धांत:", notes: "याद रखो:" };
+  let prompt: string;
 
-  const prompt = `तुम Board Class 10 के ${subject} teacher हो। एक student पहली बार यह topic पढ़ रहा है — उसे clearly समझाओ।
+  if (isEntrance) {
+    const examName = isNEET ? "NEET" : "JEE Main";
+    const answerLabel = lang === "en" ? `Correct Answer: ${correctAnswer}` : `सही जवाब: ${correctAnswer}`;
+    const solutionLabel = lang === "en" ? "Step-by-Step Solution:" : "हल:";
+    const formulaLabel  = lang === "en" ? "Key Formula / Concept:" : "मुख्य सूत्र / अवधारणा:";
+    const rememberLabel = lang === "en" ? "Points to Remember:" : "याद रखो (Extra Points):";
+
+    prompt = `You are a top ${examName} faculty. Explain this ${subject} question to a student preparing for ${examName}.
 
 Question: ${questionLine}
 
 Options:
 ${optsList}
 
-Correct Answer: ${correctAnswer}
+${answerLabel}
 
 ${writingRule}
 
-STRICT FORMATTING RULES — हर rule follow करो, कोई exception नहीं:
-- कोई asterisk (*), star, hash (#) या dash (-) as bullet मत use करो
-- कोई markdown bold, italic, heading मत use करो
-- Plain text only
-- हर point के लिए • symbol use करो (number नहीं)
-- Math के लिए: inline $formula$, block $$formula$$ (LaTeX)
-- सूत्र का नाम Hindi में लिखो
-- Total length: 12-16 lines। Short और sharp।
+STRICT FORMATTING:
+- No asterisk (*), hash (#), or dash (-) as bullet — use • only
+- No markdown bold/italic/heading — plain text only
+- Math: inline $formula$, display $$formula$$ (LaTeX/KaTeX)
+- Total: 14-18 lines — sharp, exam-focused, not a textbook
 
-इस EXACT structure में लिखो — यही sections, यही order:
+Write in this EXACT structure:
 
-${sectionLabels.answer}
-[एक line में — यह जवाब सही क्यों है, simple words में]
+${answerLabel}
+[One line — why this option is correct, exam-focused]
 
-${sectionLabels.solution}
-• [यह question किस concept/topic पर है — एक line में सरलता से]
-• [solve करने का तरीका या सूत्र — clearly बताओ]
-• [step-by-step working दिखाओ — calculation या logic के साथ]
-• [final result confirm करो और सही option बताओ]
+${solutionLabel}
+• [Identify the concept/law/formula this question tests — name it clearly]
+• [Apply the formula or logic — show calculation or reasoning step by step]
+• [Show all key steps — intermediate results if numerical]
+• [Confirm the final answer matches option ${correctAnswer}]
 
-${sectionLabels.formula}
-[अगर formula है तो LaTeX में लिखो। सूत्र का नाम ${lang === "hi" ? "Hindi" : "English"} में लिखो। अगर formula नहीं है तो एक line में key definition या rule।]
+${formulaLabel}
+[LaTeX formula if applicable. Name the law/formula. If no formula, give the key NCERT statement/definition.]
 
-${sectionLabels.notes}
-• [इस topic की सबसे important बात जो हर student को याद रखनी चाहिए]
-• [students यहाँ सबसे common गलती करते हैं — और उससे कैसे बचें]
-• [एक sharp memory trick या quick shortcut इस type के questions के लिए]`;
+${rememberLabel}
+• [Most important exam fact about this topic — tested frequently in ${examName}]
+• [Common mistake students make and how to avoid it]
+• [Quick trick or mnemonic for this type of ${examName} question]
+• [High-yield related concept that often appears alongside in ${examName}]`;
+  } else {
+    const boardCtx = `BSEB/CBSE Class ${cls} ${subject}`;
+    const ncertRef  = `NCERT Class ${cls} ${subject}`;
+    const answerLabel = lang === "en" ? `Correct Answer: ${correctAnswer}` : `सही जवाब: ${correctAnswer}`;
+    const solutionLabel = lang === "en" ? "Solution:" : "हल:";
+    const ncertLabel    = lang === "en" ? `NCERT Concept (${ncertRef}):` : `NCERT अवधारणा (${ncertRef}):`;
+    const rememberLabel = lang === "en" ? "Remember:" : "याद रखो:";
+
+    prompt = `तुम ${boardCtx} के expert teacher हो। Explanation strictly NCERT Class ${cls} ${subject} textbook content पर आधारित होनी चाहिए।
+
+Question: ${questionLine}
+
+Options:
+${optsList}
+
+${answerLabel}
+
+${writingRule}
+
+STRICT FORMATTING — हर rule follow करो:
+- कोई asterisk (*), star, hash (#) या dash (-) as bullet मत use करो — सिर्फ • use करो
+- कोई markdown bold, italic, heading मत use करो — plain text only
+- Math: inline $formula$, block $$formula$$ (LaTeX/KaTeX)
+- NCERT chapter name mention करो जहाँ relevant हो
+- Total: 12-16 lines। Short, clear, exam-focused।
+
+इस EXACT structure में लिखो:
+
+${answerLabel}
+[एक line — यह जवाब सही क्यों है, NCERT concept से connect करो]
+
+${solutionLabel}
+• [NCERT Class ${cls} का कौन सा chapter/topic यह question cover करता है — clearly बताओ]
+• [NCERT textbook की definition, formula, या key statement जो इस question को solve करती है]
+• [Step-by-step working — calculation या logic clearly दिखाओ]
+• [Final answer confirm करो — सही option बताओ और क्यों बाकी options wrong हैं]
+
+${ncertLabel}
+[Relevant formula LaTeX में, या NCERT की exact key definition/rule। Chapter name mention करो।]
+
+${rememberLabel}
+• [इस NCERT topic की सबसे important बात जो Board exam में बार-बार आती है]
+• [Students यहाँ सबसे common गलती करते हैं — और उससे कैसे बचें]
+• [एक sharp memory trick जो Board exam में काम आएगी]`;
+  }
 
   await streamGemini(res, prompt, "Explanation नहीं मिली। Please try again.", req.log);
 });

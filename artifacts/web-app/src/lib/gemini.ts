@@ -12,8 +12,15 @@ function buildPrompt(params: {
   correctAnswer:   string;
   subject:         string;
   lang:            "en" | "hi";
+  classId?:        string;
 }): string {
-  const { questionEnglish, questionHindi, options, optionsHindi, correctAnswer, subject, lang } = params;
+  const { questionEnglish, questionHindi, options, optionsHindi, correctAnswer, subject, lang, classId = "10" } = params;
+
+  const isEntrance = classId === "entrance";
+  const cls = classId === "12" ? "12" : isEntrance ? "" : "10";
+  const isNEET = isEntrance && subject.toLowerCase().includes("biology");
+  const isJEE  = isEntrance && !isNEET;
+  const examName = isNEET ? "NEET" : isJEE ? "JEE Main" : "";
 
   const optsList = options
     .map((opt, i) => {
@@ -27,50 +34,95 @@ function buildPrompt(params: {
 
   const writingRule = lang === "en"
     ? "Write ENTIRELY in simple English. Short sentences. Beginner-friendly."
-    : "पूरा जवाब Hindi (Devanagari) में लिखो। English सिर्फ formulas, numbers, और scientific terms के लिए। सरल और आम Hindi words use करो।";
+    : "पूरा जवाब Hindi (Devanagari) में लिखो। English सिर्फ formulas, numbers, technical terms, और NCERT chapter names के लिए। सरल आम Hindi use करो।";
 
-  const sectionLabels = lang === "en"
-    ? { answer: `Correct Answer: ${correctAnswer}`, solution: "Solution:", formula: "Formula / Theory:", notes: "Remember:" }
-    : { answer: `सही जवाब: ${correctAnswer}`, solution: "हल:", formula: "सूत्र / सिद्धांत:", notes: "याद रखो:" };
+  if (isEntrance) {
+    const answerLabel  = lang === "en" ? `Correct Answer: ${correctAnswer}` : `सही जवाब: ${correctAnswer}`;
+    const solutionLabel = lang === "en" ? "Step-by-Step Solution:" : "हल:";
+    const formulaLabel  = lang === "en" ? "Key Formula / Concept:" : "मुख्य सूत्र / अवधारणा:";
+    const rememberLabel = lang === "en" ? "Points to Remember:" : "याद रखो (Extra Points):";
 
-  return `तुम Board Class 10 के ${subject} teacher हो। एक student पहली बार यह topic पढ़ रहा है — उसे clearly समझाओ।
+    return `You are a top ${examName} faculty. Explain this ${subject} question to a student preparing for ${examName}.
 
 Question: ${questionLine}
 
 Options:
 ${optsList}
 
-Correct Answer: ${correctAnswer}
+${answerLabel}
 
 ${writingRule}
 
-STRICT FORMATTING RULES — हर rule follow करो, कोई exception नहीं:
-- कोई asterisk (*), star, hash (#) या dash (-) as bullet मत use करो
-- कोई markdown bold, italic, heading मत use करो
-- Plain text only
-- हर point के लिए • symbol use करो (number नहीं)
-- Math के लिए: inline $formula$, block $$formula$$ (LaTeX)
-- सूत्र का नाम Hindi में लिखो
-- Total length: 12-16 lines। Short और sharp।
+STRICT FORMATTING:
+- No asterisk (*), hash (#), or dash (-) as bullet — use • only
+- No markdown bold/italic/heading — plain text only
+- Math: inline $formula$, display $$formula$$ (LaTeX/KaTeX)
+- Total: 14-18 lines — sharp, exam-focused, not a textbook
 
-इस EXACT structure में लिखो — यही sections, यही order:
+Write in this EXACT structure:
 
-${sectionLabels.answer}
-[एक line में — यह जवाब सही क्यों है, simple words में]
+${answerLabel}
+[One line — why this option is correct, exam-focused]
 
-${sectionLabels.solution}
-• [यह question किस concept/topic पर है — एक line में सरलता से]
-• [solve करने का तरीका या सूत्र — clearly बताओ]
-• [step-by-step working दिखाओ — calculation या logic के साथ]
-• [final result confirm करो और सही option बताओ]
+${solutionLabel}
+• [Identify the concept/law/formula this question tests — name it clearly]
+• [Apply the formula or logic — show calculation or reasoning step by step]
+• [Show all key steps — intermediate results if numerical]
+• [Confirm the final answer matches option ${correctAnswer}]
 
-${sectionLabels.formula}
-[अगर formula है तो LaTeX में लिखो। सूत्र का नाम ${lang === "hi" ? "Hindi" : "English"} में लिखो। अगर formula नहीं है तो एक line में key definition या rule।]
+${formulaLabel}
+[LaTeX formula if applicable. Name the law/formula. If no formula, give the key NCERT statement/definition.]
 
-${sectionLabels.notes}
-• [इस topic की सबसे important बात जो हर student को याद रखनी चाहिए]
-• [students यहाँ सबसे common गलती करते हैं — और उससे कैसे बचें]
-• [एक sharp memory trick या quick shortcut इस type के questions के लिए]`;
+${rememberLabel}
+• [Most important exam fact about this topic — tested frequently in ${examName}]
+• [Common mistake students make and how to avoid it]
+• [Quick trick or mnemonic for this type of ${examName} question]
+• [High-yield related concept that often appears alongside in ${examName}]`;
+  }
+
+  const boardCtx  = `BSEB/CBSE Class ${cls} ${subject}`;
+  const ncertRef  = `NCERT Class ${cls} ${subject}`;
+  const answerLabel   = lang === "en" ? `Correct Answer: ${correctAnswer}` : `सही जवाब: ${correctAnswer}`;
+  const solutionLabel = lang === "en" ? "Solution:" : "हल:";
+  const ncertLabel    = lang === "en" ? `NCERT Concept (${ncertRef}):` : `NCERT अवधारणा (${ncertRef}):`;
+  const rememberLabel = lang === "en" ? "Remember:" : "याद रखो:";
+
+  return `तुम ${boardCtx} के expert teacher हो। Explanation strictly NCERT Class ${cls} ${subject} textbook content पर आधारित होनी चाहिए।
+
+Question: ${questionLine}
+
+Options:
+${optsList}
+
+${answerLabel}
+
+${writingRule}
+
+STRICT FORMATTING — हर rule follow करो:
+- कोई asterisk (*), star, hash (#) या dash (-) as bullet मत use करो — सिर्फ • use करो
+- कोई markdown bold, italic, heading मत use करो — plain text only
+- Math: inline $formula$, block $$formula$$ (LaTeX/KaTeX)
+- NCERT chapter name mention करो जहाँ relevant हो
+- Total: 12-16 lines। Short, clear, exam-focused।
+
+इस EXACT structure में लिखो:
+
+${answerLabel}
+[एक line — यह जवाब सही क्यों है, NCERT concept से connect करो]
+
+${solutionLabel}
+• [NCERT Class ${cls} का कौन सा chapter/topic यह question cover करता है — clearly बताओ]
+• [NCERT textbook की definition, formula, या key statement जो इस question को solve करती है]
+• [Step-by-step working — calculation या logic clearly दिखाओ]
+• [Final answer confirm करो — सही option बताओ और क्यों बाकी options wrong हैं]
+
+${ncertLabel}
+[Relevant formula LaTeX में, या NCERT की exact key definition/rule। Chapter name mention करो।]
+
+${rememberLabel}
+• [इस NCERT topic की सबसे important बात जो Board exam में बार-बार आती है]
+• [Students यहाँ सबसे common गलती करते हैं — और उससे कैसे बचें]
+• [एक sharp memory trick जो Board exam में काम आएगी]`;
 }
 
 export interface GeneratedQuestion {
@@ -221,15 +273,18 @@ export async function generateQuestions(
   subject: string,
   chapter: string,
   count: number,
+  classId = "10",
 ): Promise<GeneratedQuestion[]> {
   if (!API_KEY) throw new Error("Shiken Engine API key not set");
 
   const ai = new GoogleGenAI({ apiKey: API_KEY });
 
-  const isHindi   = subject.toLowerCase().includes("hindi");
+  const isHindi    = subject.toLowerCase().includes("hindi");
   const isSanskrit = subject.toLowerCase().includes("sanskrit");
+  const isEntrance = classId === "entrance";
+  const cls = classId === "12" ? "12" : isEntrance ? "" : "10";
+  const isNEET = isEntrance && subject.toLowerCase().includes("biology");
 
-  // For Hindi/Sanskrit, if chapter is generic, rotate through grammar chapters
   const effectiveChapter =
     isHindi    && (!chapter || chapter === "?" || chapter === "General")
       ? HINDI_GRAMMAR_CHAPTERS[Math.floor(Math.random() * HINDI_GRAMMAR_CHAPTERS.length)]
@@ -237,80 +292,109 @@ export async function generateQuestions(
       ? SANSKRIT_GRAMMAR_CHAPTERS[Math.floor(Math.random() * SANSKRIT_GRAMMAR_CHAPTERS.length)]
     : chapter;
 
-  // Determine exam context for prompt
-  const subjectLower = subject.toLowerCase();
-  const isJEE = subjectLower.includes("jee") || subjectLower.includes("physics") || subjectLower.includes("chemistry") || subjectLower.includes("maths");
-  const isNEET = subjectLower.includes("neet") || subjectLower.includes("biology");
-  const isClass12 = subjectLower.includes("class 12") || subjectLower.includes("class12");
-  const isEntrance = isJEE || isNEET;
-  const examContext = isJEE
-    ? "latest NTA JEE (Joint Entrance Examination) Main pattern"
-    : isNEET
-      ? "latest NTA NEET (National Eligibility cum Entrance Test) pattern"
-      : isClass12
-        ? "latest BSEB (Bihar School Examination Board) Intermediate (Class 12) annual exam pattern"
-        : "latest BSEB (Bihar School Examination Board) Matric (Class 10) annual exam pattern";
+  let prompt: string;
 
-  const prompt = isHindi
-    ? `तुम ${examContext} के Hindi Vyakaran (व्याकरण) के expert हो।
+  if (isHindi) {
+    const boardLine = cls
+      ? `BSEB/CBSE Class ${cls} Hindi Vyakaran Board exam 2022-2025 pattern, NCERT Class ${cls} पाठ्यक्रम पर आधारित`
+      : "latest Board exam pattern";
+    prompt = `तुम ${boardLine} के Hindi Vyakaran (व्याकरण) के expert हो।
 
-"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो ${examContext} के लिए उपयुक्त हों। सवाल latest BSEB परीक्षा पैटर्न के अनुसार हों।
+"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ।
+
+प्रश्न की विशेषताएँ:
+- ${boardLine} के अनुसार
+- Questions vary करें: definitions, fill-in-blank, identification, examples, sentence correction
+- Difficulty: 30% easy, 50% medium, 20% hard
 
 STRICT RULES:
 - Return ONLY a valid JSON array — no markdown, no code fences.
-- Primary language: HINDI (Devanagari)।
 - "hindi": प्रश्न Devanagari में (यही main question है)
-- "english": same question in English  
+- "english": same question in English
 - "options": EXACTLY 4 Devanagari Hindi strings
 - "optionsHindi": same 4 options (copy)
-- "answerIndex": 0-3 (correct option index)
-- Questions must vary: definitions, fill-in-blank, identification, examples।
-- Match latest BSEB board exam difficulty and question style.
+- "answerIndex": 0-3
 
 JSON format (return ONLY this):
-[{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`
-    : isSanskrit
-    ? `तुम ${examContext} के Sanskrit Vyakaran (व्याकरण) के expert हो।
+[{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`;
+  } else if (isSanskrit) {
+    const boardLine = cls
+      ? `BSEB/CBSE Class ${cls} Sanskrit Board exam pattern, NCERT Class ${cls} Sanskrit पाठ्यक्रम पर आधारित`
+      : "latest Board exam pattern";
+    prompt = `तुम ${boardLine} के Sanskrit Vyakaran expert हो।
 
-"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ जो ${examContext} के लिए उपयुक्त हों। सवाल latest BSEB परीक्षा पैटर्न के अनुसार हों।
+"${effectiveChapter}" topic पर EXACTLY ${count} MCQ questions बनाओ।
 
 STRICT RULES:
 - Return ONLY a valid JSON array — no markdown, no code fences।
-- "hindi": प्रश्न Devanagari में (Sanskrit/Hindi — यही main question है)।
+- "hindi": प्रश्न Devanagari में (Sanskrit/Hindi)।
 - "english": same question in simple English।
-- "options": EXACTLY 4 Devanagari strings (Sanskrit/Hindi)।
+- "options": EXACTLY 4 Devanagari strings।
 - "optionsHindi": same 4 options (copy)।
-- "answerIndex": 0-3 (correct option index)।
+- "answerIndex": 0-3।
 - Questions must vary: रूप पहचानना, विग्रह, नाम पहचानना, fill-in-blank।
-- Match latest BSEB board exam difficulty and question style.
 
 JSON format (return ONLY this):
-[{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`
-    : `You are an expert exam question creator for ${subject} aligned with ${examContext}.
+[{"hindi":"...","english":"...","options":["...","...","...","..."],"optionsHindi":["...","...","...","..."],"answerIndex":0}]`;
+  } else if (isEntrance) {
+    const examName = isNEET ? "NEET" : "JEE Main";
+    prompt = `You are an expert NTA ${examName} question setter for ${subject}.
 
-Generate exactly ${count} multiple-choice questions on the topic: "${effectiveChapter}".
+Generate EXACTLY ${count} MCQ questions on: "${effectiveChapter}"
+
+Strictly follow NTA ${examName} 2022-2025 official pattern:
+- ${isNEET ? "100% NCERT-based: factual (30%), conceptual (40%), application/diagram-based (30%)" : "Conceptual (30%), numerical-based MCQ (40%), statement/assertion-reason (15%), match-the-column (15%)"}
+- Difficulty: ${isNEET ? "50% medium (NCERT direct), 30% conceptual, 20% application" : "40% medium, 60% hard (JEE Main standard)"}
+- All 4 options must be plausible — target common misconceptions
 
 STRICT RULES:
-- Return ONLY a valid JSON array. No markdown, no explanation, no code fences.
-- Each question must have exactly 4 options.
-- answerIndex must be 0, 1, 2, or 3 (index of correct option).
-- "hindi" field: Hindi translation of the question text (simple, clear Hindi).
-- "options": answer choices written in English.
-- "optionsHindi": the same 4 answer choices translated into Hindi (same order, same index).
-- Questions must be factual, syllabus-appropriate, and varied in difficulty.
-- Both the question AND all options must make sense in both languages.
-- Match the latest exam pattern: ${isEntrance ? "NTA MCQ style with conceptual and numerical problems" : "BSEB board exam MCQ style with direct and application-based questions"}.
+- Return ONLY a valid JSON array. No markdown, no code fences.
+- Each question has EXACTLY 4 options.
+- answerIndex: 0, 1, 2, or 3
+- Use $...$ for inline math and $$...$$ for display math (KaTeX)
+- "hindi": Hindi translation of the question
+- "optionsHindi": same 4 options in Hindi
 
-JSON format (return ONLY this, nothing else):
+JSON format (return ONLY this):
 [
   {
     "english": "Question text in English",
     "hindi": "प्रश्न का Hindi अनुवाद",
     "options": ["Option A", "Option B", "Option C", "Option D"],
-    "optionsHindi": ["विकल्प A का हिंदी", "विकल्प B का हिंदी", "विकल्प C का हिंदी", "विकल्प D का हिंदी"],
+    "optionsHindi": ["विकल्प A", "विकल्प B", "विकल्प C", "विकल्प D"],
     "answerIndex": 0
   }
 ]`;
+  } else {
+    const boardCtx = `BSEB/CBSE Class ${cls} ${subject} Board exam 2022-2025 pattern, strictly based on NCERT Class ${cls} ${subject} textbook`;
+    prompt = `You are an expert ${boardCtx} question creator.
+
+Generate EXACTLY ${count} MCQ questions on: "${effectiveChapter}"
+
+Strictly follow ${boardCtx}:
+- Base questions directly on NCERT Class ${cls} ${subject} textbook content
+- Mix question types: direct recall (NCERT text), diagram/application-based, fill-in-the-blank, NCERT exercise style
+- Match the exact style of recent BSEB/CBSE 2022-2025 board papers
+- Difficulty: 40% easy (NCERT direct), 40% medium, 20% application-based
+- Use $...$ for inline math, $$...$$ for display math (KaTeX)
+
+STRICT RULES:
+- Return ONLY a valid JSON array. No markdown, no explanation, no code fences.
+- Each question has exactly 4 options. answerIndex: 0, 1, 2, or 3.
+- "hindi": simple Hindi translation (Devanagari).
+- "optionsHindi": same 4 options in Hindi (same order).
+
+JSON format (return ONLY this):
+[
+  {
+    "english": "Question text in English",
+    "hindi": "प्रश्न का Hindi अनुवाद",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "optionsHindi": ["विकल्प A", "विकल्प B", "विकल्प C", "विकल्प D"],
+    "answerIndex": 0
+  }
+]`;
+  }
 
   const response = await ai.models.generateContent({
     model: FREE_MODEL,
@@ -499,6 +583,7 @@ export async function explainWithShikenEngine(
     correctAnswer:   string;
     subject:         string;
     lang:            "en" | "hi";
+    classId?:        string;
   },
   onChunk: (text: string) => void,
 ): Promise<string> {
