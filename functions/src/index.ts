@@ -13,7 +13,7 @@ wrapper.use(app);
 
 // Gen 2 shifted: Isse purana deleted account bypass ho jayega
 export const api = onRequest({
-  secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET"],
+  secrets: ["RAZORPAY_KEY_ID", "RAZORPAY_KEY_SECRET" , "GEMINI_API_KEY"],
   serviceAccount: "101540280667-compute@developer.gserviceaccount.com",
   cors: true // APIs ke liye sahi rehta hai
 }, wrapper);
