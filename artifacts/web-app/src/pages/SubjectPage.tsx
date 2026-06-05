@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
@@ -314,15 +315,15 @@ function inferSubjectCategory(subject: string): "c10" | "c12" | "jee" | "neet" {
   return "c10";
 }
 
-function addRecord(subject: string, rec: TestRecord): TestRecord[] {
+function addRecord(subject: string, rec: TestRecord, callerUid?: string): TestRecord[] {
   const prev = loadHistory(subject);
   const next = [...prev, rec].slice(-50);
   try { localStorage.setItem(historyKey(subject), JSON.stringify(next)); } catch { /* quota */ }
 
   // ── Push to Firebase for admin analytics ──────────────────────────────────
   try {
-    const uid = auth.currentUser?.uid;
-    const deviceId = uid ?? getDeviceId();
+    const resolvedUid = callerUid ?? auth.currentUser?.uid;
+    const deviceId = resolvedUid ?? getDeviceId();
     const safeId = deviceId.replace(/[.#$/[\]]/g, "_");
     const safeSubject = (typeof subject === "string" && subject.trim()) ? subject : "unknown";
     const safePct = isFinite(rec.pct) ? rec.pct : 0;
@@ -1108,6 +1109,7 @@ function ResultScreen({
   isPremium: boolean; onUpgrade: () => void;
   classId: string;
 }) {
+  const { user } = useAuth();
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answerIndex ? 1 : 0), 0);
   const pct   = Math.round((score / questions.length) * 100);
   const msg   = pct === 100 ? "Perfect! Outstanding! 🏆" : pct >= 80 ? "Excellent! ⭐" : pct >= 60 ? "Good effort! 💪" : "Keep going! 🌱";
@@ -1123,7 +1125,7 @@ function ResultScreen({
     if (recordedRef.current || isDemo) return;
     recordedRef.current = true;
     const rec: TestRecord = { date: Date.now(), score, total: questions.length, pct, mode, chapter };
-    setHistory(addRecord(subject, rec));
+    setHistory(addRecord(subject, rec, user?.uid));
   }, []);
 
   // Per-question explanation state

@@ -464,7 +464,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     setStatsLoading(true);
-    const safeId = user.uid.replace(/[.#$/[\]]/g, "_");
+    const safeId = (auth.currentUser?.uid ?? user.uid).replace(/[.#$/[\]]/g, "_");
     let cancelled = false;
     (async () => {
       let token = "";
