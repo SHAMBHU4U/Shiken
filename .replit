@@ -137,7 +137,6 @@ externalPort = 3000
 [userenv.shared]
 PORT = "5000"
 API_PORT = "3000"
-GITHUB_PERSONAL_KEY = "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"
 
 [nix]
 channel = "stable-25_05"
