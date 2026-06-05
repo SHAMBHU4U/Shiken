@@ -10,6 +10,16 @@ import { AVATARS, getAvatarEmoji } from "../utils/avatarUtils";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
+function getDeviceId(): string {
+  const KEY = "shiken_device_id";
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = "u_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
 interface Session {
   subject: string;
   score: number;
@@ -465,26 +475,54 @@ export default function ProfilePage() {
     if (!user) return;
     setStatsLoading(true);
     const safeId = (auth.currentUser?.uid ?? user.uid).replace(/[.#$/[\]]/g, "_");
+    const deviceId = getDeviceId().replace(/[.#$/[\]]/g, "_");
     let cancelled = false;
     (async () => {
       let token = "";
       try { token = await user.getIdToken(); } catch { /* ignore */ }
       if (cancelled) return;
       const authSuffix = token ? `?auth=${token}` : "";
-      // Fetch sessions
-      fetch(`${DB_URL}/userActivity/${safeId}/sessions.json${authSuffix}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (cancelled || !data || typeof data !== "object") return;
-          const list = (Object.values(data) as Session[]).map(s => ({
-            ...s,
-            subject: s.subject || "unknown",
-            pct: isFinite(Number(s.pct)) ? Number(s.pct) : 0,
-            score: Number(s.score) || 0,
-            total: Number(s.total) || 0,
-            timestamp: Number(s.timestamp) || 0,
-          }));
-          setSessions(list.sort((a, b) => b.timestamp - a.timestamp));
+      // Fetch from UID path (current + future data)
+      const uidPromise = fetch(`${DB_URL}/userActivity/${safeId}/sessions.json${authSuffix}`).then((r) => r.json());
+      // Fetch from legacy deviceId path (old data before auth fix)
+      const devicePromise = fetch(`${DB_URL}/userActivity/${deviceId}/sessions.json${authSuffix}`).then((r) => r.json());
+      Promise.all([uidPromise, devicePromise])
+        .then(([uidData, deviceData]) => {
+          if (cancelled) return;
+          const seen = new Set<number>();
+          const all: Session[] = [];
+          const pushSessions = (data: unknown) => {
+            if (!data || typeof data !== "object") return;
+            (Object.values(data) as Session[]).forEach((s) => {
+              const ts = Number(s.timestamp) || 0;
+              if (seen.has(ts)) return;
+              seen.add(ts);
+              all.push({
+                subject: s.subject || "unknown",
+                pct: isFinite(Number(s.pct)) ? Number(s.pct) : 0,
+                score: Number(s.score) || 0,
+                total: Number(s.total) || 0,
+                timestamp: ts,
+                mode: s.mode || "",
+                chapter: s.chapter || "",
+              });
+            });
+          };
+          pushSessions(uidData);
+          pushSessions(deviceData);
+          setSessions(all.sort((a, b) => b.timestamp - a.timestamp));
+          // One-time migration: copy old deviceId sessions to UID path so future reads are clean
+          if (deviceData && typeof deviceData === "object" && uidData && typeof uidData === "object") {
+            const uidKeys = Object.keys(uidData).length;
+            const deviceKeys = Object.keys(deviceData).length;
+            if (deviceKeys > 0 && uidKeys === 0) {
+              fetch(`${DB_URL}/userActivity/${safeId}/sessions.json${authSuffix}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(deviceData),
+              }).catch(() => {});
+            }
+          }
         })
         .catch(() => {})
         .finally(() => setStatsLoading(false));
