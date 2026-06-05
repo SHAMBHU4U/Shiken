@@ -45,10 +45,16 @@ jobs:
           FIREBASE_DEPLOY: true
           NODE_ENV: production
 
+      - name: Remove stale functions lockfile
+        run: rm -f functions/pnpm-lock.yaml
+
       - name: Install Functions Dependencies
         run: |
           cd functions
           pnpm install --ignore-scripts
+
+      - name: Remove lockfile before deploy (Cloud Build must install fresh)
+        run: rm -f functions/pnpm-lock.yaml
 
       - name: Build Cloud Functions
         run: |
