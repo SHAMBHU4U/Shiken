@@ -452,7 +452,10 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
   const isQuestionLike = (v: unknown): boolean => {
     if (typeof v !== "object" || v === null) return false;
     const q = v as Record<string, unknown>;
-    return !!(q.english || q.question || q.question_english || q.hindi);
+    // Hindi questions often use question_hindi instead of hindi
+    const hasText = !!(q.english || q.question || q.question_english || q.hindi);
+    const isHindiQuestion = subject === "hindi" && !!(q.question_hindi || q.question_hi);
+    return hasText || isHindiQuestion;
   };
 
   const pairs: Array<[Record<string, unknown>, string | undefined]> = [];
@@ -488,7 +491,11 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
       opts = (q.options as unknown[]).map(String);
     } else if (q.options && typeof q.options === "object") {
       const optObj = q.options as Record<string, string>;
-      opts = Object.keys(optObj).sort().map((k) => optObj[k]);
+      // Hindi: options are stored as objects with numeric keys (0,1,2) — use Object.values
+      // Other subjects: may use letter keys (A,B,C,D) — preserve alphabetical order
+      opts = subject === "hindi"
+        ? Object.values(optObj).map(String)
+        : Object.keys(optObj).sort().map((k) => String(optObj[k]));
     }
 
     // ── Answer index ──────────────────────────────────────────────────────────
