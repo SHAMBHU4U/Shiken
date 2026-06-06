@@ -1128,6 +1128,22 @@ function ResultScreen({
     setHistory(addRecord(subject, rec, user?.uid));
   }, []);
 
+  // Auto-explain incorrect answers for premium users
+  const autoExplainRef = useRef(false);
+  useEffect(() => {
+    if (autoExplainRef.current || isDemo || !isPremium) return;
+    autoExplainRef.current = true;
+    questions.forEach((q, i) => {
+      if (answers[i] !== q.answerIndex) {
+        // Delay slightly to avoid overloading API
+        setTimeout(() => {
+          fetchExplain(i, q, explainLang).catch(() => {});
+        }, i * 300);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Per-question explanation state
   const [explainTexts,   setExplainTexts]   = useState<Record<number, string>>({});
   const [explainLoading, setExplainLoading] = useState<Record<number, boolean>>({});
@@ -1776,7 +1792,7 @@ function ResultScreen({
 
 // ─── Main SubjectPage ─────────────────────────────────────────────────────────
 
-type Screen = "loading" | "mode-select" | "mini-chapter-select" | "chapter-select" | "ai-chapter-select" | "ai-generating" | "smart-generating" | "comprehension-generating" | "comprehension-passage" | "quiz" | "result" | "saved-questions";
+type Screen = "loading" | "mode-select" | "mini-chapter-select" | "chapter-select" | "chapter-generating" | "ai-chapter-select" | "ai-generating" | "smart-generating" | "comprehension-generating" | "comprehension-passage" | "quiz" | "result" | "saved-questions";
 
 export default function SubjectPage() {
   const params  = useParams<{ subject: string }>();
@@ -2328,14 +2344,55 @@ export default function SubjectPage() {
     }
   }
 
-  function startChapterTest(chapter: string) {
+  async function startChapterTest(chapter: string) {
     clearProgress(subject);
     setSavedProgress(null);
     setMode("chapter");
     setSelectedChapter(chapter);
     const pool   = allQuestions.filter((q) => q.chapter === chapter);
     const picked = pick(pool, 20);
-    setQuestions(picked);
+
+    // ── If DB has fewer than 20, generate AI questions to fill ──
+    let finalQuestions = picked;
+    if (picked.length < 20) {
+      const need = 20 - picked.length;
+      setScreen("chapter-generating");
+      try {
+        const subjectLabel = meta?.label ?? subject;
+        let fetched = await (async () => {
+          try {
+            return await generateQuestions(subjectLabel, chapter, need, classId);
+          } catch {
+            const resp = await fetch("/api/generate-questions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ subject: subjectLabel, chapter, count: need, classId }),
+            });
+            const data = await resp.json() as { questions?: unknown[] };
+            if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("empty");
+            return (data.questions as Record<string, unknown>[]).map((q) => ({
+              english:      String(q.english      ?? ""),
+              hindi:        String(q.hindi        ?? ""),
+              options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+              optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+              answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+            }));
+          }
+        })();
+        const ai = fetched
+          .map((q) => ({ ...q, chapter: chapter || "Shiken Generated" }))
+          .filter((q) => q.english && q.options.length >= 2);
+        // Save to DB so next time they're cached
+        if (ai.length > 0) {
+          saveAIQuestionsToFirebase(ai.map(q => ({ ...q, chapter: chapter || "Shiken Generated" }))).catch(() => {});
+        }
+        finalQuestions = shuffle([...picked, ...ai.slice(0, need)]);
+      } catch {
+        // AI generation failed — proceed with whatever DB gave us
+      }
+    }
+
+    setQuestions(finalQuestions);
     setCurrentIndex(0);
     setAnswers({});
     setSelectedOption(null);
@@ -2343,7 +2400,7 @@ export default function SubjectPage() {
     setDirection(1);
     setTimerLeft(CHAPTER_TIMER);
     setTimerHidden(false);
-    saveProgress(subject, { mode: "chapter", chapter, questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: CHAPTER_TIMER });
+    saveProgress(subject, { mode: "chapter", chapter, questions: finalQuestions, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: CHAPTER_TIMER });
     setScreen("quiz");
   }
 
@@ -2644,6 +2701,34 @@ export default function SubjectPage() {
             </div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (screen === "chapter-generating") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(6,182,212,0.18) 0%, transparent 60%)" }} />
+        <motion.div className="relative z-10 text-center w-full max-w-sm">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
+            className="w-14 h-14 rounded-full border-2 border-transparent mx-auto mb-5"
+            style={{ borderTopColor: "#06b6d4", borderRightColor: "#06b6d450" }}
+          />
+          <p className="text-white font-bold text-lg mb-1">Shiken Engine is generating questions...</p>
+          <p className="text-white/40 text-sm mb-4">शिकेन इंज़िन इस chapter के लिए सवाल बना रहा है</p>
+          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden mb-2">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: "linear-gradient(90deg, #06b6d4, #8b5cf6)" }}
+              animate={{ width: ["0%", "60%", "85%", "100%"] }}
+              transition={{ duration: 4, ease: "easeInOut", repeat: Infinity }}
+            />
+          </div>
+          <p className="text-cyan-400/60 text-xs">Chapter: {selectedChapter}</p>
+        </motion.div>
       </div>
     );
   }
