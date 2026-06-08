@@ -2464,44 +2464,31 @@ export default function SubjectPage() {
     setMode("ai");
     setSelectedChapter(chapter);
     setScreen("ai-generating");
+
+    // Preserve the "Generating…" UX feel with a short delay
+    await new Promise<void>((resolve) => setTimeout(resolve, 700));
+
     try {
-      const subjectLabel = meta?.label ?? subject;
+      // ── Pick 5 random questions from the already-loaded DB pool ──────────────
+      // Filter to the selected chapter; "All Chapters" / "General" uses the full pool.
+      const isAllChapters = !chapter || chapter === "All Chapters" || chapter === "General";
+      const pool = isAllChapters
+        ? allQuestions
+        : allQuestions.filter(
+            (q) =>
+              !q.chapter ||
+              q.chapter.toLowerCase() === chapter.toLowerCase() ||
+              q.chapter === "General"
+          );
 
-      // ── 1. Check shared Firebase cache first (instant, no API call) ───────────
-      const cached = await getCachedQuestions(subjectLabel, chapter, 5);
-      let fetched = cached ?? [];
+      // Shuffle and take up to 5; if fewer exist just use all of them
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      const picked   = shuffled.slice(0, 5);
 
-      if (fetched.length < 5) {
-        // ── 2. Generate via Shiken Engine (browser-direct, server fallback) ────────────
-        fetched = await (async () => {
-          try {
-            return await generateQuestions(subjectLabel, chapter, 5, classId);
-          } catch {
-            const resp = await fetch("/api/generate-questions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subject: subjectLabel, chapter, count: 5, classId }),
-            });
-            const data = await resp.json() as { questions?: unknown[]; error?: string };
-            if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("No questions returned");
-            return (data.questions as Record<string, unknown>[]).map((q) => ({
-              english:      String(q.english      ?? ""),
-              hindi:        String(q.hindi        ?? ""),
-              options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
-              optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
-              answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
-            }));
-          }
-        })();
-        // ── 3. Merge into shared cache (non-blocking) ────────────────────────────
-        mergeQuestionsToCache(subjectLabel, chapter, fetched).catch(() => {});
-      }
+      if (picked.length === 0) throw new Error("No questions available for this chapter");
 
-      const generated: Question[] = fetched
-        .filter((q) => q.english && q.options.length >= 2)
-        .map((q) => ({ ...q, chapter }));
-      if (generated.length === 0) throw new Error("No valid questions");
-      setQuestions(generated);
+      const qs: Question[] = picked.map((q) => ({ ...q, chapter }));
+      setQuestions(qs);
       setCurrentIndex(0);
       setAnswers({});
       setSelectedOption(null);
