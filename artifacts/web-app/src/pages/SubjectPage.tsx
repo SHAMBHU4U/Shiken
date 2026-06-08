@@ -444,6 +444,20 @@ function toChapterSlug(chapter: string): string {
     .replace(/^_+|_+$/g, "") || "general";
 }
 
+// ─── Daily Mini Test helpers ──────────────────────────────────────────────────
+
+/** Returns human-readable time remaining (e.g. "5h 23m") if the 24-hour
+ *  window is still active, or null if expired / no record exists yet. */
+function getDailyMiniTimeRemaining(key: string): string | null {
+  const ts = localStorage.getItem(key);
+  if (!ts) return null;
+  const diff = 24 * 60 * 60 * 1000 - (Date.now() - Number(ts));
+  if (diff <= 0) return null;
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
 function parseQuestions(data: unknown, subject = "", classId = "10"): Question[] {
   if (typeof data !== "object" || data === null || Array.isArray(data)) return [];
 
@@ -1135,21 +1149,8 @@ function ResultScreen({
     setHistory(addRecord(subject, rec, user?.uid));
   }, []);
 
-  // Auto-explain incorrect answers for premium users
-  const autoExplainRef = useRef(false);
-  useEffect(() => {
-    if (autoExplainRef.current || isDemo || !isPremium) return;
-    autoExplainRef.current = true;
-    questions.forEach((q, i) => {
-      if (answers[i] !== q.answerIndex) {
-        // Delay slightly to avoid overloading API
-        setTimeout(() => {
-          fetchExplain(i, q, explainLang).catch(() => {});
-        }, i * 300);
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Explanations are on-demand only — user clicks "Explain करें ↓" per question.
+  // Auto-explaining all wrong answers on load was removed to prevent unnecessary API calls.
 
   // Per-question explanation state
   const [explainTexts,   setExplainTexts]   = useState<Record<number, string>>({});
@@ -1812,7 +1813,8 @@ export default function SubjectPage() {
     : classId === "12"
       ? (class12SubjectMeta[subject] ?? subjectMeta[subject])
       : subjectMeta[subject];
-  const fullTestKey = `shiken_free_full_used_${classId}_${subject}`;
+  const fullTestKey  = `shiken_free_full_used_${classId}_${subject}`;
+  const dailyMiniKey = `shiken_daily_mini_${classId}_${subject}`;
 
   // All questions fetched from Firebase (or demo)
   const [allQuestions, setAllQuestions]     = useState<Question[]>([]);
@@ -1862,6 +1864,7 @@ export default function SubjectPage() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [showChoosePlan, setShowChoosePlan] = useState(false);
   const [hasUsedFreeFull, setHasUsedFreeFull] = useState(() => localStorage.getItem(fullTestKey) === "used");
+  const [dailyMiniCooldown, setDailyMiniCooldown] = useState<string | null>(null);
 
   // Comprehension passage state
   const [passageTitle,       setPassageTitle]       = useState("");
@@ -2245,6 +2248,17 @@ export default function SubjectPage() {
   }
 
   function startMiniTest(chapter = "All Chapters") {
+    // ── Daily limit: free users get 1 mini test per 24 hours ─────────────────
+    if (!isSubjectPrem) {
+      const remaining = getDailyMiniTimeRemaining(dailyMiniKey);
+      if (remaining) {
+        setDailyMiniCooldown(remaining);
+        return;
+      }
+      // Stamp the start time so subsequent checks block further tests
+      localStorage.setItem(dailyMiniKey, String(Date.now()));
+    }
+    setDailyMiniCooldown(null);
     clearProgress(subject);
     setSavedProgress(null);
     setMode("mini");
@@ -2579,7 +2593,14 @@ export default function SubjectPage() {
           savedCount={bookmarks.length}
           history={subjectHistory}
           isPremium={isSubjectPrem}
-          onMiniTest={() => setScreen("mini-chapter-select")}
+          onMiniTest={() => {
+            if (!isSubjectPrem) {
+              const r = getDailyMiniTimeRemaining(dailyMiniKey);
+              if (r) { setDailyMiniCooldown(r); setScreen("mini-chapter-select"); return; }
+            }
+            setDailyMiniCooldown(null);
+            setScreen("mini-chapter-select");
+          }}
           onUpgrade={() => {
             if (isPremium && !isActive) setShowChoosePlan(true);
             else setUpgradeOpen(true);
@@ -2598,6 +2619,29 @@ export default function SubjectPage() {
   }
 
   if (screen === "mini-chapter-select") {
+    // ── Daily limit reached — show cooldown screen ────────────────────────────
+    if (!isSubjectPrem && dailyMiniCooldown) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center"
+          style={{ background: "#07080f" }}>
+          <p className="text-4xl mb-4">⏳</p>
+          <p className="text-white font-black text-xl mb-2">Aaj ka Mini Test ho gaya!</p>
+          <p className="text-white/50 text-sm mb-1">Free users ko 24 ghante mein 1 Mini Test milta hai.</p>
+          <p className="text-white/30 text-xs mb-6">
+            Next test available in{" "}
+            <span style={{ color: "#fbbf24", fontWeight: 700 }}>{dailyMiniCooldown}</span>
+          </p>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => { setDailyMiniCooldown(null); setScreen("mode-select"); }}
+            className="px-6 py-3 rounded-xl text-sm font-bold border"
+            style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}
+          >
+            ← Back
+          </motion.button>
+        </div>
+      );
+    }
     return (
       <>
         <ChapterSelect

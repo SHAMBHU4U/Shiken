@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/firebase";
-import { ref, set, get, onValue } from "firebase/database";
+import { ref, set, get } from "firebase/database";
 
 const CONTACT_EMAIL = "shiken.query@gmail.com";
 const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
@@ -40,7 +40,8 @@ export default function ContactPage() {
   useEffect(() => {
     const deviceId = getDeviceId();
     const ratingsRef = ref(db, "ratings");
-    const unsub = onValue(ratingsRef, (snap) => {
+    // One-time read — ratings summary only needs to load once per page visit
+    get(ratingsRef).then((snap) => {
       if (!snap.exists()) return;
       const data = snap.val() as Record<string, RatingEntry>;
       const entries = Object.entries(data);
@@ -49,8 +50,7 @@ export default function ContactPage() {
       const myEntry = data[deviceId.replace(/[.#$[\]]/g, "_")];
       setSummary({ avg, count: entries.length, myStars: myEntry?.stars ?? 0 });
       if (myEntry) { setSelected(myEntry.stars); setSubmitted(true); }
-    });
-    return () => unsub();
+    }).catch(() => {});
   }, []);
 
   async function handleRatingSubmit() {

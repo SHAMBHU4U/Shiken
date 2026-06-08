@@ -4,6 +4,30 @@ import { genai } from "../../lib/gemini";
 
 const router = Router();
 
+// ─── Wikipedia free-context helper ───────────────────────────────────────────
+// Fetches a plain-text summary for a topic from the Wikipedia REST API (free,
+// no key, server-side only). Used as factual context before calling Gemini so
+// questions are grounded in real content, not hallucinated.
+async function fetchWikipediaSummary(topic: string): Promise<string | null> {
+  try {
+    const slug = encodeURIComponent(topic.trim().replace(/\s+/g, "_"));
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`,
+      {
+        headers: { "User-Agent": "ShikenEducationalApp/1.0" },
+        signal: AbortSignal.timeout(3500),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as { extract?: string; type?: string };
+    if (data.type === "disambiguation" || !data.extract) return null;
+    // Cap at 600 chars to stay within token budget
+    return data.extract.slice(0, 600);
+  } catch {
+    return null;
+  }
+}
+
 const HINDI_GRAMMAR_CHAPTERS = [
   "वर्ण विचार","संज्ञा","सर्वनाम","क्रिया","विशेषण",
   "संधि","समास","काल","कारक","मुहावरे","लोकोक्तियाँ","शुद्ध-अशुद्ध वाक्य","एक शब्द",
@@ -40,6 +64,16 @@ router.post("/generate-questions", async (req, res) => {
     ? HINDI_GRAMMAR_CHAPTERS[Math.floor(Math.random() * HINDI_GRAMMAR_CHAPTERS.length)]
     : parsed.data.chapter;
 
+  // ── Wikipedia free context (non-blocking, best-effort) ───────────────────
+  // Fetch a summary to ground Gemini in real factual content.
+  // Falls back gracefully — no Wikipedia = still works, just less grounded.
+  const wikiSummary = !isHindi
+    ? await fetchWikipediaSummary(`${effectiveChapter} ${subject}`)
+    : null;
+  const wikiContext = wikiSummary
+    ? `\n\nFACTUAL CONTEXT (from Wikipedia — use as reference, do not copy verbatim):\n${wikiSummary}\n`
+    : "";
+
   let prompt: string;
 
   if (isHindi) {
@@ -68,7 +102,7 @@ JSON format (return ONLY this):
   } else if (isEntrance) {
     const examName = subject.toLowerCase().includes("biology") ? "NEET" : "JEE Main";
     prompt = `You are an expert NTA ${examName} question setter for ${subject}.
-
+${wikiContext}
 Generate EXACTLY ${count} MCQ questions on: "${effectiveChapter}"
 
 Question style:
@@ -98,7 +132,7 @@ JSON format (return ONLY this):
 ]`;
   } else {
     prompt = `You are an expert ${boardCtx} question creator.
-
+${wikiContext}
 Generate EXACTLY ${count} MCQ questions on the topic: "${effectiveChapter}"
 
 Question style — strictly follow ${boardCtx}:
