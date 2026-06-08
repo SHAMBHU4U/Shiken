@@ -2226,6 +2226,7 @@ function UploadPanel() {
   const [mockSet, setMockSet] = useState("");
   const [isNumerical, setIsNumerical] = useState(false);
   const [numericalAnswer, setNumericalAnswer] = useState("");
+  const [qExplanation, setQExplanation] = useState("");
 
   const subjects = CLASS_UPLOAD_SUBJECTS[classId];
   const subject = subjects[subjectId] ?? Object.values(subjects)[0];
@@ -2260,6 +2261,7 @@ function UploadPanel() {
       answerIndex: number;
       chapter: string;
       numericalValue?: string;
+      explanation?: string;
     }>
   ) {
     setSaving(true);
@@ -2273,6 +2275,7 @@ function UploadPanel() {
         question_hindi:   q.hindi,
         chapter_name: q.chapter || "General",
       };
+      if (q.explanation) payload.explanation = q.explanation;
       if (isEntrance) {
         payload.exam = examTag;
         payload.test_type = testType;
@@ -2323,8 +2326,9 @@ function UploadPanel() {
       answerIndex: correct,
       chapter: chapter.trim(),
       numericalValue: isNumerical ? numericalAnswer.trim() : undefined,
+      explanation: qExplanation.trim() || undefined,
     }]);
-    setQEn(""); setQHi(""); setOpts(["","","",""]); setCorrect(0); setNumericalAnswer("");
+    setQEn(""); setQHi(""); setOpts(["","","",""]); setCorrect(0); setNumericalAnswer(""); setQExplanation("");
   }
 
   async function handleBulkUpload() {
@@ -2337,6 +2341,7 @@ function UploadPanel() {
       chapter?: string;
       numerical_answer?: string;
       is_numerical?: boolean;
+      explanation?: string;
     }>;
     try {
       parsed = JSON.parse(bulkJson);
@@ -2355,6 +2360,7 @@ function UploadPanel() {
           : (typeof q.correct_answer === "string" ? "ABCD".indexOf(q.correct_answer.toUpperCase()) : 0),
         chapter:    String(q.chapter ?? "General"),
         numericalValue: isNum ? String(q.numerical_answer ?? "") : undefined,
+        explanation: q.explanation ? String(q.explanation) : undefined,
       };
     }).filter(q => {
       if (!q.english) return false;
@@ -2495,6 +2501,12 @@ function UploadPanel() {
             <textarea value={qHi} onChange={e => setQHi(e.target.value)} rows={2} placeholder="प्रश्न हिंदी में..."
               className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none resize-none" />
           </div>
+          <div>
+            <p className="text-white/40 text-xs mb-1">Explanation — optional (shown when student taps "Unlock Explanation")</p>
+            <textarea value={qExplanation} onChange={e => setQExplanation(e.target.value)} rows={3}
+              placeholder="Step-by-step explanation... (saved in DB, no Gemini API needed)"
+              className="w-full px-3 py-2 rounded-xl text-sm text-white bg-white/5 border border-white/10 outline-none resize-none" />
+          </div>
           {isNumerical ? (
             <div>
               <p className="text-white/40 text-xs mb-1">Numerical Answer</p>
@@ -2531,7 +2543,10 @@ function UploadPanel() {
           <p className="text-white/40 text-xs leading-relaxed">
             Paste a JSON array. Each item:
             <span className="text-white/60 font-mono text-xs block mt-1">
-              {"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter"{"}"}
+              {"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter","explanation"{"}"}
+            </span>
+            <span className="text-white/40 text-xs block mt-0.5">
+              <code className="text-white/50">explanation</code> is optional — leave it out or set <code className="text-white/50">""</code> to use Gemini AI instead.
             </span>
             {isEntrance && (
               <span className="text-white/50 font-mono text-xs block mt-1">
@@ -2541,8 +2556,8 @@ function UploadPanel() {
           </p>
           <textarea value={bulkJson} onChange={e => setBulkJson(e.target.value)} rows={10}
             placeholder={isEntrance
-              ? `[\n  {\n    "english": "If $\\\\vec{a} = 2\\\\hat{i} + 3\\\\hat{j}$, find $|\\\\vec{a}|$",\n    "hindi": "...",\n    "options": ["3","4","5","13"],\n    "answerIndex": 2,\n    "chapter": "Vectors",\n    "is_numerical": false\n  },\n  {\n    "english": "Find the value of $\\\\pi$ to 2 decimals",\n    "numerical_answer": "3.14",\n    "is_numerical": true,\n    "chapter": "Numbers"\n  }\n]`
-              : `[\n  {\n    "english": "What is 2+2?",\n    "hindi": "2+2 क्या है?",\n    "options": ["3","4","5","6"],\n    "answerIndex": 1,\n    "chapter": "Numbers"\n  }\n]`
+              ? `[\n  {\n    "english": "If $\\\\vec{a} = 2\\\\hat{i} + 3\\\\hat{j}$, find $|\\\\vec{a}|$",\n    "hindi": "...",\n    "options": ["3","4","5","13"],\n    "answerIndex": 2,\n    "chapter": "Vectors",\n    "explanation": "Using magnitude formula...",\n    "is_numerical": false\n  },\n  {\n    "english": "Find the value of $\\\\pi$ to 2 decimals",\n    "numerical_answer": "3.14",\n    "is_numerical": true,\n    "chapter": "Numbers",\n    "explanation": ""\n  }\n]`
+              : `[\n  {\n    "english": "What is 2+2?",\n    "hindi": "2+2 क्या है?",\n    "options": ["3","4","5","6"],\n    "answerIndex": 1,\n    "chapter": "Numbers",\n    "explanation": "Adding 2 and 2 gives 4."\n  }\n]`
             }
             className="w-full px-3 py-2 rounded-xl text-xs text-white/80 font-mono bg-white/5 border border-white/10 outline-none resize-none" />
           <motion.button onClick={handleBulkUpload} disabled={saving} whileTap={{ scale: 0.97 }}

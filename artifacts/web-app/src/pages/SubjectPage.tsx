@@ -218,6 +218,7 @@ interface Question {
   optionsHindi?: string[];
   answerIndex: number;
   chapter: string;
+  explanation?: string;
 }
 
 // ─── Progress persistence ──────────────────────────────────────────────────────
@@ -550,7 +551,9 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     const rawChapter = String(q.chapter ?? q.chapter_name ?? chapterHint ?? "General");
     const chapter = normalizeChapter(subject, classId, rawChapter);
 
-    return { english, hindi, options: opts, answerIndex, chapter };
+    const explanation = q.explanation ? String(q.explanation) : undefined;
+
+    return { english, hindi, options: opts, answerIndex, chapter, explanation };
   }).filter((q) => (q.english || q.hindi) && q.options.length >= 2);
 }
 
@@ -1215,6 +1218,13 @@ function ResultScreen({
     const effectiveLang: "en" | "hi" = lang === "en" ? "en" : "hi";
 
     try {
+      // ── Use DB-stored explanation if available (no API call needed) ───────
+      if (q.explanation) {
+        setExplainTexts((t) => ({ ...t, [i]: q.explanation! }));
+        setExplainLoading((l) => { const n = { ...l }; delete n[i]; return n; });
+        return;
+      }
+
       // ── Check Firebase cache first ────────────────────────────────────────
       const cacheKey = explainCacheKey(q.english, effectiveLang);
       const cached = await get(ref(db, `explanations/${subject}/${cacheKey}`));
