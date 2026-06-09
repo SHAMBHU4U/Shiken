@@ -1010,6 +1010,69 @@ function ModeSelect({
   );
 }
 
+// ─── Hindi ↔ English transliteration for chapter search ────────────────────────
+// Maps individual Devanagari characters / matras → common Roman equivalents so
+// that a student typing "karak" or "ras" will find "कारक" or "रस" chapters.
+const DEVA_TO_ROMAN: [string, string][] = [
+  // Multi-char sequences first (order matters — checked before single chars)
+  ["क्ष", "ksh"], ["त्र", "tr"], ["ज्ञ", "gya"], ["श्र", "shr"],
+  ["ड़", "r"],  ["ढ़", "rh"],
+  // Consonants
+  ["क", "k"],  ["ख", "kh"], ["ग", "g"],  ["घ", "gh"], ["ङ", "ng"],
+  ["च", "ch"], ["छ", "chh"],["ज", "j"],  ["झ", "jh"], ["ञ", "ny"],
+  ["ट", "t"],  ["ठ", "th"], ["ड", "d"],  ["ढ", "dh"], ["ण", "n"],
+  ["त", "t"],  ["थ", "th"], ["द", "d"],  ["ध", "dh"], ["न", "n"],
+  ["प", "p"],  ["फ", "ph"], ["ब", "b"],  ["भ", "bh"], ["म", "m"],
+  ["य", "y"],  ["र", "r"],  ["ल", "l"],  ["व", "v"],  ["श", "sh"],
+  ["ष", "sh"], ["स", "s"],  ["ह", "h"],
+  // Independent vowels
+  ["अ", "a"],  ["आ", "aa"], ["इ", "i"],  ["ई", "ee"], ["उ", "u"],
+  ["ऊ", "oo"], ["ए", "e"],  ["ऐ", "ai"], ["ओ", "o"],  ["औ", "au"],
+  ["ऋ", "ri"], ["अं","an"], ["अः","ah"],
+  // Dependent matras
+  ["ा", "a"],  ["ि", "i"],  ["ी", "ee"], ["ु", "u"],  ["ू", "oo"],
+  ["े", "e"],  ["ै", "ai"], ["ो", "o"],  ["ौ", "au"], ["ृ", "ri"],
+  // Nasalisation / virama
+  ["ं", "n"],  ["ँ", "n"],  ["ः", "h"],  ["्", ""],
+];
+
+/** Convert a Devanagari string to an approximate Roman transliteration. */
+function hindiToRoman(text: string): string {
+  let result = "";
+  let i = 0;
+  while (i < text.length) {
+    let matched = false;
+    for (const [deva, roman] of DEVA_TO_ROMAN) {
+      if (text.startsWith(deva, i)) {
+        result += roman;
+        i += deva.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      result += text[i];
+      i++;
+    }
+  }
+  return result.toLowerCase();
+}
+
+/**
+ * Returns true when `query` (user input) matches `chapterName`.
+ * Supports:
+ *  - Direct substring match on the Hindi name (e.g. "कारक")
+ *  - Roman transliteration match  (e.g. "karak" → "कारक")
+ *  - English keyword match against the translated name
+ */
+function chapterMatchesQuery(name: string, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  if (name.toLowerCase().includes(q)) return true;          // Hindi direct
+  if (hindiToRoman(name).includes(q)) return true;          // transliteration
+  return false;
+}
+
 // ─── Chapter Select Screen ─────────────────────────────────────────────────────
 
 function ChapterSelect({
@@ -1029,6 +1092,9 @@ function ChapterSelect({
 }) {
   const displayTitle = title ?? "Chapter-wise Test";
   const allTotalCount = chapters.reduce((s, c) => s + c.count, 0);
+  const [chapterQuery, setChapterQuery] = useState("");
+
+  const visibleChapters = chapters.filter((ch) => chapterMatchesQuery(ch.name, chapterQuery));
 
   return (
     <div className="min-h-screen px-4 py-6" style={{ background: "#07080f" }}>
@@ -1037,7 +1103,7 @@ function ChapterSelect({
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}15 0%, transparent 50%)` }}
       />
       <div className="max-w-sm mx-auto relative z-10">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-5">
           <button onClick={onBack} className="text-white/40 hover:text-white/70 transition-colors text-xl p-1">←</button>
           <div>
             <p className="text-white/40 text-xs">{displayTitle}</p>
@@ -1045,8 +1111,42 @@ function ChapterSelect({
           </div>
         </div>
 
+        {/* ── Bilingual search bar ── */}
+        <div className="relative mb-4">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm pointer-events-none select-none">🔍</span>
+          <input
+            type="text"
+            value={chapterQuery}
+            onChange={(e) => setChapterQuery(e.target.value)}
+            placeholder="Search chapter… e.g. कारक or karak"
+            className="w-full rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-white/30 outline-none"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: `1px solid ${chapterQuery ? meta.accent + "60" : "rgba(255,255,255,0.10)"}`,
+              caretColor: meta.accent,
+            }}
+          />
+          {chapterQuery && (
+            <button
+              onClick={() => setChapterQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors text-base leading-none"
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {/* ── Result count hint ── */}
+        {chapterQuery.trim() && (
+          <p className="text-white/30 text-xs mb-3 pl-1">
+            {visibleChapters.length === 0
+              ? "No chapters found"
+              : `${visibleChapters.length} chapter${visibleChapters.length !== 1 ? "s" : ""} found`}
+          </p>
+        )}
+
         <div className="flex flex-col gap-3">
-          {showAll && (
+          {showAll && !chapterQuery.trim() && (
             <motion.button
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
@@ -1069,7 +1169,7 @@ function ChapterSelect({
             </motion.button>
           )}
 
-          {chapters.map((ch, i) => {
+          {visibleChapters.map((ch, i) => {
             const isTopper  = topperChapters?.includes(ch.name) ?? false;
             const isLocked  = isTopper || (lockedChapters?.includes(ch.name) ?? false);
             const badgeLabel = isTopper ? "🏆 Topper" : "👑 Premium";
@@ -1078,7 +1178,7 @@ function ChapterSelect({
                 key={ch.name}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: (showAll ? i + 1 : i) * 0.06, duration: 0.35 }}
+                transition={{ delay: i * 0.04, duration: 0.3 }}
                 whileHover={{ scale: 1.02, x: 4 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => isLocked ? onUpgrade?.() : onSelect(ch.name)}
