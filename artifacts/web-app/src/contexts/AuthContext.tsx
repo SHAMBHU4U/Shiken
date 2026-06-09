@@ -7,7 +7,7 @@ import {
   signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, updateProfile,
   type User,
 } from "firebase/auth";
-import { ref, get, set, onValue, off, serverTimestamp } from "firebase/database";
+import { ref, get, set, onValue, onDisconnect, serverTimestamp } from "firebase/database";
 import { auth, db } from "../firebase";
 
 export type UserGoal = "neet" | "jee" | "c10" | "c12";
@@ -64,7 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Called once per login:
    * 1. Generates a fresh UUID for this device/tab.
    * 2. Writes it to Firebase — displacing any previous session.
-   * 3. Listens for changes: if another device writes a different UUID, sign out.
+   * 3. Sets presence to "online" and registers onDisconnect → "offline".
+   * 4. Listens for session changes: if another device writes a different UUID
+   *    (or an admin deletes it), this device is signed out automatically.
    */
   const startSession = async (u: User) => {
     detachSessionListener();
@@ -72,17 +74,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const sessionId = crypto.randomUUID();
     currentSessionIdRef.current = sessionId;
 
-    const sessionRef = ref(db, `users/${u.uid}/sessionId`);
+    const sessionRef  = ref(db, `users/${u.uid}/sessionId`);
+    const statusRef   = ref(db, `users/${u.uid}/status`);
+    const lastSeenRef = ref(db, `users/${u.uid}/lastSeen`);
+
     try {
+      // Write session ID (displaces any old session on another device)
       await set(sessionRef, sessionId);
+      // Mark presence online
+      await set(statusRef, "online");
+      await set(lastSeenRef, Date.now());
+      // Firebase automatically writes these when the client disconnects
+      await onDisconnect(statusRef).set("offline");
+      await onDisconnect(lastSeenRef).set(serverTimestamp());
     } catch {
-      // Non-blocking — if write fails, listener will still protect existing sessions
+      // Non-blocking — listener still protects against duplicate sessions
     }
 
     const unsub = onValue(sessionRef, (snap) => {
       const dbId = snap.val() as string | null;
-      // If DB has a *different* session ID, this device was displaced
-      if (dbId && currentSessionIdRef.current && dbId !== currentSessionIdRef.current) {
+      // Kick if: our session exists AND DB value no longer matches
+      // (handles both: other device login → new UUID, or admin revoke → null)
+      if (currentSessionIdRef.current !== null && dbId !== currentSessionIdRef.current) {
         currentSessionIdRef.current = null;
         detachSessionListener();
         setSessionKickedOut(true);
@@ -243,10 +256,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
-  const signOut = async () => {
-    // Clear session tracking before signing out so the listener doesn't fire
+  const signOut = async (uid?: string) => {
+    // Grab uid before clearing refs (auth.currentUser may become null after signOut)
+    const targetUid = uid ?? auth.currentUser?.uid;
     currentSessionIdRef.current = null;
     detachSessionListener();
+    if (targetUid) {
+      try {
+        await set(ref(db, `users/${targetUid}/status`), "offline");
+        await set(ref(db, `users/${targetUid}/lastSeen`), Date.now());
+      } catch { /* non-blocking */ }
+    }
     await fbSignOut(auth);
     setGoalState(null);
   };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import { ref, get, set, remove, update, push } from "firebase/database";
+import { ref, get, set, remove, update, push, onValue } from "firebase/database";
 import type { GeneratedQuestion } from "@/lib/gemini";
 import { db } from "@/firebase";
 
@@ -239,6 +239,113 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
   );
 }
 
+// ─── Active Users (real-time presence) ────────────────────────────────────────
+
+interface OnlineUser {
+  uid: string;
+  name: string;
+  email: string;
+  lastSeen: number;
+  hasSession: boolean;
+}
+
+function ActiveUsersPanel() {
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [clearing, setClearing] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const usersRef = ref(db, "users");
+    const unsub = onValue(usersRef, (snap) => {
+      if (!snap.exists()) { setOnlineUsers([]); return; }
+      const data = snap.val() as Record<string, {
+        status?: string; lastSeen?: number; name?: string;
+        email?: string; sessionId?: string;
+      }>;
+      const online: OnlineUser[] = Object.entries(data)
+        .filter(([, u]) => u.status === "online")
+        .map(([uid, u]) => ({
+          uid,
+          name:       u.name  ?? "Unknown",
+          email:      u.email ?? uid,
+          lastSeen:   typeof u.lastSeen === "number" ? u.lastSeen : 0,
+          hasSession: !!u.sessionId,
+        }))
+        .sort((a, b) => b.lastSeen - a.lastSeen);
+      setOnlineUsers(online);
+    });
+    return () => unsub();
+  }, []);
+
+  async function clearSession(uid: string) {
+    setClearing((c) => ({ ...c, [uid]: true }));
+    try {
+      // Deleting sessionId triggers the client's onValue listener → auto sign-out
+      await remove(ref(db, `users/${uid}/sessionId`));
+      await set(ref(db, `users/${uid}/status`), "offline");
+    } catch { /* ignore */ }
+    finally { setClearing((c) => ({ ...c, [uid]: false })); }
+  }
+
+  return (
+    <div className="mb-6">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+        </span>
+        <p className="text-white font-bold text-sm">Live — {onlineUsers.length} online now</p>
+      </div>
+
+      {onlineUsers.length === 0 ? (
+        <div className="rounded-xl border border-white/8 px-4 py-5 text-center"
+          style={{ background: "rgba(255,255,255,0.03)" }}>
+          <p className="text-white/25 text-xs">No users online right now</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {onlineUsers.map((u) => (
+            <div key={u.uid}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl border"
+              style={{ background: "rgba(16,185,129,0.06)", borderColor: "rgba(16,185,129,0.20)" }}
+            >
+              {/* Green dot */}
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
+
+              {/* Name / email */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-xs font-semibold truncate">{u.name}</p>
+                <p className="text-white/35 text-xs truncate">
+                  {u.email.length > 28 ? u.email.slice(0, 28) + "…" : u.email}
+                  {" · "}
+                  <span className="text-emerald-400/70">
+                    {u.lastSeen > 0 ? timeAgo(u.lastSeen) : "just now"}
+                  </span>
+                </p>
+              </div>
+
+              {/* Force logout button */}
+              <button
+                onClick={() => clearSession(u.uid)}
+                disabled={clearing[u.uid]}
+                className="shrink-0 text-xs px-2.5 py-1 rounded-lg font-bold transition-all"
+                style={{
+                  background: clearing[u.uid] ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.12)",
+                  color: "#ef4444",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  opacity: clearing[u.uid] ? 0.5 : 1,
+                }}
+              >
+                {clearing[u.uid] ? "…" : "⏏ Kick"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UsersPanel() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -287,6 +394,9 @@ function UsersPanel() {
 
   return (
     <div>
+      {/* Live presence monitor */}
+      <ActiveUsersPanel />
+
       {/* Summary */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
