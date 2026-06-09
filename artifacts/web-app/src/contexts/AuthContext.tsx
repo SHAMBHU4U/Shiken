@@ -1,13 +1,13 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import {
   signInWithPopup, signInWithRedirect, getRedirectResult,
-  setPersistence, browserLocalPersistence, // 🌟 Yeh dono naye add kiye hain
+  setPersistence, browserLocalPersistence,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, updateProfile,
   type User,
 } from "firebase/auth";
-import { ref, get, set, serverTimestamp } from "firebase/database";
+import { ref, get, set, onValue, off, serverTimestamp } from "firebase/database";
 import { auth, db } from "../firebase";
 
 export type UserGoal = "neet" | "jee" | "c10" | "c12";
@@ -17,6 +17,8 @@ interface AuthContextType {
   loading: boolean;
   goal: UserGoal | null;
   goalLoading: boolean;
+  sessionKickedOut: boolean;
+  clearSessionKickedOut: () => void;
   setGoal: (goal: UserGoal) => Promise<void>;
   clearGoal: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -37,10 +39,58 @@ function isMobileBrowser() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]         = useState<User | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [goal, setGoalState]    = useState<UserGoal | null>(null);
+  const [user, setUser]               = useState<User | null>(null);
+  const [loading, setLoading]         = useState(true);
+  const [goal, setGoalState]          = useState<UserGoal | null>(null);
   const [goalLoading, setGoalLoading] = useState(false);
+  const [sessionKickedOut, setSessionKickedOut] = useState(false);
+
+  // In-memory session ID — unique per page-load, never persisted
+  const currentSessionIdRef = useRef<string | null>(null);
+  // Keeps the Firebase `onValue` unsubscribe handle so we can tear it down
+  const sessionUnsubRef = useRef<(() => void) | null>(null);
+
+  const clearSessionKickedOut = () => setSessionKickedOut(false);
+
+  /** Tear down the active session listener without touching Firebase data. */
+  const detachSessionListener = () => {
+    if (sessionUnsubRef.current) {
+      sessionUnsubRef.current();
+      sessionUnsubRef.current = null;
+    }
+  };
+
+  /**
+   * Called once per login:
+   * 1. Generates a fresh UUID for this device/tab.
+   * 2. Writes it to Firebase — displacing any previous session.
+   * 3. Listens for changes: if another device writes a different UUID, sign out.
+   */
+  const startSession = async (u: User) => {
+    detachSessionListener();
+
+    const sessionId = crypto.randomUUID();
+    currentSessionIdRef.current = sessionId;
+
+    const sessionRef = ref(db, `users/${u.uid}/sessionId`);
+    try {
+      await set(sessionRef, sessionId);
+    } catch {
+      // Non-blocking — if write fails, listener will still protect existing sessions
+    }
+
+    const unsub = onValue(sessionRef, (snap) => {
+      const dbId = snap.val() as string | null;
+      // If DB has a *different* session ID, this device was displaced
+      if (dbId && currentSessionIdRef.current && dbId !== currentSessionIdRef.current) {
+        currentSessionIdRef.current = null;
+        detachSessionListener();
+        setSessionKickedOut(true);
+        fbSignOut(auth).catch(() => {});
+      }
+    });
+    sessionUnsubRef.current = unsub;
+  };
 
   const syncUserToDB = async (u: User) => {
     const userRef  = ref(db, `users/${u.uid}`);
@@ -86,45 +136,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ✅ YEH NAYA CODE PASTE KARO:
-useEffect(() => {
-  let isMounted = true;
+  useEffect(() => {
+    let isMounted = true;
 
-  // 1️⃣ Sabse pehle mobile redirect ka data handle karo
-  getRedirectResult(auth)
-    .then(async (result) => {
-      if (isMounted && result?.user) {
-        await syncUserToDB(result.user);
-        await loadGoal(result.user);
+    // 1️⃣ Handle mobile redirect result
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (isMounted && result?.user) {
+          await syncUserToDB(result.user);
+          await loadGoal(result.user);
+        }
+      })
+      .catch((err) => console.error("Redirect check error:", err));
+
+    // 2️⃣ Global auth state change listener
+    const unsub = onAuthStateChanged(auth, async (u) => {
+      if (!isMounted) return;
+
+      if (u) {
+        setUser(u);
+        setLoading(false);
+        syncUserToDB(u).catch(console.error);
+        loadGoal(u).catch(console.error);
+        // Start single-session enforcement for this login
+        startSession(u).catch(console.error);
+      } else {
+        // User signed out — tear down session listener
+        detachSessionListener();
+        currentSessionIdRef.current = null;
+        setUser(null);
+        setGoalState(null);
+        setGoalLoading(false);
+        setLoading(false);
       }
-    })
-    .catch((err) => console.error("Redirect check error:", err));
+    });
 
-  // 2️⃣ Global auth state change listener
-  const unsub = onAuthStateChanged(auth, async (u) => {
-    if (!isMounted) return;
-
-    if (u) {
-      // User ko turant state mein set karo taaki redirect loop na bane
-      setUser(u);
-      setLoading(false);
-      
-      // Database ka kaam background mein hone do
-      syncUserToDB(u).catch(console.error);
-      loadGoal(u).catch(console.error);
-    } else {
-      setUser(null);
-      setGoalState(null);
-      setGoalLoading(false);
-      setLoading(false);
-    }
-  });
-
-  return () => {
-    isMounted = false;
-    unsub();
-  };
-}, []);
+    return () => {
+      isMounted = false;
+      unsub();
+      detachSessionListener();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setGoal = async (g: UserGoal) => {
     if (!user) return;
@@ -191,6 +244,9 @@ useEffect(() => {
   };
 
   const signOut = async () => {
+    // Clear session tracking before signing out so the listener doesn't fire
+    currentSessionIdRef.current = null;
+    detachSessionListener();
     await fbSignOut(auth);
     setGoalState(null);
   };
@@ -199,6 +255,7 @@ useEffect(() => {
     <AuthContext.Provider value={{
       user, loading,
       goal, goalLoading, setGoal, clearGoal,
+      sessionKickedOut, clearSessionKickedOut,
       signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, signOut,
     }}>
       {children}

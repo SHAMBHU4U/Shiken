@@ -1334,9 +1334,53 @@ function OfflineBanner() {
   );
 }
 
+// ─── Single-session kicked-out modal ─────────────────────────────────────────
+
+function SessionKickedModal() {
+  const { sessionKickedOut, clearSessionKickedOut } = useAuth();
+  if (!sessionKickedOut) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.93, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+        className="w-full max-w-sm rounded-3xl p-6 text-center"
+        style={{
+          background: "#0b1020",
+          border: "1px solid rgba(239,68,68,0.35)",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(239,68,68,0.10)",
+        }}
+      >
+        <div className="text-4xl mb-4">🔐</div>
+        <h2 className="text-white font-black text-lg mb-2">Logged Out</h2>
+        <p className="text-white/50 text-sm leading-relaxed mb-1">
+          आपका account किसी दूसरे device पर open हो गया।
+        </p>
+        <p className="text-white/35 text-xs leading-relaxed mb-6">
+          Security के लिए यहाँ से sign out कर दिया गया है।
+          <br />एक बार में एक ही device पर login हो सकता है।
+        </p>
+        <button
+          onClick={clearSessionKickedOut}
+          className="w-full py-3 rounded-2xl text-sm font-black text-white transition-opacity hover:opacity-90"
+          style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}
+        >
+          ठीक है, दोबारा Login करें
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 function AppRoutes() {
   return (
     <>
+      <SessionKickedModal />
       <OfflineBanner />
       <AuthGuard>
         <UsernamePromptWrap>
