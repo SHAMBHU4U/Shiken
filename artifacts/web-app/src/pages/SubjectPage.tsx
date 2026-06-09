@@ -1832,6 +1832,10 @@ export default function SubjectPage() {
   const [isOfflineCached, setIsOfflineCached] = useState(false);
   const [screen, setScreen]                 = useState<Screen>("loading");
 
+  // Dynamic chapter keys fetched directly from Firebase (shallow query).
+  // Used for Hindi (Class 10) where chapter keys are Hindi-script strings.
+  const [dynamicChapterKeys, setDynamicChapterKeys] = useState<string[]>([]);
+
   // Saved progress (from localStorage)
   const [savedProgress, setSavedProgress] = useState<SavedProgress | null>(null);
 
@@ -2010,6 +2014,33 @@ export default function SubjectPage() {
     }
   }, [timerLeft, screen]);
 
+  // ── Shallow-fetch chapter keys for Hindi (Class 10) ─────────────────────────
+  // Reads only the top-level keys of hindi/ (chapter slugs) without downloading
+  // all question data. This lets the chapter-select screen appear immediately
+  // while the full question load runs in the background.
+  useEffect(() => {
+    if (subject !== "hindi" || classId === "12") {
+      setDynamicChapterKeys([]);
+      return;
+    }
+    let cancelled = false;
+    const doShallow = async () => {
+      try {
+        let token: string | null = null;
+        try { if (auth.currentUser) token = await auth.currentUser.getIdToken(); } catch { /* ignore */ }
+        const url = `https://shiken-d8789-default-rtdb.firebaseio.com/hindi.json?shallow=true${token ? `&auth=${token}` : ""}`;
+        const r   = await fetch(url);
+        const data = await r.json() as Record<string, boolean> | { error: string } | null;
+        if (cancelled || !data || typeof data !== "object" || "error" in data) return;
+        // Filter out any metadata keys and sort alphabetically for consistent display
+        const keys = Object.keys(data).filter((k) => k.length > 0);
+        if (!cancelled) setDynamicChapterKeys(keys);
+      } catch { /* ignore — full-question load is the fallback */ }
+    };
+    void doShallow();
+    return () => { cancelled = true; };
+  }, [subject, classId]);
+
   // ── Fetch questions ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!meta) {
@@ -2090,27 +2121,45 @@ export default function SubjectPage() {
 
   // ── Derived data ─────────────────────────────────────────────────────────────
   const chapters = (() => {
+    // Build a question-count map from loaded questions
     const map = new Map<string, number>();
     allQuestions.forEach((q) => map.set(q.chapter, (map.get(q.chapter) ?? 0) + 1));
 
-    // Sort chapters in NCERT textbook order; unknowns go alphabetically at the end
-    const canonOrder = getCanonicalChapters(subject, classId);
-    const canonIndex = (name: string) => {
-      const i = canonOrder.indexOf(name);
-      return i === -1 ? canonOrder.length : i;
-    };
+    let list: { name: string; count: number }[];
 
-    const list = Array.from(map.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => {
-        const ia = canonIndex(a.name);
-        const ib = canonIndex(b.name);
-        if (ia !== ib) return ia - ib;
-        return a.name.localeCompare(b.name);
-      });
+    if (subject === "hindi" && classId !== "12" && dynamicChapterKeys.length > 0) {
+      // ── Hindi (Class 10): Use Firebase chapter keys directly ─────────────────
+      // Convert underscore-encoded keys (e.g. अति_सूधो_सनेह_को_मारग_है) to
+      // display names with spaces. Counts come from the loaded question pool.
+      list = dynamicChapterKeys.map((key) => {
+        const displayName = key.replace(/_/g, " ");
+        // Count may be stored under the display name or the original slug
+        const count = map.get(displayName) ?? map.get(key) ?? 0;
+        return { name: displayName, count };
+      }).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "hi"));
+    } else {
+      // ── All other subjects: derive chapters from parsed questions, sorted by
+      //    NCERT canonical textbook order; unknowns sorted by count at the end ──
+      const canonOrder = getCanonicalChapters(subject, classId);
+      const canonIndex = (name: string) => {
+        const i = canonOrder.indexOf(name);
+        return i === -1 ? canonOrder.length : i;
+      };
+
+      list = Array.from(map.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => {
+          const ia = canonIndex(a.name);
+          const ib = canonIndex(b.name);
+          if (ia !== ib) return ia - ib;
+          // Both unrecognised: sort by question count (more first), then name
+          if (ia === canonOrder.length) return b.count - a.count || a.name.localeCompare(b.name);
+          return a.name.localeCompare(b.name);
+        });
+    }
 
     // Inject virtual Comprehension chapter for Hindi and Sanskrit (Shiken Engine passages)
-    if ((subject === "hindi" || subject === "sanskrit") && !map.has("Comprehension")) {
+    if ((subject === "hindi" || subject === "sanskrit") && !list.some((c) => c.name === "Comprehension")) {
       list.push({ name: "Comprehension", count: 7 });
     }
     return list;

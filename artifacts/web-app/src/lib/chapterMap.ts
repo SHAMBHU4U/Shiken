@@ -364,6 +364,14 @@ export function normalizeChapter(subject: string, classId: string, raw: string):
   const exact = canon.find((c) => c.toLowerCase() === cleanedLower);
   if (exact) return exact;
 
+  // Early exit for Devanagari-dominant chapter names: skip fuzzy matching.
+  // Hindi/Sanskrit chapters stored directly as Devanagari keys in Firebase
+  // must not be remapped to unrelated NCERT canonical names via token overlap.
+  const devanagariCount = (cleaned.match(/[\u0900-\u097F]/g) ?? []).length;
+  if (devanagariCount > cleaned.replace(/\s/g, "").length * 0.4) {
+    return cleaned || raw;
+  }
+
   // 2. Canonical chapter starts-with or contains the cleaned name
   const startsWith = canon.find((c) => c.toLowerCase().startsWith(cleanedLower) && cleanedLower.length >= 5);
   if (startsWith) return startsWith;
