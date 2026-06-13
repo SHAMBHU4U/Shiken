@@ -20,7 +20,7 @@ const CHAPTER_ICONS: Record<string, string> = {
   "Grammar":         "📝",
   "Prose":           "📖",
   "Poetry":          "🎭",
-  "Vocabulary":      "🔤",
+  "Vocabulary":      "📖",
   "Comprehension":   "🔍",
   "Unseen Passage":  "📄",
   "Writing Skills":  "✍️",
@@ -181,8 +181,8 @@ function getChapterIcon(name: string) { return CHAPTER_ICONS[name] ?? "📂"; }
 
 const subjectMeta: Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }> = {
   maths:   { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "maths"          },
-  english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "📖", accent: "#8b5cf6", path: "english"        },
-  hindi:   { label: "Hindi",          labelHindi: "हिंदी",             icon: "🔤", accent: "#f97316", path: "hindi"          },
+  english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "🔤", accent: "#8b5cf6", path: "english"        },
+  hindi:   { label: "Hindi",          labelHindi: "हिंदी",             icon: "📖", accent: "#f97316", path: "hindi"          },
   science: { label: "Science",        labelHindi: "विज्ञान",           icon: "🔬", accent: "#10b981", path: "science"        },
   social:  { label: "Social Science", labelHindi: "सामाजिक विज्ञान",  icon: "🌍", accent: "#f59e0b", path: "social science" },
   sanskrit:{ label: "Sanskrit",       labelHindi: "संस्कृत",           icon: "📜", accent: "#ec4899", path: "sanskrit"       },
@@ -194,8 +194,8 @@ const class12SubjectMeta: Record<string, { label: string; labelHindi: string; ic
   biology:   { label: "Biology",        labelHindi: "जीव विज्ञान",     icon: "🌿", accent: "#22c55e", path: "class12/biology"   },
   maths:     { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "class12/maths"     },
   social:    { label: "Social Science", labelHindi: "सामाजिक विज्ञान", icon: "🌍", accent: "#f59e0b", path: "class12/social"    },
-  hindi:     { label: "Hindi",          labelHindi: "हिंदी",            icon: "🔤", accent: "#f97316", path: "class12/hindi"     },
-  english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "📖", accent: "#8b5cf6", path: "class12/english"   },
+  hindi:     { label: "Hindi",          labelHindi: "हिंदी",            icon: "📖", accent: "#f97316", path: "class12/hindi"     },
+  english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "🔤", accent: "#8b5cf6", path: "class12/english"   },
 };
 
 const entranceSubjectMeta: Record<string, Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }>> = {
