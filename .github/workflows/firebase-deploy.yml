@@ -86,12 +86,17 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
           
-          # Backend (Functions) ke liye automatic .env file banana
+          # 1. Purane Firebase Secrets ko hatao taaki overlap error na aaye
+          pnpm exec firebase functions:secrets:destroy RAZORPAY_KEY_ID --project shiken-d8789 --force || true
+          pnpm exec firebase functions:secrets:destroy RAZORPAY_KEY_SECRET --project shiken-d8789 --force || true
+          pnpm exec firebase functions:secrets:destroy GEMINI_API_KEY --project shiken-d8789 --force || true
+          
+          # 2. Naye Normal Environment Variables (.env) set karo
           echo "RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}" >> functions/.env
           echo "RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}" >> functions/.env
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> functions/.env
           
-          # Deploy hosting and functions together — DO NOT delete function first
+          # 3. Deploy hosting and functions together
           pnpm exec firebase deploy --only hosting,functions --project shiken-d8789 --force
           rm -f /tmp/sa.json
 
