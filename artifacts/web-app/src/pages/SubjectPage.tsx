@@ -9,6 +9,8 @@ import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
+// 👇 YE WALI LINE YAHAN ADD KARO
+import { SVGRenderer } from "../components/SVGRenderer";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
@@ -219,6 +221,7 @@ interface Question {
   answerIndex: number;
   chapter: string;
   explanation?: string;
+  svgDiagram?: string; // 👈 YE WALI LINE YAHAN DHYAN SE ADD KAR DO
 }
 
 // ─── Progress persistence ──────────────────────────────────────────────────────
@@ -3428,6 +3431,7 @@ export default function SubjectPage() {
                       <MathText text={fullTranslations[currentIndex].hindi} />
                     </p>
                   )}
+                  <SVGRenderer svgCode={q?.svgDiagram} />
                 </div>
 
                 {/* Language toggle — below question, above options */}
