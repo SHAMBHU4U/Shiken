@@ -490,8 +490,8 @@ function toChapterSlug(chapter: string): string {
 
 const ALL_SUBJECTS = [
   { id: "maths",    dbPath: "maths",          label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20" },
-  { id: "english",  dbPath: "english",        label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
-  { id: "hindi",    dbPath: "hindi",          label: "Hindi",           icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "english",  dbPath: "english",        label: "English",         icon: "🔤", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "hindi",    dbPath: "hindi",          label: "Hindi",           icon: "📖", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
   { id: "science",  dbPath: "science",        label: "Science",         icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
   { id: "social",   dbPath: "social science", label: "Social Science",  icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20" },
   { id: "sanskrit", dbPath: "sanskrit",       label: "Sanskrit",        icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",    border: "border-pink-400/20" },
@@ -503,8 +503,8 @@ const ALL_C12_SUBJECTS = [
   { id: "c12_biology",   dbPath: "class12/biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", gradient: "from-green-500/20 to-lime-600/20",    border: "border-green-400/20" },
   { id: "c12_maths",     dbPath: "class12/maths",     label: "Maths",     icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",     border: "border-cyan-400/20" },
   { id: "c12_social",    dbPath: "class12/social",    label: "Social",    icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20",  border: "border-amber-400/20" },
-  { id: "c12_hindi",     dbPath: "class12/hindi",     label: "Hindi",     icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
-  { id: "c12_english",   dbPath: "class12/english",   label: "English",   icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "c12_hindi",     dbPath: "class12/hindi",     label: "Hindi",     icon: "📖", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "c12_english",   dbPath: "class12/english",   label: "English",   icon: "🔤", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
 ];
 
 const ENTRANCE_SUBJECTS = [
