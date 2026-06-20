@@ -8,7 +8,7 @@ import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 
 const API_BASE = import.meta.env.BASE_URL;
-const RAZORPAY_KEY = "rzp_live_SqePWVSFlT9MSp";
+const RAZORPAY_KEY = "rzp_live_T3ihsAETYQBpzG";
 
 declare global {
   interface Window {
