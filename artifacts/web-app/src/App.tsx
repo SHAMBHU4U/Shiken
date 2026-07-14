@@ -980,7 +980,9 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
 function NavIcon({ id, active }: { id: string; active: boolean }) {
-  const color = active ? "#38bdf8" : "rgba(255,255,255,0.35)";
+  const { theme } = useTheme();
+  const inactive = theme === "dark" ? "rgba(255,255,255,0.50)" : "rgba(15,23,42,0.60)";
+  const color = active ? "#38bdf8" : inactive;
   const sw: React.SVGProps<SVGSVGElement> = {
     viewBox: "0 0 24 24", fill: "none", stroke: color,
     strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",
@@ -1019,10 +1021,10 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       {/* Crown shape — filled with accent gradient when active */}
       <path
         d="M3 18h18l-2.5-8L14 14l-2-7-2 7-4.5-4L3 18z"
-        fill={active ? "url(#premiumGrad)" : "rgba(255,255,255,0.35)"}
+        fill={active ? "url(#premiumGrad)" : inactive}
         stroke="none"
       />
-      <path d="M3 18h18" stroke={active ? "#f59e0b" : "rgba(255,255,255,0.35)"} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <path d="M3 18h18" stroke={active ? "#f59e0b" : inactive} strokeWidth="1.8" strokeLinecap="round" fill="none" />
       <defs>
         <linearGradient id="premiumGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#fbbf24" />
