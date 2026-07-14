@@ -1013,6 +1013,23 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       <path d="M9 20h6" strokeWidth="1.5" />
     </svg>
   );
+  if (id === "premium") return (
+    <svg {...sw} stroke="none">
+      {/* Crown shape — filled with accent gradient when active */}
+      <path
+        d="M3 18h18l-2.5-8L14 14l-2-7-2 7-4.5-4L3 18z"
+        fill={active ? "url(#premiumGrad)" : "rgba(255,255,255,0.35)"}
+        stroke="none"
+      />
+      <path d="M3 18h18" stroke={active ? "#f59e0b" : "rgba(255,255,255,0.35)"} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <defs>
+        <linearGradient id="premiumGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
   return (
     <svg {...sw}>
       <path d="M4 4h16c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -1032,6 +1049,7 @@ function BottomNav() {
     { path: "/",             iconId: "home",        label: "Home"       },
     { path: "/leaderboard",  iconId: "ranks",       label: "Ranks"      },
     { path: "/profile",      iconId: "profile",     label: "Profile"    },
+    { path: "/pricing",      iconId: "premium",     label: "Premium 👑" },
     { path: "/counselling",  iconId: "counselling", label: "Counselling"},
     { path: "/contact",      iconId: "contact",     label: "Contact"    },
   ];
