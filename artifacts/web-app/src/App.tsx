@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
-import { auth } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -1206,15 +1206,31 @@ const DAILY_QUOTES = [
 ];
 
 function DailyQuote() {
-  const dayIndex = Math.floor(Date.now() / 86400000) % DAILY_QUOTES.length;
-  const q = DAILY_QUOTES[dayIndex];
+  const [pool, setPool] = useState<typeof DAILY_QUOTES>(DAILY_QUOTES);
+
+  useEffect(() => {
+    import("firebase/database").then(({ ref, get }) => {
+      get(ref(db, "quotes")).then((snap) => {
+        if (snap.exists()) {
+          const data = snap.val();
+          const arr = Array.isArray(data) ? data : Object.values(data);
+          if (arr.length > 0) setPool(arr as typeof DAILY_QUOTES);
+        }
+      }).catch(() => {/* fallback to hardcoded */});
+    });
+  }, []);
+
+  const dayIndex = Math.floor(Date.now() / 86400000) % pool.length;
+  const q = pool[dayIndex];
+
   return (
     <motion.div
+      key={q.hi}
       initial={{ opacity: 0, y: 16, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       className="mb-5 rounded-2xl px-4 py-3.5 relative overflow-hidden"
-      style={{ background: q.grad, borderLeft: `3px solid ${q.border}`, border: `1px solid ${q.border}33` }}
+      style={{ background: q.grad, border: `1px solid ${q.border}33`, borderLeft: `3px solid ${q.border}` }}
     >
       <div className="flex items-start gap-3">
         <span className="text-2xl mt-0.5 shrink-0 select-none">{q.emoji}</span>
