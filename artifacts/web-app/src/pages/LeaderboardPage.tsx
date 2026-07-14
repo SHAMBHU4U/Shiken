@@ -8,11 +8,11 @@ const GRADE_COLOR = (p: number) =>
   p >= 80 ? "#10b981" : p >= 60 ? "#f59e0b" : p >= 40 ? "#fb923c" : "#ef4444";
 
 const SUBJECT_ICONS: Record<string, string> = {
-  maths: "📐", english: "🔤", hindi: "📖",
+  maths: "📐", english: "📖", hindi: "🔤",
   science: "🔬", social: "🌍", sanskrit: "📜",
   physics: "⚡", chemistry: "🧪", biology: "🌿",
   "class12/physics": "⚡", "class12/chemistry": "🧪", "class12/biology": "🌿",
-  "class12/maths": "📐", "class12/social": "🌍", "class12/hindi": "📖", "class12/english": "🔤",
+  "class12/maths": "📐", "class12/social": "🌍", "class12/hindi": "🔤", "class12/english": "📖",
   "entrance_exams/jee/physics": "⚡", "entrance_exams/jee/chemistry": "🧪", "entrance_exams/jee/maths": "📐",
   "entrance_exams/neet/physics": "⚡", "entrance_exams/neet/chemistry": "🧪", "entrance_exams/neet/biology": "🌿",
 };

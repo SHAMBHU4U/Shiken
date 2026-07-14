@@ -9,8 +9,6 @@ import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
 import ExplainText from "@/components/ExplainText";
-// 👇 YE WALI LINE YAHAN ADD KARO
-import { SVGRenderer } from "../components/SVGRenderer";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
@@ -22,7 +20,7 @@ const CHAPTER_ICONS: Record<string, string> = {
   "Grammar":         "📝",
   "Prose":           "📖",
   "Poetry":          "🎭",
-  "Vocabulary":      "📖",
+  "Vocabulary":      "🔤",
   "Comprehension":   "🔍",
   "Unseen Passage":  "📄",
   "Writing Skills":  "✍️",
@@ -183,8 +181,8 @@ function getChapterIcon(name: string) { return CHAPTER_ICONS[name] ?? "📂"; }
 
 const subjectMeta: Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }> = {
   maths:   { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "maths"          },
-  english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "🔤", accent: "#8b5cf6", path: "english"        },
-  hindi:   { label: "Hindi",          labelHindi: "हिंदी",             icon: "📖", accent: "#f97316", path: "hindi"          },
+  english: { label: "English",        labelHindi: "अंग्रेज़ी",         icon: "📖", accent: "#8b5cf6", path: "english"        },
+  hindi:   { label: "Hindi",          labelHindi: "हिंदी",             icon: "🔤", accent: "#f97316", path: "hindi"          },
   science: { label: "Science",        labelHindi: "विज्ञान",           icon: "🔬", accent: "#10b981", path: "science"        },
   social:  { label: "Social Science", labelHindi: "सामाजिक विज्ञान",  icon: "🌍", accent: "#f59e0b", path: "social science" },
   sanskrit:{ label: "Sanskrit",       labelHindi: "संस्कृत",           icon: "📜", accent: "#ec4899", path: "sanskrit"       },
@@ -196,8 +194,8 @@ const class12SubjectMeta: Record<string, { label: string; labelHindi: string; ic
   biology:   { label: "Biology",        labelHindi: "जीव विज्ञान",     icon: "🌿", accent: "#22c55e", path: "class12/biology"   },
   maths:     { label: "Maths",          labelHindi: "गणित",             icon: "📐", accent: "#06b6d4", path: "class12/maths"     },
   social:    { label: "Social Science", labelHindi: "सामाजिक विज्ञान", icon: "🌍", accent: "#f59e0b", path: "class12/social"    },
-  hindi:     { label: "Hindi",          labelHindi: "हिंदी",            icon: "📖", accent: "#f97316", path: "class12/hindi"     },
-  english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "🔤", accent: "#8b5cf6", path: "class12/english"   },
+  hindi:     { label: "Hindi",          labelHindi: "हिंदी",            icon: "🔤", accent: "#f97316", path: "class12/hindi"     },
+  english:   { label: "English",        labelHindi: "अंग्रेज़ी",        icon: "📖", accent: "#8b5cf6", path: "class12/english"   },
 };
 
 const entranceSubjectMeta: Record<string, Record<string, { label: string; labelHindi: string; icon: string; accent: string; path: string }>> = {
@@ -221,7 +219,6 @@ interface Question {
   answerIndex: number;
   chapter: string;
   explanation?: string;
-  svgDiagram?: string; // 👈 YE WALI LINE YAHAN DHYAN SE ADD KAR DO
 }
 
 // ─── Progress persistence ──────────────────────────────────────────────────────
@@ -856,7 +853,7 @@ function ModeSelect({
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10" style={{ background: "#07080f" }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10" style={{ background: "var(--app-bg)" }}>
       <div
         className="absolute inset-0 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}18 0%, transparent 60%)` }}
@@ -1100,7 +1097,7 @@ function ChapterSelect({
   const visibleChapters = chapters.filter((ch) => chapterMatchesQuery(ch.name, chapterQuery));
 
   return (
-    <div className="min-h-screen px-4 py-6" style={{ background: "#07080f" }}>
+    <div className="min-h-screen px-4 py-6" style={{ background: "var(--app-bg)" }}>
       <div
         className="absolute inset-0 pointer-events-none"
         style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}15 0%, transparent 50%)` }}
@@ -1475,7 +1472,7 @@ function ResultScreen({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-      className="min-h-screen w-full px-4 py-8" style={{ background: "#07080f" }}
+      className="min-h-screen w-full px-4 py-8" style={{ background: "var(--app-bg)" }}
     >
       <div className="max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center mb-6">
@@ -2709,7 +2706,7 @@ export default function SubjectPage() {
   // ── Render guards ─────────────────────────────────────────────────────────────
   if (!meta) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
         <p className="text-white/50">Subject not found.</p>
       </div>
     );
@@ -2717,7 +2714,7 @@ export default function SubjectPage() {
 
   if (screen === "loading") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--app-bg)" }}>
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-10 h-10 rounded-full border-2 border-transparent"
           style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }} />
@@ -2772,7 +2769,7 @@ export default function SubjectPage() {
     if (!isSubjectPrem && dailyMiniCooldown) {
       return (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center"
-          style={{ background: "#07080f" }}>
+          style={{ background: "var(--app-bg)" }}>
           <p className="text-4xl mb-4">⏳</p>
           <p className="text-white font-black text-xl mb-2">Aaj ka Mini Test ho gaya!</p>
           <p className="text-white/50 text-sm mb-1">Free users ko 24 ghante mein 1 Mini Test milta hai.</p>
@@ -2833,7 +2830,7 @@ export default function SubjectPage() {
 
   if (screen === "saved-questions") {
     return (
-      <div className="min-h-screen px-4 py-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen px-4 py-6" style={{ background: "var(--app-bg)" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(251,191,36,0.12) 0%, transparent 55%)" }} />
         <div className="max-w-lg mx-auto relative z-10">
@@ -2907,7 +2904,7 @@ export default function SubjectPage() {
 
   if (screen === "chapter-generating") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "var(--app-bg)" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(6,182,212,0.18) 0%, transparent 60%)" }} />
         <motion.div className="relative z-10 text-center w-full max-w-sm">
@@ -2935,7 +2932,7 @@ export default function SubjectPage() {
 
   if (screen === "ai-generating") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "var(--app-bg)" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: "radial-gradient(ellipse at 50% 40%, rgba(99,102,241,0.18) 0%, transparent 60%)" }} />
         <motion.div className="relative z-10 text-center w-full max-w-sm">
@@ -2963,7 +2960,7 @@ export default function SubjectPage() {
 
   if (screen === "smart-generating") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "var(--app-bg)" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}22 0%, transparent 60%)` }} />
         <motion.div className="relative z-10 text-center px-4 w-full max-w-sm">
@@ -2990,7 +2987,7 @@ export default function SubjectPage() {
 
   if (screen === "comprehension-generating") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-6" style={{ background: "var(--app-bg)" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 40%, ${meta.accent}20 0%, transparent 60%)` }} />
         <motion.div className="relative z-10 text-center w-full max-w-sm">
@@ -3017,7 +3014,7 @@ export default function SubjectPage() {
 
   if (screen === "comprehension-passage") {
     return (
-      <div className="min-h-screen w-full overflow-auto relative" style={{ background: "#07080f" }}>
+      <div className="min-h-screen w-full overflow-auto relative" style={{ background: "var(--app-bg)" }}>
         <div className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 50% 15%, ${meta.accent}18 0%, transparent 55%)` }} />
 
@@ -3092,7 +3089,7 @@ export default function SubjectPage() {
   // Safety guard — should never happen, but prevents crash if state is stale
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4" style={{ background: "var(--app-bg)" }}>
         <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-10 h-10 rounded-full border-2 border-transparent"
           style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}50` }} />
@@ -3118,7 +3115,7 @@ export default function SubjectPage() {
   const timerGlow    = timerDanger ? "0 0 22px rgba(239,68,68,0.35)" : timerWarning ? "0 0 18px rgba(245,158,11,0.25)" : "none";
 
   return (
-    <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: `radial-gradient(circle, ${meta.accent}, transparent)` }} />
@@ -3431,7 +3428,6 @@ export default function SubjectPage() {
                       <MathText text={fullTranslations[currentIndex].hindi} />
                     </p>
                   )}
-                  <SVGRenderer svgCode={q?.svgDiagram} />
                 </div>
 
                 {/* Language toggle — below question, above options */}
@@ -3562,16 +3558,24 @@ export default function SubjectPage() {
             )}
 
             <motion.button
-              whileHover={selectedOption !== null ? { scale: 1.03 } : {}}
-              whileTap={selectedOption  !== null ? { scale: 0.97 } : {}}
-              onClick={selectedOption !== null ? handleNext : undefined}
-              disabled={selectedOption === null}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={selectedOption !== null || currentIndex === questions.length - 1 ? handleNext : undefined}
+              disabled={selectedOption === null && currentIndex < questions.length - 1}
               className="flex-[2] py-3 rounded-xl text-sm font-bold transition-all duration-300"
               style={{
-                background: selectedOption !== null ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)` : "rgba(255,255,255,0.06)",
-                color:      selectedOption !== null ? "#fff" : "rgba(255,255,255,0.18)",
-                boxShadow:  selectedOption !== null ? `0 4px 20px ${meta.accent}40` : "none",
-                cursor:     selectedOption === null ? "not-allowed" : "pointer",
+                background: (selectedOption !== null || currentIndex === questions.length - 1)
+                  ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)`
+                  : "rgba(255,255,255,0.06)",
+                color: (selectedOption !== null || currentIndex === questions.length - 1)
+                  ? "#fff"
+                  : "rgba(255,255,255,0.18)",
+                boxShadow: (selectedOption !== null || currentIndex === questions.length - 1)
+                  ? `0 4px 20px ${meta.accent}40`
+                  : "none",
+                cursor: (selectedOption === null && currentIndex < questions.length - 1)
+                  ? "not-allowed"
+                  : "pointer",
               }}>
               {currentIndex < questions.length - 1 ? "Next →" : "See Results ✦"}
             </motion.button>

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
-import { auth } from "@/firebase";
+import { auth, db } from "@/firebase";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -23,6 +23,7 @@ import MockTestPage from "@/pages/MockTestPage";
 import ReferralPage from "@/pages/ReferralPage";
 import ChoosePlanPage from "@/pages/ChoosePlanPage";
 import { AuthProvider, useAuth, type UserGoal } from "@/contexts/AuthContext";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
   getNotificationPermission, requestAndScheduleReminder,
@@ -445,7 +446,7 @@ function AdminGuard() {
 
   if (user === "loading") {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#07080f" }}>
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
@@ -459,7 +460,7 @@ function AdminGuard() {
   if (user && adminSession) return <AdminPage onSignOut={() => { sessionStorage.removeItem(ADMIN_SESSION); setAdminSession(false); signOut(auth); }} />;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
@@ -570,7 +571,7 @@ function AdminGuard() {
 
 function SplashLoader() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
       <div className="flex flex-col items-center gap-4">
         <motion.div
           animate={{ rotate: 360 }}
@@ -979,7 +980,9 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
 function NavIcon({ id, active }: { id: string; active: boolean }) {
-  const color = active ? "#38bdf8" : "rgba(255,255,255,0.35)";
+  const { theme } = useTheme();
+  const inactive = theme === "dark" ? "rgba(255,255,255,0.50)" : "rgba(15,23,42,0.60)";
+  const color = active ? "#38bdf8" : inactive;
   const sw: React.SVGProps<SVGSVGElement> = {
     viewBox: "0 0 24 24", fill: "none", stroke: color,
     strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",
@@ -1013,6 +1016,23 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       <path d="M9 20h6" strokeWidth="1.5" />
     </svg>
   );
+  if (id === "premium") return (
+    <svg {...sw} stroke="none">
+      {/* Crown shape — filled with accent gradient when active */}
+      <path
+        d="M3 18h18l-2.5-8L14 14l-2-7-2 7-4.5-4L3 18z"
+        fill={active ? "url(#premiumGrad)" : inactive}
+        stroke="none"
+      />
+      <path d="M3 18h18" stroke={active ? "#f59e0b" : inactive} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <defs>
+        <linearGradient id="premiumGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
   return (
     <svg {...sw}>
       <path d="M4 4h16c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -1032,6 +1052,7 @@ function BottomNav() {
     { path: "/",             iconId: "home",        label: "Home"       },
     { path: "/leaderboard",  iconId: "ranks",       label: "Ranks"      },
     { path: "/profile",      iconId: "profile",     label: "Profile"    },
+    { path: "/pricing",      iconId: "premium",     label: "Premium 👑" },
     { path: "/counselling",  iconId: "counselling", label: "Counselling"},
     { path: "/contact",      iconId: "contact",     label: "Contact"    },
   ];
@@ -1043,10 +1064,10 @@ function BottomNav() {
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{
-        background: "rgba(26,27,46,0.97)",
+        background: "var(--app-nav-bg)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
-        borderTop: "1px solid rgba(255,255,255,0.09)",
+        borderTop: "1px solid var(--app-nav-border)",
         boxShadow: "0 -4px 24px rgba(0,0,0,0.45)",
       }}
     >
@@ -1081,13 +1102,151 @@ function BottomNav() {
               </div>
               <span
                 className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
-                style={{ color: active ? "#38bdf8" : "rgba(255,255,255,0.35)" }}
+                style={{ color: active ? "#38bdf8" : "var(--app-nav-text-muted)" }}
               >
                 {tab.label}
               </span>
             </motion.button>
           );
         })}
+      </div>
+    </motion.div>
+  );
+}
+
+function ThemeToggle() {
+  const [location] = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const isQuiz = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/") || location.startsWith("/mock-test/");
+  const isAdmin = location === "/admin";
+  if (isQuiz || isAdmin) return null;
+
+  const isDark = theme === "dark";
+
+  return (
+    <motion.button
+      onClick={toggleTheme}
+      whileTap={{ scale: 0.88 }}
+      whileHover={{ scale: 1.08 }}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full flex items-center justify-center"
+      style={{
+        background: isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.08)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.14)"}`,
+        backdropFilter: "blur(12px)",
+        boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.4)" : "0 2px 12px rgba(0,0,0,0.12)",
+      }}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {isDark ? (
+          <motion.svg
+            key="sun"
+            initial={{ rotate: -90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            exit={{ rotate: 90, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </motion.svg>
+        ) : (
+          <motion.svg
+            key="moon"
+            initial={{ rotate: 90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            exit={{ rotate: -90, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
+}
+
+// ─── Daily Quote ──────────────────────────────────────────────────────────────
+const DAILY_QUOTES = [
+  { hi: "मेहनत वो जादू है जो किस्मत बदल देती है।", en: "Hard work is the magic that changes destiny.", emoji: "✨", accent: "#a78bfa", grad: "linear-gradient(135deg,rgba(124,58,237,0.18),rgba(79,70,229,0.10))", border: "#7c3aed" },
+  { hi: "एक दिन की मेहनत, एक कदम आगे।", en: "One day's effort, one step ahead.", emoji: "🚶", accent: "#34d399", grad: "linear-gradient(135deg,rgba(16,185,129,0.15),rgba(6,182,212,0.08))", border: "#10b981" },
+  { hi: "सपना देखो, सोचो नहीं — बस कर दो!", en: "Dream it. Think less. Just do it!", emoji: "🚀", accent: "#38bdf8", grad: "linear-gradient(135deg,rgba(56,189,248,0.18),rgba(99,102,241,0.10))", border: "#0ea5e9" },
+  { hi: "हर सवाल का जवाब तुम्हारे अंदर है।", en: "Every answer lies within you.", emoji: "🧠", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.15),rgba(167,139,250,0.10))", border: "#ec4899" },
+  { hi: "कल का इंतजार मत करो — आज से शुरुआत करो।", en: "Don't wait for tomorrow — start today.", emoji: "⚡", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(245,158,11,0.10))", border: "#f59e0b" },
+  { hi: "जो पढ़ता है, वो बढ़ता है।", en: "Those who read, grow.", emoji: "📚", accent: "#22d3ee", grad: "linear-gradient(135deg,rgba(34,211,238,0.15),rgba(16,185,129,0.08))", border: "#06b6d4" },
+  { hi: "हार वहाँ होती है जहाँ कोशिश रुक जाती है।", en: "Failure only happens when effort stops.", emoji: "💪", accent: "#fb923c", grad: "linear-gradient(135deg,rgba(251,146,60,0.18),rgba(239,68,68,0.08))", border: "#f97316" },
+  { hi: "छोटे-छोटे कदम भी मंज़िल तक पहुँचाते हैं।", en: "Small steps still reach the destination.", emoji: "🎯", accent: "#a78bfa", grad: "linear-gradient(135deg,rgba(139,92,246,0.18),rgba(59,130,246,0.10))", border: "#8b5cf6" },
+  { hi: "आज का Revision कल की Rank है।", en: "Today's revision is tomorrow's rank.", emoji: "🏆", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.20),rgba(234,179,8,0.10))", border: "#eab308" },
+  { hi: "उठो, जागो और तब तक मत रुको जब तक लक्ष्य न मिले।", en: "Arise, awake, and stop not till the goal is reached.", emoji: "🌅", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.18),rgba(251,113,133,0.10))", border: "#ec4899", from: "— Swami Vivekananda" },
+  { hi: "नींद से ज़्यादा ज़रूरी है तुम्हारा सपना।", en: "Your dream is more important than your sleep.", emoji: "🌙", accent: "#818cf8", grad: "linear-gradient(135deg,rgba(129,140,248,0.18),rgba(167,139,250,0.10))", border: "#6366f1" },
+  { hi: "किताब वो दोस्त है जो कभी धोखा नहीं देती।", en: "A book is the friend that never betrays you.", emoji: "📖", accent: "#34d399", grad: "linear-gradient(135deg,rgba(52,211,153,0.15),rgba(16,185,129,0.08))", border: "#10b981" },
+  { hi: "हौसला रखो — मंज़िल पास है।", en: "Keep courage — the destination is near.", emoji: "🦋", accent: "#38bdf8", grad: "linear-gradient(135deg,rgba(56,189,248,0.15),rgba(34,211,238,0.08))", border: "#0ea5e9" },
+  { hi: "सफलता उन्हें मिलती है जो रुकते नहीं।", en: "Success comes to those who don't stop.", emoji: "🔥", accent: "#fb923c", grad: "linear-gradient(135deg,rgba(251,146,60,0.20),rgba(239,68,68,0.10))", border: "#f97316" },
+  { hi: "अपने आप पर भरोसा रखो — तुम कर सकते हो।", en: "Believe in yourself — you can do it.", emoji: "💡", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(252,211,77,0.10))", border: "#f59e0b" },
+  { hi: "पढ़ाई में लगन ही असली पूजा है।", en: "Dedication in study is the truest devotion.", emoji: "🌺", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.15),rgba(251,113,133,0.08))", border: "#db2777" },
+  { hi: "रोज़ थोड़ा-थोड़ा — एक दिन बहुत बड़ा।", en: "A little every day — enormous one day.", emoji: "📈", accent: "#22d3ee", grad: "linear-gradient(135deg,rgba(34,211,238,0.15),rgba(99,102,241,0.08))", border: "#06b6d4" },
+  { hi: "सवाल गलत हो तो डरो मत — सीखो।", en: "If the answer is wrong, don't fear — learn.", emoji: "🛠️", accent: "#a78bfa", grad: "linear-gradient(135deg,rgba(139,92,246,0.18),rgba(124,58,237,0.10))", border: "#7c3aed" },
+  { hi: "जितना पढ़ोगे, उतना राज खुलेंगे।", en: "The more you read, the more secrets unlock.", emoji: "🔓", accent: "#34d399", grad: "linear-gradient(135deg,rgba(16,185,129,0.18),rgba(52,211,153,0.10))", border: "#059669" },
+  { hi: "परीक्षा डराती नहीं, तैयारी करती है निडर।", en: "Exams don't scare — preparation makes fearless.", emoji: "🎓", accent: "#818cf8", grad: "linear-gradient(135deg,rgba(129,140,248,0.18),rgba(99,102,241,0.10))", border: "#4f46e5" },
+  { hi: "खुद को कम मत आँको — तुम्हारी क्षमता असीम है।", en: "Don't underestimate yourself — your potential is infinite.", emoji: "🌟", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.20),rgba(253,224,71,0.10))", border: "#ca8a04" },
+  { hi: "डॉ. कलाम ने कहा था — सपने वो नहीं जो नींद में आएं, सपने वो हैं जो सोने न दें।", en: "\"Dreams are not what you see in sleep; dreams are things which don't let you sleep.\"", emoji: "🇮🇳", accent: "#fb923c", grad: "linear-gradient(135deg,rgba(251,146,60,0.18),rgba(234,179,8,0.08))", border: "#f97316", from: "— Dr. A.P.J. Abdul Kalam" },
+  { hi: "आज का focus कल की success है।", en: "Today's focus is tomorrow's success.", emoji: "🎯", accent: "#38bdf8", grad: "linear-gradient(135deg,rgba(56,189,248,0.18),rgba(6,182,212,0.10))", border: "#0284c7" },
+  { hi: "मुश्किलें बताती हैं तुम कितने मज़बूत हो।", en: "Hardships reveal how strong you truly are.", emoji: "⚔️", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.15),rgba(167,139,250,0.10))", border: "#be185d" },
+  { hi: "जो आज पसीना बहाएगा, कल इतिहास बनाएगा।", en: "Those who sweat today will make history tomorrow.", emoji: "🏅", accent: "#34d399", grad: "linear-gradient(135deg,rgba(52,211,153,0.20),rgba(16,185,129,0.10))", border: "#047857" },
+];
+
+function DailyQuote() {
+  const [pool, setPool] = useState<typeof DAILY_QUOTES>(DAILY_QUOTES);
+
+  useEffect(() => {
+    import("firebase/database").then(({ ref, get }) => {
+      get(ref(db, "quotes")).then((snap) => {
+        if (snap.exists()) {
+          const data = snap.val();
+          const arr = Array.isArray(data) ? data : Object.values(data);
+          if (arr.length > 0) setPool(arr as typeof DAILY_QUOTES);
+        }
+      }).catch(() => {/* fallback to hardcoded */});
+    });
+  }, []);
+
+  const dayIndex = Math.floor(Date.now() / 86400000) % pool.length;
+  const q = pool[dayIndex];
+
+  return (
+    <motion.div
+      key={q.hi}
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+      className="mb-5 rounded-2xl px-4 py-3.5 relative overflow-hidden"
+      style={{ background: q.grad, border: `1px solid ${q.border}33`, borderLeft: `3px solid ${q.border}` }}
+    >
+      <div className="flex items-start gap-3">
+        <span className="text-2xl mt-0.5 shrink-0 select-none">{q.emoji}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold leading-snug mb-1" style={{ color: q.accent }}>
+            {q.hi}
+          </p>
+          <p className="text-white/45 text-[11px] leading-snug italic">
+            {q.en}
+          </p>
+          {q.from && (
+            <p className="text-[10px] mt-1 font-semibold" style={{ color: `${q.accent}99` }}>
+              {q.from}
+            </p>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -1105,7 +1264,7 @@ function Dashboard() {
   const activeSubjects = allSubjectPool.filter((s) => goalCfg.subjectIds.includes(s.id));
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
           className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20"
@@ -1221,6 +1380,7 @@ function Dashboard() {
         </motion.div>
 
         <AnnouncementBanner />
+        <DailyQuote />
         <StreakReminderBanner onPractice={() => {
           document.getElementById("subject-cards")?.scrollIntoView({ behavior: "smooth" });
         }} />
@@ -1380,6 +1540,7 @@ function SessionKickedModal() {
 function AppRoutes() {
   return (
     <>
+      <ThemeToggle />
       <SessionKickedModal />
       <OfflineBanner />
       <AuthGuard>
@@ -1414,13 +1575,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AppRoutes />
-        </WouterRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AppRoutes />
+          </WouterRouter>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

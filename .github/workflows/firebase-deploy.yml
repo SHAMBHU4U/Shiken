@@ -44,7 +44,6 @@ jobs:
         env:
           FIREBASE_DEPLOY: true
           NODE_ENV: production
-          VITE_RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
 
       - name: Remove stale functions lockfile
         run: rm -f functions/pnpm-lock.yaml
@@ -78,16 +77,14 @@ jobs:
           echo "Function build output verified ($(wc -c < functions/lib/index.js) bytes)"
 
       - name: Deploy Hosting + Functions (Unified)
+        env:
+          RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-          
-          # Purana sab bhool jao. Seedha GitHub se wapas Firebase Secrets mein keys daalo
-          printf "%s" "${{ secrets.RAZORPAY_KEY_ID }}" | pnpm exec firebase functions:secrets:set RAZORPAY_KEY_ID --project shiken-d8789 --force
-          printf "%s" "${{ secrets.RAZORPAY_KEY_SECRET }}" | pnpm exec firebase functions:secrets:set RAZORPAY_KEY_SECRET --project shiken-d8789 --force
-          printf "%s" "${{ secrets.GEMINI_API_KEY }}" | pnpm exec firebase functions:secrets:set GEMINI_API_KEY --project shiken-d8789 --force
-          
-          # Ekdum fresh deployment bina kisi conflict ke
+          # Deploy hosting and functions together — DO NOT delete function first
           pnpm exec firebase deploy --only hosting,functions --project shiken-d8789 --force
           rm -f /tmp/sa.json
 

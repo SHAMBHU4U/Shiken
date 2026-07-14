@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import { ref, get, set, remove, update, push } from "firebase/database";
+import { ref, get, set, remove, update, push, onValue } from "firebase/database";
 import type { GeneratedQuestion } from "@/lib/gemini";
 import { db } from "@/firebase";
 
@@ -239,6 +239,113 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
   );
 }
 
+// ─── Active Users (real-time presence) ────────────────────────────────────────
+
+interface OnlineUser {
+  uid: string;
+  name: string;
+  email: string;
+  lastSeen: number;
+  hasSession: boolean;
+}
+
+function ActiveUsersPanel() {
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [clearing, setClearing] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const usersRef = ref(db, "users");
+    const unsub = onValue(usersRef, (snap) => {
+      if (!snap.exists()) { setOnlineUsers([]); return; }
+      const data = snap.val() as Record<string, {
+        status?: string; lastSeen?: number; name?: string;
+        email?: string; sessionId?: string;
+      }>;
+      const online: OnlineUser[] = Object.entries(data)
+        .filter(([, u]) => u.status === "online")
+        .map(([uid, u]) => ({
+          uid,
+          name:       u.name  ?? "Unknown",
+          email:      u.email ?? uid,
+          lastSeen:   typeof u.lastSeen === "number" ? u.lastSeen : 0,
+          hasSession: !!u.sessionId,
+        }))
+        .sort((a, b) => b.lastSeen - a.lastSeen);
+      setOnlineUsers(online);
+    });
+    return () => unsub();
+  }, []);
+
+  async function clearSession(uid: string) {
+    setClearing((c) => ({ ...c, [uid]: true }));
+    try {
+      // Deleting sessionId triggers the client's onValue listener → auto sign-out
+      await remove(ref(db, `users/${uid}/sessionId`));
+      await set(ref(db, `users/${uid}/status`), "offline");
+    } catch { /* ignore */ }
+    finally { setClearing((c) => ({ ...c, [uid]: false })); }
+  }
+
+  return (
+    <div className="mb-6">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+        </span>
+        <p className="text-white font-bold text-sm">Live — {onlineUsers.length} online now</p>
+      </div>
+
+      {onlineUsers.length === 0 ? (
+        <div className="rounded-xl border border-white/8 px-4 py-5 text-center"
+          style={{ background: "rgba(255,255,255,0.03)" }}>
+          <p className="text-white/25 text-xs">No users online right now</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {onlineUsers.map((u) => (
+            <div key={u.uid}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl border"
+              style={{ background: "rgba(16,185,129,0.06)", borderColor: "rgba(16,185,129,0.20)" }}
+            >
+              {/* Green dot */}
+              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: "#10b981", boxShadow: "0 0 6px #10b981" }} />
+
+              {/* Name / email */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-xs font-semibold truncate">{u.name}</p>
+                <p className="text-white/35 text-xs truncate">
+                  {u.email.length > 28 ? u.email.slice(0, 28) + "…" : u.email}
+                  {" · "}
+                  <span className="text-emerald-400/70">
+                    {u.lastSeen > 0 ? timeAgo(u.lastSeen) : "just now"}
+                  </span>
+                </p>
+              </div>
+
+              {/* Force logout button */}
+              <button
+                onClick={() => clearSession(u.uid)}
+                disabled={clearing[u.uid]}
+                className="shrink-0 text-xs px-2.5 py-1 rounded-lg font-bold transition-all"
+                style={{
+                  background: clearing[u.uid] ? "rgba(239,68,68,0.06)" : "rgba(239,68,68,0.12)",
+                  color: "#ef4444",
+                  border: "1px solid rgba(239,68,68,0.25)",
+                  opacity: clearing[u.uid] ? 0.5 : 1,
+                }}
+              >
+                {clearing[u.uid] ? "…" : "⏏ Kick"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UsersPanel() {
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -287,6 +394,9 @@ function UsersPanel() {
 
   return (
     <div>
+      {/* Live presence monitor */}
+      <ActiveUsersPanel />
+
       {/* Summary */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
@@ -490,8 +600,8 @@ function toChapterSlug(chapter: string): string {
 
 const ALL_SUBJECTS = [
   { id: "maths",    dbPath: "maths",          label: "Maths",          icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",    border: "border-cyan-400/20" },
-  { id: "english",  dbPath: "english",        label: "English",         icon: "🔤", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
-  { id: "hindi",    dbPath: "hindi",          label: "Hindi",           icon: "📖", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "english",  dbPath: "english",        label: "English",         icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "hindi",    dbPath: "hindi",          label: "Hindi",           icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
   { id: "science",  dbPath: "science",        label: "Science",         icon: "🔬", accent: "#10b981", gradient: "from-emerald-500/20 to-teal-600/20",  border: "border-emerald-400/20" },
   { id: "social",   dbPath: "social science", label: "Social Science",  icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20", border: "border-amber-400/20" },
   { id: "sanskrit", dbPath: "sanskrit",       label: "Sanskrit",        icon: "📜", accent: "#ec4899", gradient: "from-pink-500/20 to-rose-600/20",    border: "border-pink-400/20" },
@@ -503,8 +613,8 @@ const ALL_C12_SUBJECTS = [
   { id: "c12_biology",   dbPath: "class12/biology",   label: "Biology",   icon: "🌿", accent: "#22c55e", gradient: "from-green-500/20 to-lime-600/20",    border: "border-green-400/20" },
   { id: "c12_maths",     dbPath: "class12/maths",     label: "Maths",     icon: "📐", accent: "#06b6d4", gradient: "from-cyan-500/20 to-blue-600/20",     border: "border-cyan-400/20" },
   { id: "c12_social",    dbPath: "class12/social",    label: "Social",    icon: "🌍", accent: "#f59e0b", gradient: "from-amber-500/20 to-yellow-600/20",  border: "border-amber-400/20" },
-  { id: "c12_hindi",     dbPath: "class12/hindi",     label: "Hindi",     icon: "📖", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
-  { id: "c12_english",   dbPath: "class12/english",   label: "English",   icon: "🔤", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
+  { id: "c12_hindi",     dbPath: "class12/hindi",     label: "Hindi",     icon: "🔤", accent: "#f97316", gradient: "from-orange-500/20 to-red-600/20",    border: "border-orange-400/20" },
+  { id: "c12_english",   dbPath: "class12/english",   label: "English",   icon: "📖", accent: "#8b5cf6", gradient: "from-violet-500/20 to-purple-700/20", border: "border-violet-400/20" },
 ];
 
 const ENTRANCE_SUBJECTS = [
@@ -3517,6 +3627,273 @@ function WithdrawalsPanel() {
   );
 }
 
+// ─── Quotes Panel ──────────────────────────────────────────────────────────────
+
+const QUOTE_THEMES = [
+  { label: "Purple", accent: "#a78bfa", grad: "linear-gradient(135deg,rgba(124,58,237,0.18),rgba(79,70,229,0.10))", border: "#7c3aed" },
+  { label: "Green",  accent: "#34d399", grad: "linear-gradient(135deg,rgba(16,185,129,0.15),rgba(6,182,212,0.08))",  border: "#10b981" },
+  { label: "Gold",   accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(245,158,11,0.10))", border: "#f59e0b" },
+  { label: "Blue",   accent: "#38bdf8", grad: "linear-gradient(135deg,rgba(56,189,248,0.18),rgba(99,102,241,0.10))", border: "#0ea5e9" },
+  { label: "Pink",   accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.15),rgba(167,139,250,0.10))", border: "#ec4899" },
+];
+
+interface QuoteItem {
+  id: number;
+  hi: string;
+  en: string;
+  emoji: string;
+  from: string;
+  accent: string;
+  grad: string;
+  border: string;
+}
+
+const BLANK_QUOTE: Omit<QuoteItem, "id"> = {
+  hi: "", en: "", emoji: "✨", from: "",
+  ...QUOTE_THEMES[0],
+};
+
+function QuotesPanel() {
+  const [quotes, setQuotes] = useState<QuoteItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | "new" | null>(null);
+  const [form, setForm] = useState<Omit<QuoteItem, "id">>(BLANK_QUOTE);
+  const [search, setSearch] = useState("");
+  const [toast, setToast] = useState("");
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2500);
+  };
+
+  const fetchQuotes = useCallback(async () => {
+    setLoading(true);
+    const snap = await get(ref(db, "quotes"));
+    if (snap.exists()) {
+      const data = snap.val();
+      const arr: QuoteItem[] = Array.isArray(data) ? data : Object.values(data);
+      setQuotes(arr.map((q, i) => ({ ...q, id: i })));
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchQuotes(); }, [fetchQuotes]);
+
+  const saveAll = async (updated: QuoteItem[]) => {
+    const clean = updated.map(({ id: _id, ...rest }, i) => ({ id: i, ...rest }));
+    await set(ref(db, "quotes"), clean);
+    setQuotes(clean.map((q) => ({ ...q })));
+  };
+
+  const handleEdit = (q: QuoteItem) => {
+    setExpandedId(q.id);
+    const { id: _id, ...rest } = q;
+    setForm(rest);
+  };
+
+  const handleSave = async () => {
+    if (!form.hi.trim() || !form.en.trim()) { showToast("Hindi & English text required"); return; }
+    setSaving(true);
+    if (expandedId === "new") {
+      const newQ: QuoteItem = { id: quotes.length, ...form };
+      const updated = [...quotes, newQ];
+      await saveAll(updated);
+      showToast("✅ Quote added!");
+    } else {
+      const updated = quotes.map((q) => q.id === expandedId ? { ...q, ...form } : q);
+      await saveAll(updated);
+      showToast("✅ Quote saved!");
+    }
+    setSaving(false);
+    setExpandedId(null);
+    setForm(BLANK_QUOTE);
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Delete this quote?")) return;
+    setSaving(true);
+    const updated = quotes.filter((q) => q.id !== id);
+    await saveAll(updated);
+    showToast("🗑️ Quote deleted");
+    setSaving(false);
+    if (expandedId === id) { setExpandedId(null); setForm(BLANK_QUOTE); }
+  };
+
+  const filtered = quotes.filter((q) =>
+    !search || q.hi.toLowerCase().includes(search.toLowerCase()) ||
+    q.en.toLowerCase().includes(search.toLowerCase()) ||
+    (q.from ?? "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Header row */}
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-white font-bold text-base">Daily Quotes</h2>
+          <p className="text-white/30 text-xs mt-0.5">{quotes.length} quotes in Firebase /quotes</p>
+        </div>
+        <motion.button whileTap={{ scale: 0.95 }}
+          onClick={() => { setExpandedId("new"); setForm(BLANK_QUOTE); }}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
+          style={{ background: "linear-gradient(135deg,rgba(139,92,246,0.25),rgba(6,182,212,0.15))", border: "1px solid rgba(139,92,246,0.4)", color: "#a78bfa" }}>
+          ＋ Add Quote
+        </motion.button>
+      </div>
+
+      {/* Search */}
+      <input
+        type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search quotes…"
+        className="w-full rounded-xl px-3 py-2 text-sm outline-none transition-all"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#fff" }}
+      />
+
+      {/* Add form */}
+      <AnimatePresence>
+        {expandedId === "new" && (
+          <motion.div key="new-form" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="rounded-2xl p-4 flex flex-col gap-3"
+            style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.25)" }}>
+            <p className="text-white/70 text-xs font-bold uppercase tracking-widest">New Quote</p>
+            <QuoteForm form={form} setForm={setForm} />
+            <div className="flex gap-2 mt-1">
+              <motion.button whileTap={{ scale: 0.95 }} onClick={handleSave} disabled={saving}
+                className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg,#7c3aed,#0ea5e9)" }}>
+                {saving ? "Saving…" : "Save Quote"}
+              </motion.button>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setExpandedId(null); setForm(BLANK_QUOTE); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white/40 transition-all"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                Cancel
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Quotes list */}
+      {loading ? (
+        <div className="text-white/30 text-sm text-center py-8">Loading quotes…</div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {filtered.length === 0 && <div className="text-white/30 text-sm text-center py-8">No quotes found</div>}
+          {filtered.map((q) => (
+            <motion.div key={q.id} layout className="rounded-2xl overflow-hidden"
+              style={{ border: `1px solid ${q.border}33` }}>
+              {/* Preview row */}
+              <div className="flex items-center gap-3 px-3 py-3 cursor-pointer"
+                style={{ background: q.grad }}
+                onClick={() => expandedId === q.id ? (setExpandedId(null), setForm(BLANK_QUOTE)) : handleEdit(q)}>
+                <span className="text-xl shrink-0">{q.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate" style={{ color: q.accent }}>{q.hi}</p>
+                  {q.from && <p className="text-[10px] text-white/30 truncate">{q.from}</p>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(q.id); }}
+                    className="text-white/20 hover:text-red-400 transition-colors p-1 text-xs">🗑️</button>
+                  <span className="text-white/20 text-xs">{expandedId === q.id ? "▲" : "▼"}</span>
+                </div>
+              </div>
+
+              {/* Edit form */}
+              <AnimatePresence>
+                {expandedId === q.id && (
+                  <motion.div key={`edit-${q.id}`} initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+                    className="px-3 pb-4 pt-3 flex flex-col gap-3 border-t"
+                    style={{ background: "rgba(0,0,0,0.3)", borderColor: `${q.border}33` }}>
+                    <QuoteForm form={form} setForm={setForm} />
+                    <div className="flex gap-2 mt-1">
+                      <motion.button whileTap={{ scale: 0.95 }} onClick={handleSave} disabled={saving}
+                        className="flex-1 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50"
+                        style={{ background: "linear-gradient(135deg,#7c3aed,#0ea5e9)" }}>
+                        {saving ? "Saving…" : "Save Changes"}
+                      </motion.button>
+                      <motion.button whileTap={{ scale: 0.95 }}
+                        onClick={() => { setExpandedId(null); setForm(BLANK_QUOTE); }}
+                        className="px-4 py-2 rounded-xl text-xs font-bold text-white/40"
+                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        Cancel
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          ))}
+        </div>
+      )}
+
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div key="toast" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm font-semibold text-white z-50 pointer-events-none"
+            style={{ background: "rgba(139,92,246,0.9)", backdropFilter: "blur(8px)" }}>
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function QuoteForm({ form, setForm }: {
+  form: Omit<QuoteItem, "id">;
+  setForm: React.Dispatch<React.SetStateAction<Omit<QuoteItem, "id">>>;
+}) {
+  const applyTheme = (t: typeof QUOTE_THEMES[0]) => {
+    setForm((f) => ({ ...f, accent: t.accent, grad: t.grad, border: t.border }));
+  };
+  return (
+    <>
+      <div className="flex gap-2">
+        <input value={form.emoji} onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))}
+          maxLength={4} placeholder="🌟"
+          className="w-12 text-center rounded-xl px-2 py-2 text-lg outline-none"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+        <input value={form.from} onChange={(e) => setForm((f) => ({ ...f, from: e.target.value }))}
+          placeholder="— Author name (optional)"
+          className="flex-1 rounded-xl px-3 py-2 text-xs outline-none"
+          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+      </div>
+      <textarea value={form.hi} onChange={(e) => setForm((f) => ({ ...f, hi: e.target.value }))}
+        rows={2} placeholder="Hindi quote text…"
+        className="w-full rounded-xl px-3 py-2 text-sm resize-none outline-none"
+        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+      <textarea value={form.en} onChange={(e) => setForm((f) => ({ ...f, en: e.target.value }))}
+        rows={2} placeholder="English quote text…"
+        className="w-full rounded-xl px-3 py-2 text-sm resize-none outline-none"
+        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+      <div>
+        <p className="text-white/30 text-[10px] mb-1.5 font-semibold uppercase tracking-wider">Card Color</p>
+        <div className="flex gap-2">
+          {QUOTE_THEMES.map((t) => (
+            <button key={t.label} onClick={() => applyTheme(t)} title={t.label}
+              className="w-7 h-7 rounded-full border-2 transition-all"
+              style={{ background: t.accent, borderColor: form.accent === t.accent ? "#fff" : "transparent",
+                boxShadow: form.accent === t.accent ? `0 0 8px ${t.accent}` : "none" }} />
+          ))}
+        </div>
+      </div>
+      {/* Live preview */}
+      <div className="rounded-xl px-3 py-2.5 flex items-start gap-2.5"
+        style={{ background: form.grad, borderLeft: `3px solid ${form.border}`, border: `1px solid ${form.border}33` }}>
+        <span className="text-lg shrink-0">{form.emoji || "✨"}</span>
+        <div className="min-w-0">
+          <p className="text-xs font-bold leading-snug" style={{ color: form.accent }}>{form.hi || "Hindi text preview…"}</p>
+          <p className="text-white/40 text-[10px] italic mt-0.5">{form.en || "English text preview…"}</p>
+          {form.from && <p className="text-[9px] mt-1 font-semibold" style={{ color: `${form.accent}99` }}>{form.from}</p>}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Main Admin Page ───────────────────────────────────────────────────────────
 
 const ALL_ADMIN_SUBJECTS = [...ALL_SUBJECTS, ...ALL_C12_SUBJECTS, ...ENTRANCE_SUBJECTS];
@@ -3533,9 +3910,9 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const [aiClass, setAiClass] = useState<"c10" | "c12" | "entrance">("c10");
   const initialTab = (() => {
     const p = new URLSearchParams(window.location.search).get("tab");
-    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "fullmock", "coupons", "migrate", "announcements", "withdrawals"] as const).find(t => t === p) ?? "overview";
+    return (["overview", "ai", "users", "payments", "ratings", "cache", "pdf", "bank", "upload", "fullmock", "coupons", "migrate", "announcements", "withdrawals", "quotes"] as const).find(t => t === p) ?? "overview";
   })();
-  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "fullmock" | "coupons" | "migrate" | "announcements" | "withdrawals">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "ai" | "users" | "payments" | "ratings" | "cache" | "pdf" | "bank" | "upload" | "fullmock" | "coupons" | "migrate" | "announcements" | "withdrawals" | "quotes">(initialTab);
   const jumpRef = useRef<HTMLDivElement | null>(null);
   const [pendingBadge, setPendingBadge] = useState(0);
 
@@ -3660,6 +4037,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             { id: "migrate",       icon: "🚚", label: "Migrate",   badge: 0 },
             { id: "announcements", icon: "📣", label: "Announce",   badge: 0 },
             { id: "withdrawals",   icon: "💸", label: "Withdrawals", badge: 0 },
+            { id: "quotes",        icon: "💬", label: "Quotes",      badge: 0 },
           ] as const).map(({ id, icon, label, badge }) => {
             const isActive = activeTab === id;
             return (
@@ -3842,6 +4220,12 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
           {activeTab === "withdrawals" && (
             <motion.div key="withdrawals" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
               <WithdrawalsPanel />
+            </motion.div>
+          )}
+
+          {activeTab === "quotes" && (
+            <motion.div key="quotes" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.25 }}>
+              <QuotesPanel />
             </motion.div>
           )}
         </AnimatePresence>

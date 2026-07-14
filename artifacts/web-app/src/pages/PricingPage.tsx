@@ -8,7 +8,7 @@ import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 
 const API_BASE = import.meta.env.BASE_URL;
-const RAZORPAY_KEY = "rzp_live_T3ihsAETYQBpzG";
+const RAZORPAY_KEY = "rzp_live_SqePWVSFlT9MSp";
 
 declare global {
   interface Window {
@@ -685,15 +685,33 @@ function PaymentSheet({
 }
 
 // ==================== 3. MAIN PRICING PAGE VIEW ====================
+// Map UserGoal → plan category
+function goalToCategory(goal: string | null): "jee" | "neet" | "class10" | "class12" | null {
+  if (goal === "jee")  return "jee";
+  if (goal === "neet") return "neet";
+  if (goal === "c10")  return "class10";
+  if (goal === "c12")  return "class12";
+  return null;
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+  jee: "JEE", neet: "NEET", class10: "Class 10th", class12: "Class 12th",
+};
+
 export default function PricingPage() {
   const [, navigate] = useLocation();
   const { isPremium, premiumSubjects } = useSubscription();
+  const { goal } = useAuth();
   const [payPlan, setPayPlan] = useState<Plan | null>(null);
   const [subjectForPlan, setSubjectForPlan] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<{ plan: Plan; uid: string; paymentId: string; subject?: string } | null>(null);
-  
-  // Segment categories into intuitive sub-tabs to avoid micro-clutter
-  const [activeTab, setActiveTab] = useState<"jee" | "neet" | "class10" | "class12">("jee");
+
+  // If user has a goal set, auto-lock to that category; otherwise let them pick
+  const goalCategory = goalToCategory(goal);
+  const [activeTab, setActiveTab] = useState<"jee" | "neet" | "class10" | "class12">(
+    goalCategory ?? "jee"
+  );
+  const [showStreamPicker, setShowStreamPicker] = useState(false);
 
   const filteredPlans = PLANS.filter(plan => plan.category === activeTab);
 
@@ -773,22 +791,55 @@ export default function PricingPage() {
           <p className="text-white/40 text-sm">Choose your package to continue configuration</p>
         </motion.div>
 
-        {/* Dynamic Nav Tabs Bar */}
-        <div className="grid grid-cols-4 gap-1 p-1 mb-6 bg-white/5 border border-white/10 rounded-xl max-w-md mx-auto">
-          {(["jee", "neet", "class10", "class12"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all ${
-                activeTab === tab 
-                  ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" 
-                  : "text-white/40 hover:text-white/70"
-              }`}
-            >
-              {tab === "class10" ? "10th" : tab === "class12" ? "12th" : tab}
-            </button>
-          ))}
-        </div>
+        {/* Stream selector — shows goal badge when goal known, full picker when no goal or user opens picker */}
+        {goalCategory && !showStreamPicker ? (
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+            className="mb-6 max-w-md mx-auto">
+            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+              style={{ background: "rgba(139,92,246,0.10)", border: "1px solid rgba(139,92,246,0.25)" }}>
+              <span className="text-base">🎯</span>
+              <p className="text-white/70 text-sm flex-1">
+                Showing plans for <span className="text-white font-black">{CATEGORY_LABELS[goalCategory]}</span>
+              </p>
+              <button
+                onClick={() => setShowStreamPicker(true)}
+                className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg transition-all"
+                style={{ background: "rgba(139,92,246,0.20)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.35)" }}
+              >
+                Change Stream
+              </button>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mb-6 max-w-md mx-auto">
+            {goalCategory && showStreamPicker && (
+              <div className="flex items-center justify-between mb-2 px-1">
+                <p className="text-white/40 text-xs">Select a stream:</p>
+                <button
+                  onClick={() => { setActiveTab(goalCategory); setShowStreamPicker(false); }}
+                  className="text-white/30 hover:text-white/60 text-xs transition-colors"
+                >
+                  ✕ Cancel
+                </button>
+              </div>
+            )}
+            <div className="grid grid-cols-4 gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+              {(["jee", "neet", "class10", "class12"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => { setActiveTab(tab); setShowStreamPicker(false); }}
+                  className={`py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                    activeTab === tab
+                      ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
+                      : "text-white/40 hover:text-white/70"
+                  }`}
+                >
+                  {tab === "class10" ? "10th" : tab === "class12" ? "12th" : tab}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {isPremium && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}

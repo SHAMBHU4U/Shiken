@@ -5,7 +5,7 @@ import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCTdmjIe8Io-N6whfT-TySuUVYlGhMeTR8",
-  authDomain: "shiken.in",  // "shiken-d8789.firebaseapp.com",
+  authDomain: "shiken-d8789.firebaseapp.com",
   databaseURL: "https://shiken-d8789-default-rtdb.firebaseio.com",
   projectId: "shiken-d8789",
   storageBucket: "shiken-d8789.firebasestorage.app",
