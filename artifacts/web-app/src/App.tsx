@@ -23,6 +23,7 @@ import MockTestPage from "@/pages/MockTestPage";
 import ReferralPage from "@/pages/ReferralPage";
 import ChoosePlanPage from "@/pages/ChoosePlanPage";
 import { AuthProvider, useAuth, type UserGoal } from "@/contexts/AuthContext";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
   getNotificationPermission, requestAndScheduleReminder,
@@ -445,7 +446,7 @@ function AdminGuard() {
 
   if (user === "loading") {
     return (
-      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#07080f" }}>
+      <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
@@ -459,7 +460,7 @@ function AdminGuard() {
   if (user && adminSession) return <AdminPage onSignOut={() => { sessionStorage.removeItem(ADMIN_SESSION); setAdminSession(false); signOut(auth); }} />;
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
@@ -570,7 +571,7 @@ function AdminGuard() {
 
 function SplashLoader() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
       <div className="flex flex-col items-center gap-4">
         <motion.div
           animate={{ rotate: 360 }}
@@ -1061,10 +1062,10 @@ function BottomNav() {
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{
-        background: "rgba(26,27,46,0.97)",
+        background: "var(--app-nav-bg)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
-        borderTop: "1px solid rgba(255,255,255,0.09)",
+        borderTop: "1px solid var(--app-nav-border)",
         boxShadow: "0 -4px 24px rgba(0,0,0,0.45)",
       }}
     >
@@ -1099,7 +1100,7 @@ function BottomNav() {
               </div>
               <span
                 className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
-                style={{ color: active ? "#38bdf8" : "rgba(255,255,255,0.35)" }}
+                style={{ color: active ? "#38bdf8" : "var(--app-nav-text-muted)" }}
               >
                 {tab.label}
               </span>
@@ -1108,6 +1109,68 @@ function BottomNav() {
         })}
       </div>
     </motion.div>
+  );
+}
+
+function ThemeToggle() {
+  const [location] = useLocation();
+  const { theme, toggleTheme } = useTheme();
+  const isQuiz = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/") || location.startsWith("/mock-test/");
+  const isAdmin = location === "/admin";
+  if (isQuiz || isAdmin) return null;
+
+  const isDark = theme === "dark";
+
+  return (
+    <motion.button
+      onClick={toggleTheme}
+      whileTap={{ scale: 0.88 }}
+      whileHover={{ scale: 1.08 }}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full flex items-center justify-center"
+      style={{
+        background: isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.08)",
+        border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.14)"}`,
+        backdropFilter: "blur(12px)",
+        boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.4)" : "0 2px 12px rgba(0,0,0,0.12)",
+      }}
+    >
+      <AnimatePresence mode="wait" initial={false}>
+        {isDark ? (
+          <motion.svg
+            key="sun"
+            initial={{ rotate: -90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            exit={{ rotate: 90, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/>
+            <line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+          </motion.svg>
+        ) : (
+          <motion.svg
+            key="moon"
+            initial={{ rotate: 90, opacity: 0 }}
+            animate={{ rotate: 0, opacity: 1 }}
+            exit={{ rotate: -90, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </motion.svg>
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 }
 
@@ -1123,7 +1186,7 @@ function Dashboard() {
   const activeSubjects = allSubjectPool.filter((s) => goalCfg.subjectIds.includes(s.id));
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div
           className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20"
@@ -1398,6 +1461,7 @@ function SessionKickedModal() {
 function AppRoutes() {
   return (
     <>
+      <ThemeToggle />
       <SessionKickedModal />
       <OfflineBanner />
       <AuthGuard>
@@ -1432,13 +1496,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AppRoutes />
-        </WouterRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AppRoutes />
+          </WouterRouter>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

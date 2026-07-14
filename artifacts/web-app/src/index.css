@@ -4,6 +4,38 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── App-level Theme Variables ─────────────────────────────── */
+html {
+  --app-bg: #07080f;
+  --app-nav-bg: rgba(26,27,46,0.97);
+  --app-nav-text: #ffffff;
+  --app-nav-text-muted: rgba(255,255,255,0.35);
+  --app-nav-border: rgba(255,255,255,0.09);
+  --app-card-bg: rgba(255,255,255,0.05);
+}
+
+html.dark {
+  --app-bg: #07080f;
+  --app-nav-bg: rgba(26,27,46,0.97);
+  --app-nav-text: #ffffff;
+  --app-nav-text-muted: rgba(255,255,255,0.35);
+  --app-nav-border: rgba(255,255,255,0.09);
+  --app-card-bg: rgba(255,255,255,0.05);
+}
+
+html:not(.dark) {
+  --app-bg: #e8f4fd;
+  --app-nav-bg: rgba(232,244,253,0.97);
+  --app-nav-text: #0f172a;
+  --app-nav-text-muted: rgba(15,23,42,0.50);
+  --app-nav-border: rgba(15,23,42,0.09);
+  --app-card-bg: rgba(255,255,255,0.65);
+}
+
+body {
+  transition: background-color 0.3s ease;
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
