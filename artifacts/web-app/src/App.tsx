@@ -1176,6 +1176,66 @@ function ThemeToggle() {
   );
 }
 
+// ─── Daily Quote ──────────────────────────────────────────────────────────────
+const DAILY_QUOTES = [
+  { hi: "मेहनत वो जादू है जो किस्मत बदल देती है।", en: "Hard work is the magic that changes destiny.", emoji: "✨", accent: "#a78bfa", grad: "linear-gradient(135deg,rgba(124,58,237,0.18),rgba(79,70,229,0.10))", border: "#7c3aed" },
+  { hi: "एक दिन की मेहनत, एक कदम आगे।", en: "One day's effort, one step ahead.", emoji: "🚶", accent: "#34d399", grad: "linear-gradient(135deg,rgba(16,185,129,0.15),rgba(6,182,212,0.08))", border: "#10b981" },
+  { hi: "सपना देखो, सोचो नहीं — बस कर दो!", en: "Dream it. Think less. Just do it!", emoji: "🚀", accent: "#38bdf8", grad: "linear-gradient(135deg,rgba(56,189,248,0.18),rgba(99,102,241,0.10))", border: "#0ea5e9" },
+  { hi: "हर सवाल का जवाब तुम्हारे अंदर है।", en: "Every answer lies within you.", emoji: "🧠", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.15),rgba(167,139,250,0.10))", border: "#ec4899" },
+  { hi: "कल का इंतजार मत करो — आज से शुरुआत करो।", en: "Don't wait for tomorrow — start today.", emoji: "⚡", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(245,158,11,0.10))", border: "#f59e0b" },
+  { hi: "जो पढ़ता है, वो बढ़ता है।", en: "Those who read, grow.", emoji: "📚", accent: "#22d3ee", grad: "linear-gradient(135deg,rgba(34,211,238,0.15),rgba(16,185,129,0.08))", border: "#06b6d4" },
+  { hi: "हार वहाँ होती है जहाँ कोशिश रुक जाती है।", en: "Failure only happens when effort stops.", emoji: "💪", accent: "#fb923c", grad: "linear-gradient(135deg,rgba(251,146,60,0.18),rgba(239,68,68,0.08))", border: "#f97316" },
+  { hi: "छोटे-छोटे कदम भी मंज़िल तक पहुँचाते हैं।", en: "Small steps still reach the destination.", emoji: "🎯", accent: "#a78bfa", grad: "linear-gradient(135deg,rgba(139,92,246,0.18),rgba(59,130,246,0.10))", border: "#8b5cf6" },
+  { hi: "आज का Revision कल की Rank है।", en: "Today's revision is tomorrow's rank.", emoji: "🏆", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.20),rgba(234,179,8,0.10))", border: "#eab308" },
+  { hi: "उठो, जागो और तब तक मत रुको जब तक लक्ष्य न मिले।", en: "Arise, awake, and stop not till the goal is reached.", emoji: "🌅", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.18),rgba(251,113,133,0.10))", border: "#ec4899", from: "— Swami Vivekananda" },
+  { hi: "नींद से ज़्यादा ज़रूरी है तुम्हारा सपना।", en: "Your dream is more important than your sleep.", emoji: "🌙", accent: "#818cf8", grad: "linear-gradient(135deg,rgba(129,140,248,0.18),rgba(167,139,250,0.10))", border: "#6366f1" },
+  { hi: "किताब वो दोस्त है जो कभी धोखा नहीं देती।", en: "A book is the friend that never betrays you.", emoji: "📖", accent: "#34d399", grad: "linear-gradient(135deg,rgba(52,211,153,0.15),rgba(16,185,129,0.08))", border: "#10b981" },
+  { hi: "हौसला रखो — मंज़िल पास है।", en: "Keep courage — the destination is near.", emoji: "🦋", accent: "#38bdf8", grad: "linear-gradient(135deg,rgba(56,189,248,0.15),rgba(34,211,238,0.08))", border: "#0ea5e9" },
+  { hi: "सफलता उन्हें मिलती है जो रुकते नहीं।", en: "Success comes to those who don't stop.", emoji: "🔥", accent: "#fb923c", grad: "linear-gradient(135deg,rgba(251,146,60,0.20),rgba(239,68,68,0.10))", border: "#f97316" },
+  { hi: "अपने आप पर भरोसा रखो — तुम कर सकते हो।", en: "Believe in yourself — you can do it.", emoji: "💡", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(252,211,77,0.10))", border: "#f59e0b" },
+  { hi: "पढ़ाई में लगन ही असली पूजा है।", en: "Dedication in study is the truest devotion.", emoji: "🌺", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.15),rgba(251,113,133,0.08))", border: "#db2777" },
+  { hi: "रोज़ थोड़ा-थोड़ा — एक दिन बहुत बड़ा।", en: "A little every day — enormous one day.", emoji: "📈", accent: "#22d3ee", grad: "linear-gradient(135deg,rgba(34,211,238,0.15),rgba(99,102,241,0.08))", border: "#06b6d4" },
+  { hi: "सवाल गलत हो तो डरो मत — सीखो।", en: "If the answer is wrong, don't fear — learn.", emoji: "🛠️", accent: "#a78bfa", grad: "linear-gradient(135deg,rgba(139,92,246,0.18),rgba(124,58,237,0.10))", border: "#7c3aed" },
+  { hi: "जितना पढ़ोगे, उतना राज खुलेंगे।", en: "The more you read, the more secrets unlock.", emoji: "🔓", accent: "#34d399", grad: "linear-gradient(135deg,rgba(16,185,129,0.18),rgba(52,211,153,0.10))", border: "#059669" },
+  { hi: "परीक्षा डराती नहीं, तैयारी करती है निडर।", en: "Exams don't scare — preparation makes fearless.", emoji: "🎓", accent: "#818cf8", grad: "linear-gradient(135deg,rgba(129,140,248,0.18),rgba(99,102,241,0.10))", border: "#4f46e5" },
+  { hi: "खुद को कम मत आँको — तुम्हारी क्षमता असीम है।", en: "Don't underestimate yourself — your potential is infinite.", emoji: "🌟", accent: "#fbbf24", grad: "linear-gradient(135deg,rgba(251,191,36,0.20),rgba(253,224,71,0.10))", border: "#ca8a04" },
+  { hi: "डॉ. कलाम ने कहा था — सपने वो नहीं जो नींद में आएं, सपने वो हैं जो सोने न दें।", en: "\"Dreams are not what you see in sleep; dreams are things which don't let you sleep.\"", emoji: "🇮🇳", accent: "#fb923c", grad: "linear-gradient(135deg,rgba(251,146,60,0.18),rgba(234,179,8,0.08))", border: "#f97316", from: "— Dr. A.P.J. Abdul Kalam" },
+  { hi: "आज का focus कल की success है।", en: "Today's focus is tomorrow's success.", emoji: "🎯", accent: "#38bdf8", grad: "linear-gradient(135deg,rgba(56,189,248,0.18),rgba(6,182,212,0.10))", border: "#0284c7" },
+  { hi: "मुश्किलें बताती हैं तुम कितने मज़बूत हो।", en: "Hardships reveal how strong you truly are.", emoji: "⚔️", accent: "#f472b6", grad: "linear-gradient(135deg,rgba(244,114,182,0.15),rgba(167,139,250,0.10))", border: "#be185d" },
+  { hi: "जो आज पसीना बहाएगा, कल इतिहास बनाएगा।", en: "Those who sweat today will make history tomorrow.", emoji: "🏅", accent: "#34d399", grad: "linear-gradient(135deg,rgba(52,211,153,0.20),rgba(16,185,129,0.10))", border: "#047857" },
+];
+
+function DailyQuote() {
+  const dayIndex = Math.floor(Date.now() / 86400000) % DAILY_QUOTES.length;
+  const q = DAILY_QUOTES[dayIndex];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay: 0.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+      className="mb-5 rounded-2xl px-4 py-3.5 relative overflow-hidden"
+      style={{ background: q.grad, borderLeft: `3px solid ${q.border}`, border: `1px solid ${q.border}33` }}
+    >
+      <div className="flex items-start gap-3">
+        <span className="text-2xl mt-0.5 shrink-0 select-none">{q.emoji}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-bold leading-snug mb-1" style={{ color: q.accent }}>
+            {q.hi}
+          </p>
+          <p className="text-white/45 text-[11px] leading-snug italic">
+            {q.en}
+          </p>
+          {q.from && (
+            <p className="text-[10px] mt-1 font-semibold" style={{ color: `${q.accent}99` }}>
+              {q.from}
+            </p>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function Dashboard() {
   const [, navigate] = useLocation();
   const { goal, clearGoal } = useAuth();
@@ -1304,6 +1364,7 @@ function Dashboard() {
         </motion.div>
 
         <AnnouncementBanner />
+        <DailyQuote />
         <StreakReminderBanner onPractice={() => {
           document.getElementById("subject-cards")?.scrollIntoView({ behavior: "smooth" });
         }} />
