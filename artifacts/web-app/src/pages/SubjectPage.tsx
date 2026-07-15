@@ -3478,7 +3478,7 @@ export default function SubjectPage() {
                         className="relative w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 overflow-hidden transition-colors duration-200"
                         style={{
                           background:   isSelected ? `linear-gradient(135deg, ${magicColor}28, ${magicColor}10)` : "var(--app-surface)",
-                          borderColor:  isSelected ? `${magicColor}60` : "rgba(0,0,0,0.08)",
+                          borderColor:  isSelected ? `${magicColor}60` : "var(--app-border-soft)",
                           cursor:       selectedOption !== null ? "default" : "pointer",
                           boxShadow:    isSelected ? `0 0 20px ${magicColor}25` : "none",
                         }}
@@ -3490,7 +3490,7 @@ export default function SubjectPage() {
                             style={{ background: `radial-gradient(ellipse at 50% 50%, ${magicColor}18, transparent 70%)` }} />
                         )}
                         <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                          style={{ background: isSelected ? `${magicColor}40` : "rgba(0,0,0,0.08)", color: isSelected ? magicColor : "rgba(255,255,255,0.32)" }}>
+                          style={{ background: isSelected ? `${magicColor}40` : "var(--app-surface)", color: isSelected ? magicColor : "var(--app-text-ghost)" }}>
                           {String.fromCharCode(65 + oi)}
                         </span>
                         <span className="flex flex-col gap-0.5 min-w-0">

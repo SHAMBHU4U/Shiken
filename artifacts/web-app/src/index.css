@@ -49,13 +49,13 @@ html:not(.dark) {
   --app-text:            #000000;
   --app-text-muted:      rgba(0,0,0,0.70);
   --app-text-faint:      rgba(0,0,0,0.50);
-  --app-text-ghost:      rgba(0,0,0,0.32);
-  --app-surface:         rgba(0,0,0,0.06);
-  --app-surface-2:       rgba(0,0,0,0.09);
+  --app-text-ghost:      rgba(0,0,0,0.35);
+  --app-surface:         rgba(255,255,255,0.72);
+  --app-surface-2:       rgba(255,255,255,0.88);
   --app-border:          rgba(0,0,0,0.13);
   --app-border-soft:     rgba(0,0,0,0.08);
   --app-selected:        #0284c7;
-  --app-nav-bg:          rgba(235,243,252,0.97);
+  --app-nav-bg:          rgba(255,255,255,0.92);
   --app-nav-text:        #000000;
   --app-nav-text-muted:  rgba(0,0,0,0.50);
   --app-nav-border:      rgba(0,0,0,0.09);
@@ -68,28 +68,47 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* ── Light mode: override all text-white Tailwind classes ────── */
-html:not(.dark) .text-white          { color: #000000; }
-html:not(.dark) .text-white\/5       { color: rgba(0,0,0,0.08); }
-html:not(.dark) .text-white\/10      { color: rgba(0,0,0,0.14); }
-html:not(.dark) .text-white\/15      { color: rgba(0,0,0,0.18); }
-html:not(.dark) .text-white\/20      { color: rgba(0,0,0,0.26); }
-html:not(.dark) .text-white\/25      { color: rgba(0,0,0,0.30); }
-html:not(.dark) .text-white\/30      { color: rgba(0,0,0,0.36); }
-html:not(.dark) .text-white\/35      { color: rgba(0,0,0,0.42); }
-html:not(.dark) .text-white\/40      { color: rgba(0,0,0,0.52); }
-html:not(.dark) .text-white\/45      { color: rgba(0,0,0,0.56); }
-html:not(.dark) .text-white\/50      { color: rgba(0,0,0,0.62); }
-html:not(.dark) .text-white\/55      { color: rgba(0,0,0,0.66); }
-html:not(.dark) .text-white\/60      { color: rgba(0,0,0,0.72); }
-html:not(.dark) .text-white\/70      { color: rgba(0,0,0,0.80); }
-html:not(.dark) .text-white\/75      { color: rgba(0,0,0,0.84); }
-html:not(.dark) .text-white\/80      { color: rgba(0,0,0,0.87); }
-html:not(.dark) .text-white\/90      { color: rgba(0,0,0,0.92); }
+/* ── Light mode: override all text-white Tailwind classes (with !important to win specificity wars) ──── */
+html:not(.dark) .text-white,
+html:not(.dark) [class*="text-white"]          { color: #000000 !important; }
+html:not(.dark) .text-white\/5,
+html:not(.dark) [class*="text-white\\/5"]       { color: rgba(0,0,0,0.12) !important; }
+html:not(.dark) .text-white\/10,
+html:not(.dark) [class*="text-white\\/10"]      { color: rgba(0,0,0,0.20) !important; }
+html:not(.dark) .text-white\/15,
+html:not(.dark) [class*="text-white\\/15"]      { color: rgba(0,0,0,0.26) !important; }
+html:not(.dark) .text-white\/20,
+html:not(.dark) [class*="text-white\\/20"]      { color: rgba(0,0,0,0.32) !important; }
+html:not(.dark) .text-white\/25,
+html:not(.dark) [class*="text-white\\/25"]      { color: rgba(0,0,0,0.38) !important; }
+html:not(.dark) .text-white\/30,
+html:not(.dark) [class*="text-white\\/30"]      { color: rgba(0,0,0,0.44) !important; }
+html:not(.dark) .text-white\/35,
+html:not(.dark) [class*="text-white\\/35"]      { color: rgba(0,0,0,0.50) !important; }
+html:not(.dark) .text-white\/40,
+html:not(.dark) [class*="text-white\\/40"]      { color: rgba(0,0,0,0.58) !important; }
+html:not(.dark) .text-white\/45,
+html:not(.dark) [class*="text-white\\/45"]      { color: rgba(0,0,0,0.62) !important; }
+html:not(.dark) .text-white\/50,
+html:not(.dark) [class*="text-white\\/50"]      { color: rgba(0,0,0,0.68) !important; }
+html:not(.dark) .text-white\/55,
+html:not(.dark) [class*="text-white\\/55"]      { color: rgba(0,0,0,0.72) !important; }
+html:not(.dark) .text-white\/60,
+html:not(.dark) [class*="text-white\\/60"]      { color: rgba(0,0,0,0.78) !important; }
+html:not(.dark) .text-white\/70,
+html:not(.dark) [class*="text-white\\/70"]      { color: rgba(0,0,0,0.84) !important; }
+html:not(.dark) .text-white\/75,
+html:not(.dark) [class*="text-white\\/75"]      { color: rgba(0,0,0,0.88) !important; }
+html:not(.dark) .text-white\/80,
+html:not(.dark) [class*="text-white\\/80"]      { color: rgba(0,0,0,0.90) !important; }
+html:not(.dark) .text-white\/90,
+html:not(.dark) [class*="text-white\\/90"]      { color: rgba(0,0,0,0.94) !important; }
 
 /* ── Light mode: placeholder override ───────────────────────── */
-html:not(.dark) .placeholder-white\/30::placeholder { color: rgba(0,0,0,0.35); }
-html:not(.dark) .placeholder-white\/40::placeholder { color: rgba(0,0,0,0.42); }
+html:not(.dark) .placeholder-white\/30::placeholder,
+html:not(.dark) [class*="placeholder-white\\/30"]::placeholder { color: rgba(0,0,0,0.35) !important; }
+html:not(.dark) .placeholder-white\/40::placeholder,
+html:not(.dark) [class*="placeholder-white\\/40"]::placeholder { color: rgba(0,0,0,0.42) !important; }
 
 /* ── Light mode: surface / border background classes ──────────── */
 html:not(.dark) .bg-white\/5  { background-color: rgba(0,0,0,0.05); }

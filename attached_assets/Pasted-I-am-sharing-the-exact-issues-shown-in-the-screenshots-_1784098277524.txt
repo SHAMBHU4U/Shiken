@@ -1,0 +1,24 @@
+I am sharing the exact issues shown in the screenshots after applying the light theme. The background has changed to pale blue, but the text, formulas (MathText), option cards, and buttons are still rendering as white/light gray, making them completely invisible. 
+
+Please fix these specific issues immediately across all components (Home Page, Quiz Page, etc.):
+
+1. Fix the Global Theme Toggle Class:
+- Locate the Theme Toggle button/context. Ensure that when Light Mode is active, the class 'dark' is REMOVED from the root element (document.documentElement.classList). When Dark Mode is active, the 'dark' class must be ADDED to the root element.
+- If Tailwind is configured for 'class' darkmode, this is the ONLY way dark: classes will trigger. Please fix this transition first.
+
+2. Fix Question Text & MathText (KaTeX) Color:
+- In the Quiz screen, the main question, translation text, and formulas within <MathText /> must adapt to the theme.
+- In Light Mode: Set text to fully black (#000000). Ensure KaTeX formulas inherit the parent color (currentColor) so they turn black in light mode and white in dark chocolate mode.
+
+3. Fix Option Cards Contrast (A, B, C, D):
+- Unselected option cards must have:
+  * Light Mode: A very light gray/blue background (e.g., bg-[#EBF3FC] or bg-white/60), a subtle dark border (border-black/10), and fully black text (text-black).
+  * Dark Mode: Dark chocolate transparent background (bg-white/5), white border (border-white/10), and white text (text-white).
+- Selected/Active option cards must have a clear sky-blue border in light mode, and a caramel/gold border in dark mode.
+
+4. Fix Bottom Navigation Bar & Buttons (Skip, Next, Language):
+- The 'Skip' and 'Next' buttons must be clearly visible. 
+- In Light Mode, style them with a clean slate/dark blue text on a light gray background. Do not let them stay white-on-white.
+- Ensure the question counter (e.g., '1/10') and language tabs have solid contrast in both themes.
+
+Please inspect the styles, Tailwind classes, and the root theme wrapper to apply these changes. Make sure no functional quiz logic or state is modified.
