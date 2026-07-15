@@ -651,7 +651,7 @@ function ChoosePlanOverlay({ goal, onClose }: { goal: "jee" | "neet" | "c10" | "
           {list.map((plan, i) => (
             <motion.div key={plan.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
               className="rounded-2xl p-4"
-              style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${plan.accent}25` }}>
+              style={{ background: "var(--app-surface)", border: `1px solid ${plan.accent}25` }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{plan.emoji}</span>
@@ -676,7 +676,7 @@ function ChoosePlanOverlay({ goal, onClose }: { goal: "jee" | "neet" | "c10" | "
         </div>
         <motion.button whileTap={{ scale: 0.97 }} onClick={onClose}
           className="w-full py-3 rounded-xl font-bold text-xs text-white/50"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.08)" }}>
           ← Back to Free Mode
         </motion.button>
       </div>
@@ -737,7 +737,7 @@ function ProgressChart({ records, accent }: { records: TestRecord[]; accent: str
         const y = PY + (1 - pct / 100) * iH;
         return (
           <line key={pct} x1={PX} y1={y} x2={W - PX} y2={y}
-            stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3" />
+            stroke="var(--app-surface)" strokeWidth="1" strokeDasharray="3 3" />
         );
       })}
       <path d={fillPath} fill={`url(#${gradId})`} />
@@ -1121,8 +1121,8 @@ function ChapterSelect({
             placeholder="Search chapter… e.g. कारक or karak"
             className="w-full rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-white/30 outline-none"
             style={{
-              background: "rgba(255,255,255,0.06)",
-              border: `1px solid ${chapterQuery ? meta.accent + "60" : "rgba(255,255,255,0.10)"}`,
+              background: "var(--app-surface)",
+              border: `1px solid ${chapterQuery ? meta.accent + "60" : "var(--app-border)"}`,
               caretColor: meta.accent,
             }}
           />
@@ -1184,7 +1184,7 @@ function ChapterSelect({
                 onClick={() => isLocked ? onUpgrade?.() : onSelect(ch.name)}
                 className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
                 style={{
-                  background: isTopper ? "rgba(245,158,11,0.06)" : isLocked ? "rgba(251,191,36,0.05)" : "rgba(255,255,255,0.05)",
+                  background: isTopper ? "rgba(245,158,11,0.06)" : isLocked ? "rgba(251,191,36,0.05)" : "var(--app-surface)",
                   borderColor: isTopper ? "rgba(245,158,11,0.25)" : isLocked ? "rgba(251,191,36,0.2)" : "rgba(0,0,0,0.08)",
                 }}
               >
@@ -1527,7 +1527,7 @@ function ResultScreen({
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
             className="rounded-2xl border p-4 mb-4"
-            style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.06)" }}
+            style={{ background: "var(--app-surface)", borderColor: "var(--app-surface)" }}
           >
             <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">📊 Progress Snapshot</p>
             <div className="grid grid-cols-3 gap-2 mb-3">
@@ -1540,7 +1540,7 @@ function ResultScreen({
                 },
                 { label: "Best", value: `${Math.max(...history.map(r => r.pct))}%`, color: "#10b981" },
               ].map((s) => (
-                <div key={s.label} className="text-center rounded-xl p-2.5" style={{ background: "rgba(255,255,255,0.05)" }}>
+                <div key={s.label} className="text-center rounded-xl p-2.5" style={{ background: "var(--app-surface)" }}>
                   <p className="font-black text-base" style={{ color: s.color }}>{s.value}</p>
                   <p className="text-white/25 text-xs mt-0.5">{s.label}</p>
                 </div>
@@ -1552,7 +1552,7 @@ function ResultScreen({
                 <div className="flex items-center justify-center gap-1.5 pt-3"
                   style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                   <span className="text-sm">{trend > 0 ? "📈" : trend < 0 ? "📉" : "➡️"}</span>
-                  <span className="text-xs font-bold" style={{ color: trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "rgba(255,255,255,0.28)" }}>
+                  <span className="text-xs font-bold" style={{ color: trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "var(--app-text-ghost)" }}>
                     {trend > 0 ? `+${trend}%` : trend === 0 ? "Same as last test" : `${trend}%`}
                     <span className="font-normal text-white/30"> vs last test</span>
                   </span>
@@ -1662,7 +1662,7 @@ function ResultScreen({
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
             onClick={onHome}
             className="flex-1 py-3 rounded-xl text-sm font-bold border"
-            style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.58)" }}
+            style={{ background: "var(--app-surface)", borderColor: "var(--app-border)", color: "var(--app-text-muted)" }}
           >
             ← Dashboard
           </motion.button>
@@ -1740,14 +1740,14 @@ function ResultScreen({
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.04 }}
                 className="rounded-xl border p-4"
                 style={{
-                  background: isRight ? `${accent}12` : isSkipped ? "rgba(255,255,255,0.05)" : "rgba(255,80,80,0.06)",
-                  borderColor: isRight ? `${accent}40` : isSkipped ? "rgba(255,255,255,0.06)" : "rgba(255,80,80,0.18)",
+                  background: isRight ? `${accent}12` : isSkipped ? "var(--app-surface)" : "rgba(255,80,80,0.06)",
+                  borderColor: isRight ? `${accent}40` : isSkipped ? "var(--app-surface)" : "rgba(255,80,80,0.18)",
                 }}
               >
                 <div className="flex items-start gap-2 mb-2">
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full mt-0.5 shrink-0"
                     style={{
-                      background: isRight ? `${accent}30` : isSkipped ? "rgba(255,255,255,0.10)" : "rgba(255,80,80,0.2)",
+                      background: isRight ? `${accent}30` : isSkipped ? "var(--app-border)" : "rgba(255,80,80,0.2)",
                       color: isRight ? accent : isSkipped ? "rgba(255,255,255,0.32)" : "#f87171",
                     }}>
                     {isRight ? "✓" : isSkipped ? "–" : "✗"}
@@ -1784,7 +1784,7 @@ function ResultScreen({
                     whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
                     className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0 ml-1"
                     style={{
-                      background: isBookmarked(bmks, q) ? "rgba(251,191,36,0.18)" : "rgba(255,255,255,0.06)",
+                      background: isBookmarked(bmks, q) ? "rgba(251,191,36,0.18)" : "var(--app-surface)",
                       border: isBookmarked(bmks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(255,255,255,0.10)",
                     }}
                     title={isBookmarked(bmks, q) ? "Remove bookmark" : "Bookmark"}
@@ -2781,7 +2781,7 @@ export default function SubjectPage() {
             whileTap={{ scale: 0.96 }}
             onClick={() => { setDailyMiniCooldown(null); setScreen("mode-select"); }}
             className="px-6 py-3 rounded-xl text-sm font-bold border"
-            style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.6)" }}
+            style={{ background: "var(--app-surface)", borderColor: "var(--app-border)", color: "rgba(255,255,255,0.6)" }}
           >
             ← Back
           </motion.button>
@@ -2839,7 +2839,7 @@ export default function SubjectPage() {
             <motion.button whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }}
               onClick={() => setScreen("mode-select")}
               className="w-9 h-9 rounded-xl flex items-center justify-center border text-sm"
-              style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.50)" }}>
+              style={{ background: "var(--app-surface)", borderColor: "var(--app-border)", color: "var(--app-text-muted)" }}>
               ←
             </motion.button>
             <div>
@@ -3109,9 +3109,9 @@ export default function SubjectPage() {
   const timerSS  = String(Math.max(0, timerLeft) % 60).padStart(2, "0");
   const timerDanger  = timerLeft >= 0 && timerLeft <= 60;
   const timerWarning = timerLeft >= 0 && timerLeft <= 300 && !timerDanger;
-  const timerColor   = timerDanger ? "#ef4444" : timerWarning ? "#f59e0b" : "rgba(255,255,255,0.68)";
-  const timerBg      = timerDanger ? "rgba(239,68,68,0.15)"  : timerWarning ? "rgba(245,158,11,0.14)" : "rgba(255,255,255,0.06)";
-  const timerBorder  = timerDanger ? "#ef444445"             : timerWarning ? "#f59e0b45"             : "rgba(255,255,255,0.10)";
+  const timerColor   = timerDanger ? "#ef4444" : timerWarning ? "#f59e0b" : "var(--app-text-muted)";
+  const timerBg      = timerDanger ? "rgba(239,68,68,0.15)"  : timerWarning ? "rgba(245,158,11,0.14)" : "var(--app-surface)";
+  const timerBorder  = timerDanger ? "#ef444445"             : timerWarning ? "#f59e0b45"             : "var(--app-border)";
   const timerGlow    = timerDanger ? "0 0 22px rgba(239,68,68,0.35)" : timerWarning ? "0 0 18px rgba(245,158,11,0.25)" : "none";
 
   return (
@@ -3195,7 +3195,7 @@ export default function SubjectPage() {
               transition={{ duration: 0.38, ease: [0.23, 1, 0.32, 1] }}
               className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t border-x overflow-hidden"
               style={{
-                background: "linear-gradient(180deg, #0f1118 0%, #09090f 100%)",
+                background: "var(--app-bg)",
                 borderColor: `${meta.accent}25`,
                 boxShadow: `0 -8px 60px ${meta.accent}18`,
                 maxHeight: "72vh",
@@ -3218,7 +3218,7 @@ export default function SubjectPage() {
                   onClick={() => setPaletteOpen(false)}
                   whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}
                   className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                  style={{ background: "rgba(0,0,0,0.08)", color: "rgba(255,255,255,0.40)" }}
+                  style={{ background: "rgba(0,0,0,0.08)", color: "var(--app-text-faint)" }}
                 >
                   ✕
                 </motion.button>
@@ -3229,7 +3229,7 @@ export default function SubjectPage() {
                 {[
                   { label: "Current",    bg: meta.accent,           border: meta.accent },
                   { label: "Answered",   bg: `${meta.accent}40`,    border: `${meta.accent}60` },
-                  { label: "Unanswered", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.10)" },
+                  { label: "Unanswered", bg: "var(--app-surface)", border: "var(--app-border)" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-1.5">
                     <div className="w-4 h-4 rounded-md border" style={{ background: item.bg, borderColor: item.border }} />
@@ -3249,13 +3249,13 @@ export default function SubjectPage() {
                     const isAnswered = idx in answers;
                     const bg     = isCurrent  ? meta.accent
                                  : isAnswered ? `${meta.accent}38`
-                                 : "rgba(255,255,255,0.06)";
+                                 : "var(--app-surface)";
                     const border = isCurrent  ? meta.accent
                                  : isAnswered ? `${meta.accent}55`
-                                 : "rgba(255,255,255,0.10)";
+                                 : "var(--app-border)";
                     const color  = isCurrent  ? "#000"
                                  : isAnswered ? meta.accent
-                                 : "rgba(255,255,255,0.32)";
+                                 : "var(--app-text-ghost)";
                     const glow   = isCurrent  ? `0 0 14px ${meta.accent}70` : "none";
 
                     return (
@@ -3288,8 +3288,8 @@ export default function SubjectPage() {
               whileTap={{ scale: 0.97 }}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border w-full transition-all"
               style={{
-                background:   showPassageInQuiz ? `${meta.accent}18` : "rgba(255,255,255,0.05)",
-                borderColor:  showPassageInQuiz ? `${meta.accent}45` : "rgba(255,255,255,0.10)",
+                background:   showPassageInQuiz ? `${meta.accent}18` : "var(--app-surface)",
+                borderColor:  showPassageInQuiz ? `${meta.accent}45` : "var(--app-border)",
                 color:        showPassageInQuiz ? meta.accent : "rgba(255,255,255,0.32)",
               }}
             >
@@ -3437,8 +3437,8 @@ export default function SubjectPage() {
                     whileTap={{ scale: 0.93 }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
                     style={{
-                      background: langMode !== "both" ? `${meta.accent}22` : "rgba(255,255,255,0.05)",
-                      borderColor: langMode !== "both" ? `${meta.accent}55` : "rgba(255,255,255,0.10)",
+                      background: langMode !== "both" ? `${meta.accent}22` : "var(--app-surface)",
+                      borderColor: langMode !== "both" ? `${meta.accent}55` : "var(--app-border)",
                       color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.35)",
                     }}
                     title="Toggle language: Both / English / Hindi"
@@ -3477,7 +3477,7 @@ export default function SubjectPage() {
                         whileTap={selectedOption === null ? { scale: 0.98 } : {}}
                         className="relative w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 overflow-hidden transition-colors duration-200"
                         style={{
-                          background:   isSelected ? `linear-gradient(135deg, ${magicColor}28, ${magicColor}10)` : "rgba(255,255,255,0.05)",
+                          background:   isSelected ? `linear-gradient(135deg, ${magicColor}28, ${magicColor}10)` : "var(--app-surface)",
                           borderColor:  isSelected ? `${magicColor}60` : "rgba(0,0,0,0.08)",
                           cursor:       selectedOption !== null ? "default" : "pointer",
                           boxShadow:    isSelected ? `0 0 20px ${magicColor}25` : "none",
@@ -3497,25 +3497,25 @@ export default function SubjectPage() {
                           {langMode === "hi" ? (
                             <>
                               {isTranslating && !optHindi ? (
-                                <span className="block h-4 rounded w-4/5 animate-pulse" style={{ background: "rgba(255,255,255,0.10)" }} />
+                                <span className="block h-4 rounded w-4/5 animate-pulse" style={{ background: "var(--app-border)" }} />
                               ) : (
-                                <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.85)" }}>
+                                <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "var(--app-text)" }}>
                                   <MathText text={displayOpt} />
                                 </span>
                               )}
                               {optHindi && !isTranslating && (
-                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.28)" }}>
+                                <span className="text-xs leading-snug" style={{ color: isSelected ? "var(--app-text-faint)" : "var(--app-text-ghost)" }}>
                                   <MathText text={opt} />
                                 </span>
                               )}
                             </>
                           ) : (
                             <>
-                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "rgba(255,255,255,0.85)" }}>
+                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "var(--app-text)" }}>
                                 <MathText text={opt} />
                               </span>
                               {optHindi && (
-                                <span className="text-xs leading-snug" style={{ color: isSelected ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.28)" }}>
+                                <span className="text-xs leading-snug" style={{ color: isSelected ? "var(--app-text-faint)" : "var(--app-text-ghost)" }}>
                                   <MathText text={optHindi} />
                                 </span>
                               )}
@@ -3538,9 +3538,9 @@ export default function SubjectPage() {
               onClick={handlePrev} disabled={currentIndex === 0}
               className="w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 text-base"
               style={{
-                background: "rgba(255,255,255,0.05)",
+                background: "var(--app-surface)",
                 borderColor: "rgba(0,0,0,0.08)",
-                color: currentIndex === 0 ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.45)",
+                color: currentIndex === 0 ? "var(--app-border)" : "rgba(255,255,255,0.45)",
                 cursor: currentIndex === 0 ? "not-allowed" : "pointer",
               }}>
               ←
@@ -3552,7 +3552,7 @@ export default function SubjectPage() {
                 whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={handleNext}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold border"
-                style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(0,0,0,0.08)", color: "rgba(255,255,255,0.35)" }}>
+                style={{ background: "var(--app-surface)", borderColor: "rgba(0,0,0,0.08)", color: "var(--app-text-faint)" }}>
                 Skip ↷
               </motion.button>
             )}
@@ -3566,10 +3566,10 @@ export default function SubjectPage() {
               style={{
                 background: (selectedOption !== null || currentIndex === questions.length - 1)
                   ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)`
-                  : "rgba(255,255,255,0.06)",
+                  : "var(--app-surface)",
                 color: (selectedOption !== null || currentIndex === questions.length - 1)
                   ? "#fff"
-                  : "rgba(255,255,255,0.18)",
+                  : "var(--app-text-ghost)",
                 boxShadow: (selectedOption !== null || currentIndex === questions.length - 1)
                   ? `0 4px 20px ${meta.accent}40`
                   : "none",
@@ -3609,26 +3609,26 @@ export default function SubjectPage() {
               borderRadius: 18,
               padding: "12px 16px",
               pointerEvents: "auto",
-              background: "rgba(12,12,20,0.88)",
+              background: "var(--app-nav-bg)",
               backdropFilter: "blur(24px)",
               WebkitBackdropFilter: "blur(24px)",
               border: `1px solid ${meta.accent}28`,
-              boxShadow: `0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05), 0 4px 24px ${meta.accent}1a`,
+              boxShadow: `0 8px 40px rgba(0,0,0,0.4), 0 4px 24px ${meta.accent}1a`,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <button
                 onClick={() => setScreen("mode-select")}
-                style={{ color: "rgba(255,255,255,0.32)", fontSize: 18, padding: 4, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.62)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255,255,255,0.32)")}
+                style={{ color: "var(--app-text-ghost)", fontSize: 18, padding: 4, lineHeight: 1, flexShrink: 0, background: "none", border: "none", cursor: "pointer" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--app-text-muted)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--app-text-ghost)")}
               >
                 ←
               </button>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                   <SubjectIcon id={subject} color={meta.accent} size="sm" />
-                  <span style={{ color: "#fff", fontWeight: 700, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
+                  <span style={{ color: "var(--app-text)", fontWeight: 700, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{meta.label}</span>
                   <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: `${meta.accent}20`, color: meta.accent, flexShrink: 0 }}>
                     {mode === "full" ? "Full Test" : selectedChapter}
                   </span>
@@ -3636,7 +3636,7 @@ export default function SubjectPage() {
                     <motion.button
                       onClick={cycleLang}
                       whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: langMode !== "both" ? `${meta.accent}28` : "rgba(255,255,255,0.06)", color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.35)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: langMode !== "both" ? `${meta.accent}28` : "var(--app-surface)", color: langMode !== "both" ? meta.accent : "var(--app-text-faint)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                       title="Toggle language"
                     >
                       🌐 {langLabel}

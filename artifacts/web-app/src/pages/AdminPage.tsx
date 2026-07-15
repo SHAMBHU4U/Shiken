@@ -117,7 +117,7 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
       className="rounded-xl border border-white/10 overflow-hidden"
-      style={{ background: "rgba(255,255,255,0.05)" }}
+      style={{ background: "var(--app-surface)" }}
     >
       {/* User header row */}
       <div
@@ -171,7 +171,7 @@ function UserCard({ user, index }: { user: UserRecord; index: number }) {
             style={
               subscription === "premium"
                 ? { background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.35)" }
-                : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.28)", border: "1px solid rgba(255,255,255,0.10)" }
+                : { background: "var(--app-surface)", color: "var(--app-text-ghost)", border: "1px solid rgba(255,255,255,0.10)" }
             }
           >
             {toggling ? "…" : subscription === "loading" ? "·" : subscription === "premium" ? "Premium" : "Free"}
@@ -544,7 +544,7 @@ function RatingsPanel() {
             {withFeedback.map(({ id, data }) => (
               <motion.div key={id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className="rounded-xl px-4 py-3"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
+                style={{ background: "var(--app-surface)", border: "1px solid rgba(0,0,0,0.08)" }}>
                 <div className="flex items-center gap-2 mb-1.5">
                   <div className="flex gap-0.5">
                     {[1,2,3,4,5].map((s) => (
@@ -572,10 +572,10 @@ function RatingsPanel() {
           <motion.div key={id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.03 }}
             className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex gap-0.5 shrink-0">
               {[1,2,3,4,5].map((s) => (
-                <span key={s} className="text-xs" style={{ color: s <= data.stars ? "#fbbf24" : "rgba(255,255,255,0.10)" }}>★</span>
+                <span key={s} className="text-xs" style={{ color: s <= data.stars ? "#fbbf24" : "var(--app-border)" }}>★</span>
               ))}
             </div>
             <p className="flex-1 text-white/40 text-xs truncate">
@@ -867,7 +867,7 @@ function AIQuestionCard({
         {question.options.map((opt, i) => (
           <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs"
             style={{
-              background: i === question.correctAnswer ? `${subject.accent}22` : "rgba(255,255,255,0.05)",
+              background: i === question.correctAnswer ? `${subject.accent}22` : "var(--app-surface)",
               border: `1px solid ${i === question.correctAnswer ? subject.accent + "50" : "rgba(0,0,0,0.08)"}`,
               color: i === question.correctAnswer ? subject.accent : "rgba(255,255,255,0.40)",
               fontWeight: i === question.correctAnswer ? 700 : 400,
@@ -1248,9 +1248,9 @@ function PaymentsPanel() {
           <button key={f.id} onClick={() => setFilter(f.id)}
             className="px-3 py-1 rounded-full text-xs font-bold transition-all"
             style={{
-              background: filter === f.id ? "rgba(251,191,36,0.2)" : "rgba(255,255,255,0.05)",
+              background: filter === f.id ? "rgba(251,191,36,0.2)" : "var(--app-surface)",
               color:      filter === f.id ? "#fbbf24"             : "rgba(255,255,255,0.22)",
-              border: `1px solid ${filter === f.id ? "rgba(251,191,36,0.4)" : "rgba(255,255,255,0.10)"}`,
+              border: `1px solid ${filter === f.id ? "rgba(251,191,36,0.4)" : "var(--app-border)"}`,
             }}>
             {f.label}
           </button>
@@ -1490,7 +1490,7 @@ function CachePanel() {
                                 <div className="flex-1 min-w-0">
                                   <p className="text-white/75 text-xs font-medium truncate">{prettifySlug(ch.chapterKey)}</p>
                                   <div className="flex items-center gap-2 mt-1">
-                                    <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                                    <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "var(--app-surface)" }}>
                                       <motion.div initial={{ width: 0 }} animate={{ width: `${fillPct}%` }}
                                         transition={{ duration: 0.5, ease: "easeOut" }}
                                         className="h-full rounded-full" style={{ background: accent }} />
@@ -1651,7 +1651,7 @@ function EditQuestionModal({
 }) {
   const [draft, setDraft] = useState<BankQuestion>({ ...q, options: [...q.options], optionsHindi: [...q.optionsHindi] });
   const inp = (extra?: object) => ({
-    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)",
+    background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 8, color: "#fff" as const, fontSize: 12, padding: "7px 10px", outline: "none",
     ...extra,
   });
@@ -1700,7 +1700,7 @@ function EditQuestionModal({
         </motion.button>
         <motion.button onClick={onCancel} disabled={saving} whileTap={{ scale: 0.97 }}
           className="px-4 py-2.5 rounded-lg text-xs font-semibold"
-          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.32)", border: "1px solid rgba(255,255,255,0.10)" }}>
+          style={{ background: "var(--app-surface)", color: "var(--app-text-ghost)", border: "1px solid rgba(255,255,255,0.10)" }}>
           Cancel
         </motion.button>
       </div>
@@ -1722,7 +1722,7 @@ function BankQuestionCard({
         <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
           style={{ background: `${accent}20`, color: accent }}>{prettifySlug(q.subjectKey)}</span>
         <span className="text-xs px-2 py-0.5 rounded-full"
-          style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.32)" }}>{prettifySlug(q.chapterKey)}</span>
+          style={{ background: "var(--app-surface)", color: "var(--app-text-ghost)" }}>{prettifySlug(q.chapterKey)}</span>
         <span className="text-white/20 text-xs ml-auto">{flatLabel}</span>
       </div>
       <p className="text-white text-sm font-medium leading-relaxed mb-1">{q.english}</p>
@@ -1731,8 +1731,8 @@ function BankQuestionCard({
         {q.options.map((opt, i) => (
           <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs"
             style={{
-              background: i === q.answerIndex ? `${accent}22` : "rgba(255,255,255,0.05)",
-              border: `1px solid ${i === q.answerIndex ? accent + "50" : "rgba(255,255,255,0.06)"}`,
+              background: i === q.answerIndex ? `${accent}22` : "var(--app-surface)",
+              border: `1px solid ${i === q.answerIndex ? accent + "50" : "var(--app-surface)"}`,
               color: i === q.answerIndex ? accent : "rgba(255,255,255,0.40)",
               fontWeight: i === q.answerIndex ? 700 : 400,
             }}>
@@ -1747,7 +1747,7 @@ function BankQuestionCard({
       <div className="flex gap-2">
         <motion.button onClick={onEdit} whileTap={{ scale: 0.97 }}
           className="flex-1 py-2 rounded-lg text-xs font-bold"
-          style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.10)" }}>
+          style={{ background: "var(--app-surface)", color: "var(--app-text-muted)", border: "1px solid rgba(255,255,255,0.10)" }}>
           ✎ Edit
         </motion.button>
         <motion.button onClick={onDelete} disabled={deleting} whileTap={{ scale: 0.97 }}
@@ -1834,8 +1834,8 @@ function QuestionsBankPanel() {
   }
 
   const selStyle = {
-    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)",
-    borderRadius: 8, color: "rgba(255,255,255,0.58)" as const, fontSize: 12,
+    background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 8, color: "var(--app-text-muted)" as const, fontSize: 12,
     padding: "7px 10px", outline: "none", cursor: "pointer" as const,
   };
 
@@ -1887,7 +1887,7 @@ function QuestionsBankPanel() {
         <input type="text" placeholder="🔍 Search questions…" value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
-            background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)",
+            background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
             borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 12px", outline: "none", width: "100%",
           }} />
       </div>
@@ -1940,13 +1940,13 @@ function QuestionsBankPanel() {
             <div className="flex items-center justify-center gap-2 mt-5">
               <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={{ background: "rgba(255,255,255,0.05)", color: page === 0 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                style={{ background: "var(--app-surface)", color: page === 0 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.10)" }}>
                 ← Prev
               </button>
               <span className="text-white/30 text-xs">Page {page + 1} / {totalPages}</span>
               <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={{ background: "rgba(255,255,255,0.05)", color: page === totalPages - 1 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                style={{ background: "var(--app-surface)", color: page === totalPages - 1 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.10)" }}>
                 Next →
               </button>
             </div>
@@ -2103,7 +2103,7 @@ function PDFImportPanel() {
                 <button key={id} onClick={() => { setClassId(id); setStep("idle"); setQuestions([]); }} disabled={busy}
                   className="py-2 px-2 rounded-xl text-xs font-bold transition-all"
                   style={{
-                    background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
+                    background: isActive ? `${meta.accent}25` : "var(--app-surface)",
                     border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
                     color: isActive ? meta.accent : "rgba(255,255,255,0.40)",
                   }}>
@@ -2121,7 +2121,7 @@ function PDFImportPanel() {
               <button key={s.id} onClick={() => setSubjectId(s.id)} disabled={busy}
                 className="flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-semibold transition-all"
                 style={{
-                  background:   activeSub.id === s.id ? `${s.accent}20` : "rgba(255,255,255,0.05)",
+                  background:   activeSub.id === s.id ? `${s.accent}20` : "var(--app-surface)",
                   borderColor:  activeSub.id === s.id ? `${s.accent}50` : "rgba(0,0,0,0.08)",
                   color:        activeSub.id === s.id ? s.accent : "rgba(255,255,255,0.28)",
                 }}>
@@ -2139,7 +2139,7 @@ function PDFImportPanel() {
             placeholder="e.g. Grammar, Trigonometry, Light..."
             disabled={busy}
             className="w-full px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/20 outline-none border transition-all"
-            style={{ background: "rgba(255,255,255,0.05)", borderColor: chapter ? `${accent}45` : "rgba(255,255,255,0.10)" }}
+            style={{ background: "var(--app-surface)", borderColor: chapter ? `${accent}45` : "var(--app-border)" }}
           />
         </div>
       </div>
@@ -2152,7 +2152,7 @@ function PDFImportPanel() {
         onDrop={handleDrop}
         className="relative rounded-2xl border-2 border-dashed flex flex-col items-center justify-center py-8 px-4 mb-4 cursor-pointer transition-all"
         style={{
-          borderColor: dragOver ? accent : file ? `${accent}50` : "rgba(255,255,255,0.10)",
+          borderColor: dragOver ? accent : file ? `${accent}50` : "var(--app-border)",
           background:  dragOver ? `${accent}0a` : file ? `${accent}06` : "transparent",
         }}>
         <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" className="hidden" onChange={handleFileChange} />
@@ -2186,8 +2186,8 @@ function PDFImportPanel() {
           whileTap={{ scale: 0.97 }}
           className="w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
           style={{
-            background:   (!file || !chapter.trim()) ? "rgba(255,255,255,0.05)" : `${accent}22`,
-            borderColor:  (!file || !chapter.trim()) ? "rgba(255,255,255,0.10)"  : `${accent}45`,
+            background:   (!file || !chapter.trim()) ? "var(--app-surface)" : `${accent}22`,
+            borderColor:  (!file || !chapter.trim()) ? "var(--app-border)"  : `${accent}45`,
             border:       "1px solid",
             color:        (!file || !chapter.trim()) ? "rgba(255,255,255,0.18)"  : accent,
           }}>
@@ -2218,7 +2218,7 @@ function PDFImportPanel() {
           <div className="flex flex-col gap-2 mb-4 max-h-72 overflow-y-auto pr-1">
             {questions.map((q, i) => (
               <div key={i} className="rounded-xl border overflow-hidden"
-                style={{ background: "rgba(255,255,255,0.05)", borderColor: "rgba(0,0,0,0.08)" }}>
+                style={{ background: "var(--app-surface)", borderColor: "rgba(0,0,0,0.08)" }}>
                 <button onClick={() => setExpandedQ(expandedQ === i ? null : i)}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded-md shrink-0"
@@ -2227,13 +2227,13 @@ function PDFImportPanel() {
                   <span className="text-white/25 text-xs">{expandedQ === i ? "▲" : "▼"}</span>
                 </button>
                 {expandedQ === i && (
-                  <div className="px-3 pb-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                  <div className="px-3 pb-3 border-t" style={{ borderColor: "var(--app-surface)" }}>
                     {q.hindi && <p className="text-white/35 text-xs mt-2 mb-2">{q.hindi}</p>}
                     <div className="flex flex-col gap-1">
                       {q.options.map((opt, oi) => (
                         <p key={oi} className="text-xs px-2 py-1 rounded-lg"
                           style={{
-                            background: oi === q.answerIndex ? `${accent}20` : "rgba(255,255,255,0.05)",
+                            background: oi === q.answerIndex ? `${accent}20` : "var(--app-surface)",
                             color:      oi === q.answerIndex ? accent : "rgba(255,255,255,0.32)",
                           }}>
                           {String.fromCharCode(65 + oi)}. {opt} {oi === q.answerIndex ? "✓" : ""}
@@ -2499,7 +2499,7 @@ function UploadPanel() {
                   onClick={() => setClassId(id)}
                   className="py-2 px-2 rounded-xl text-xs font-semibold transition-all"
                   style={{
-                    background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
+                    background: isActive ? `${meta.accent}25` : "var(--app-surface)",
                     border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
                     color: isActive ? meta.accent : "rgba(255,255,255,0.40)",
                   }}
@@ -2524,7 +2524,7 @@ function UploadPanel() {
                     <button key={t.id} onClick={() => setTestType(t.id)}
                       className="py-2 px-2 rounded-xl text-xs font-semibold transition-all"
                       style={{
-                        background: isActive ? `${accent}25` : "rgba(255,255,255,0.05)",
+                        background: isActive ? `${accent}25` : "var(--app-surface)",
                         border: `1px solid ${isActive ? accent : "rgba(0,0,0,0.08)"}`,
                         color: isActive ? accent : "rgba(255,255,255,0.40)",
                       }}>
@@ -2556,7 +2556,7 @@ function UploadPanel() {
               <button key={id} onClick={() => setSubjectId(id)}
                 className="py-2 px-3 rounded-xl text-xs font-semibold text-left transition-all"
                 style={{
-                  background: subjectId === id ? `${s.accent}25` : "rgba(255,255,255,0.05)",
+                  background: subjectId === id ? `${s.accent}25` : "var(--app-surface)",
                   border: `1px solid ${subjectId === id ? s.accent : "rgba(0,0,0,0.08)"}`,
                   color: subjectId === id ? s.accent : "rgba(255,255,255,0.40)",
                 }}>
@@ -2585,7 +2585,7 @@ function UploadPanel() {
           <button key={m} onClick={() => setMode(m)}
             className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
             style={{
-              background: mode === m ? `${accent}25` : "rgba(255,255,255,0.05)",
+              background: mode === m ? `${accent}25` : "var(--app-surface)",
               border: `1px solid ${mode === m ? accent : "rgba(0,0,0,0.08)"}`,
               color: mode === m ? accent : "rgba(255,255,255,0.32)",
             }}>
@@ -2629,7 +2629,7 @@ function UploadPanel() {
                 <div key={ltr} className="flex items-center gap-2">
                   <button onClick={() => setCorrect(i)}
                     className="w-7 h-7 rounded-lg text-xs font-black shrink-0 transition-all"
-                    style={{ background: correct === i ? `${accent}30` : "rgba(255,255,255,0.06)", color: correct === i ? accent : "rgba(255,255,255,0.28)", border: `1px solid ${correct === i ? accent : "rgba(255,255,255,0.10)"}` }}>
+                    style={{ background: correct === i ? `${accent}30` : "var(--app-surface)", color: correct === i ? accent : "rgba(255,255,255,0.28)", border: `1px solid ${correct === i ? accent : "var(--app-border)"}` }}>
                     {ltr}
                   </button>
                   <input value={opts[i]} onChange={e => setOpts(opts.map((o, j) => j === i ? e.target.value : o))}
@@ -2642,7 +2642,7 @@ function UploadPanel() {
           )}
           <motion.button onClick={handleSingleUpload} disabled={saving} whileTap={{ scale: 0.97 }}
             className="w-full py-3 rounded-xl font-bold text-sm"
-            style={{ background: saving ? "rgba(255,255,255,0.06)" : `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>
+            style={{ background: saving ? "var(--app-surface)" : `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>
             {saving ? "Uploading…" : `📤 Upload Question to ${subject.label}`}
           </motion.button>
         </div>
@@ -2672,7 +2672,7 @@ function UploadPanel() {
             className="w-full px-3 py-2 rounded-xl text-xs text-white/80 font-mono bg-white/5 border border-white/10 outline-none resize-none" />
           <motion.button onClick={handleBulkUpload} disabled={saving} whileTap={{ scale: 0.97 }}
             className="w-full py-3 rounded-xl font-bold text-sm"
-            style={{ background: saving ? "rgba(255,255,255,0.06)" : `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>
+            style={{ background: saving ? "var(--app-surface)" : `${accent}25`, color: accent, border: `1px solid ${accent}40` }}>
             {saving ? "Uploading…" : `📤 Validate & Upload to ${subject.label}`}
           </motion.button>
         </div>
@@ -2809,7 +2809,7 @@ function FullMockUploadPanel() {
                 onClick={() => setExam(id)}
                 className="py-2 px-2 rounded-xl text-xs font-semibold transition-all"
                 style={{
-                  background: isActive ? `${m.accent}25` : "rgba(255,255,255,0.05)",
+                  background: isActive ? `${m.accent}25` : "var(--app-surface)",
                   border: `1px solid ${isActive ? m.accent : "rgba(0,0,0,0.08)"}`,
                   color: isActive ? m.accent : "rgba(255,255,255,0.40)",
                 }}
@@ -2855,7 +2855,7 @@ function FullMockUploadPanel() {
           whileTap={{ scale: 0.97 }}
           className="w-full py-3 rounded-xl font-bold text-sm"
           style={{
-            background: saving ? "rgba(255,255,255,0.06)" : `${meta.accent}25`,
+            background: saving ? "var(--app-surface)" : `${meta.accent}25`,
             color: meta.accent,
             border: `1px solid ${meta.accent}40`,
           }}
@@ -3003,7 +3003,7 @@ function CouponsPanel() {
                     <button key={t} onClick={() => setType(t)}
                       className="flex-1 rounded-xl text-xs font-bold transition-all"
                       style={{
-                        background: type === t ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.05)",
+                        background: type === t ? "rgba(245,158,11,0.25)" : "var(--app-surface)",
                         color: type === t ? "#f59e0b" : "rgba(255,255,255,0.35)",
                         border: `1px solid ${type === t ? "rgba(245,158,11,0.5)" : "rgba(255,255,255,0.08)"}`,
                       }}>
@@ -3029,7 +3029,7 @@ function CouponsPanel() {
             </div>
             <motion.button onClick={handleCreate} disabled={busy} whileTap={{ scale: 0.97 }}
               className="w-full py-2.5 rounded-xl text-sm font-bold transition-all"
-              style={{ background: busy ? "rgba(255,255,255,0.06)" : "rgba(245,158,11,0.2)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.4)" }}>
+              style={{ background: busy ? "var(--app-surface)" : "rgba(245,158,11,0.2)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.4)" }}>
               {busy ? "Creating…" : "🏷️ Create Coupon"}
             </motion.button>
           </motion.div>
@@ -3077,7 +3077,7 @@ function CouponsPanel() {
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="font-black text-sm font-mono" style={{ color: effectivelyActive ? "#f59e0b" : "rgba(255,255,255,0.35)" }}>{c.code}</span>
                     <span className="text-xs px-1.5 py-0.5 rounded-full font-bold"
-                      style={{ background: effectivelyActive ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.06)", color: effectivelyActive ? "#f59e0b" : "rgba(255,255,255,0.25)" }}>
+                      style={{ background: effectivelyActive ? "rgba(245,158,11,0.15)" : "var(--app-surface)", color: effectivelyActive ? "#f59e0b" : "rgba(255,255,255,0.25)" }}>
                       {effectivelyActive ? "Active" : expired ? "Expired" : limitReached ? "Limit hit" : "Inactive"}
                     </span>
                   </div>
@@ -3090,9 +3090,9 @@ function CouponsPanel() {
                 <button onClick={() => toggleActive(c)} disabled={expired || limitReached}
                   className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all"
                   style={{
-                    background: c.active ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.06)",
+                    background: c.active ? "rgba(16,185,129,0.12)" : "var(--app-surface)",
                     color: c.active ? "#10b981" : "rgba(255,255,255,0.30)",
-                    border: `1px solid ${c.active ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.10)"}`,
+                    border: `1px solid ${c.active ? "rgba(16,185,129,0.25)" : "var(--app-border)"}`,
                     opacity: expired || limitReached ? 0.4 : 1,
                   }}>
                   {c.active ? "On" : "Off"}
@@ -3371,7 +3371,7 @@ function AnnouncementsPanel() {
                   <button key={t} onClick={() => setAnnType(t)}
                     className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
                     style={{
-                      background: annType === t ? m.bg : "rgba(255,255,255,0.05)",
+                      background: annType === t ? m.bg : "var(--app-surface)",
                       color: annType === t ? m.color : "rgba(255,255,255,0.30)",
                       border: `1px solid ${annType === t ? m.color + "50" : "rgba(255,255,255,0.08)"}`,
                     }}>
@@ -3391,7 +3391,7 @@ function AnnouncementsPanel() {
             </div>
             <motion.button onClick={handleCreate} disabled={busy} whileTap={{ scale: 0.97 }}
               className="w-full py-2.5 rounded-xl text-sm font-bold transition-all"
-              style={{ background: busy ? "rgba(255,255,255,0.06)" : "rgba(6,182,212,0.18)", color: "#06b6d4", border: "1px solid rgba(6,182,212,0.38)" }}>
+              style={{ background: busy ? "var(--app-surface)" : "rgba(6,182,212,0.18)", color: "#06b6d4", border: "1px solid rgba(6,182,212,0.38)" }}>
               {busy ? "Publishing…" : "📣 Publish Announcement"}
             </motion.button>
           </motion.div>
@@ -3439,7 +3439,7 @@ function AnnouncementsPanel() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <p className="text-white font-semibold text-sm truncate">{a.title}</p>
                       <span className="text-xs px-1.5 py-0.5 rounded-full font-bold shrink-0"
-                        style={{ background: a.active ? meta.bg : "rgba(255,255,255,0.06)", color: a.active ? meta.color : "rgba(255,255,255,0.25)" }}>
+                        style={{ background: a.active ? meta.bg : "var(--app-surface)", color: a.active ? meta.color : "rgba(255,255,255,0.25)" }}>
                         {a.active ? "Live" : "Hidden"}
                       </span>
                     </div>
@@ -3450,9 +3450,9 @@ function AnnouncementsPanel() {
                     <button onClick={() => toggleActive(a)}
                       className="px-2.5 py-1 rounded-lg text-xs font-bold transition-all"
                       style={{
-                        background: a.active ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.06)",
+                        background: a.active ? "rgba(16,185,129,0.12)" : "var(--app-surface)",
                         color: a.active ? "#10b981" : "rgba(255,255,255,0.30)",
-                        border: `1px solid ${a.active ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.10)"}`,
+                        border: `1px solid ${a.active ? "rgba(16,185,129,0.25)" : "var(--app-border)"}`,
                       }}>
                       {a.active ? "Live" : "Off"}
                     </button>
@@ -3547,7 +3547,7 @@ function WithdrawalsPanel() {
         </div>
         <motion.button onClick={load} whileTap={{ scale: 0.95 }}
           className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white/80 transition-all"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }}>
           ↻ Refresh
         </motion.button>
       </div>
@@ -3747,7 +3747,7 @@ function QuotesPanel() {
         type="text" value={search} onChange={(e) => setSearch(e.target.value)}
         placeholder="Search quotes…"
         className="w-full rounded-xl px-3 py-2 text-sm outline-none transition-all"
-        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", color: "#fff" }}
+        style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)", color: "#fff" }}
       />
 
       {/* Add form */}
@@ -3766,7 +3766,7 @@ function QuotesPanel() {
               </motion.button>
               <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setExpandedId(null); setForm(BLANK_QUOTE); }}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-white/40 transition-all"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 Cancel
               </motion.button>
             </div>
@@ -3816,7 +3816,7 @@ function QuotesPanel() {
                       <motion.button whileTap={{ scale: 0.95 }}
                         onClick={() => { setExpandedId(null); setForm(BLANK_QUOTE); }}
                         className="px-4 py-2 rounded-xl text-xs font-bold text-white/40"
-                        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                        style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.08)" }}>
                         Cancel
                       </motion.button>
                     </div>
@@ -3855,20 +3855,20 @@ function QuoteForm({ form, setForm }: {
         <input value={form.emoji} onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value }))}
           maxLength={4} placeholder="🌟"
           className="w-12 text-center rounded-xl px-2 py-2 text-lg outline-none"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
         <input value={form.from} onChange={(e) => setForm((f) => ({ ...f, from: e.target.value }))}
           placeholder="— Author name (optional)"
           className="flex-1 rounded-xl px-3 py-2 text-xs outline-none"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
       </div>
       <textarea value={form.hi} onChange={(e) => setForm((f) => ({ ...f, hi: e.target.value }))}
         rows={2} placeholder="Hindi quote text…"
         className="w-full rounded-xl px-3 py-2 text-sm resize-none outline-none"
-        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+        style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
       <textarea value={form.en} onChange={(e) => setForm((f) => ({ ...f, en: e.target.value }))}
         rows={2} placeholder="English quote text…"
         className="w-full rounded-xl px-3 py-2 text-sm resize-none outline-none"
-        style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+        style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
       <div>
         <p className="text-white/30 text-[10px] mb-1.5 font-semibold uppercase tracking-wider">Card Color</p>
         <div className="flex gap-2">
@@ -3946,7 +3946,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const emptyCount    = ALL_ADMIN_SUBJECTS.filter((s) => subjectData[s.id]?.status === "empty").length;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />

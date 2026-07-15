@@ -86,7 +86,7 @@ export default function ChoosePlanPage(props?: ChoosePlanPageProps) {
   const plans = GOAL_PLANS[goal] || GOAL_PLANS.c10;
 
   return (
-    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
@@ -97,7 +97,7 @@ export default function ChoosePlanPage(props?: ChoosePlanPageProps) {
           {onClose && (
             <button onClick={onClose}
               className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
-              style={{ background: "rgba(255,255,255,0.06)" }}>←</button>
+              style={{ background: "var(--app-surface)" }}>←</button>
           )}
           <div className="text-4xl mb-3">💎</div>
           <h1 className="text-white font-black text-2xl mb-1">Choose Your Plan</h1>
@@ -107,13 +107,13 @@ export default function ChoosePlanPage(props?: ChoosePlanPageProps) {
         {/* Free perks reminder */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="mb-6 rounded-2xl p-4"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="text-white/70 font-bold text-xs mb-2">🌟 Free Forever</p>
           <div className="flex flex-col gap-1">
             {["Daily 5 Questions — practice every day", "First Chapter Test — try any chapter once for free"].map(f => (
               <div key={f} className="flex items-center gap-2 text-xs text-white/45">
                 <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
-                  style={{ background: "rgba(0,0,0,0.08)", color: "rgba(255,255,255,0.40)" }}>✓</span>
+                  style={{ background: "rgba(0,0,0,0.08)", color: "var(--app-text-faint)" }}>✓</span>
                 {f}
               </div>
             ))}
@@ -125,7 +125,7 @@ export default function ChoosePlanPage(props?: ChoosePlanPageProps) {
             <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.08 }}
               className="rounded-2xl p-5"
-              style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${plan.accent}25` }}>
+              style={{ background: "var(--app-surface)", border: `1px solid ${plan.accent}25` }}>
 
               <div className="flex items-start justify-between mb-3">
                 <div>

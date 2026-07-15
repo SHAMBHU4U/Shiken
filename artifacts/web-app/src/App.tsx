@@ -151,7 +151,7 @@ function AnnouncementBanner() {
         initial={{ opacity: 0, scale: 0.96, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="w-full max-w-md rounded-3xl p-5"
-        style={{ background: "#0b1020", border: `1px solid ${meta.color}40`, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
+        style={{ background: "var(--app-bg)", border: `1px solid ${meta.color}40`, boxShadow: "0 24px 80px rgba(0,0,0,0.5)" }}
       >
         <div className="flex items-start gap-3">
           <span className="text-2xl">{meta.icon}</span>
@@ -303,7 +303,7 @@ function Leaderboard() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
       className="mb-8 rounded-2xl overflow-hidden"
-      style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}
+      style={{ background: "var(--app-surface)", border: "1px solid rgba(0,0,0,0.08)" }}
     >
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <div className="flex items-center gap-2">
@@ -383,7 +383,7 @@ function UsernameSetup({ onDone }: { onDone: (name: string) => void }) {
           placeholder="Your name…"
           maxLength={20}
           className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }}
         />
         <motion.button type="submit" whileTap={{ scale: 0.96 }}
           className="px-4 py-2.5 rounded-xl text-sm font-bold text-white shrink-0"
@@ -503,7 +503,7 @@ function AdminGuard() {
             required
             className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none transition-all"
             style={{
-              background: "rgba(255,255,255,0.06)",
+              background: "var(--app-surface)",
               border: "1px solid rgba(255,255,255,0.10)",
             }}
           />
@@ -517,8 +517,8 @@ function AdminGuard() {
               required
               className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none transition-all"
               style={{
-                background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
-                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.10)"}`,
+                background: error ? "rgba(239,68,68,0.08)" : "var(--app-surface)",
+                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "var(--app-border)"}`,
               }}
             />
             {error && (
@@ -1131,7 +1131,7 @@ function ThemeToggle() {
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full flex items-center justify-center"
       style={{
-        background: isDark ? "rgba(255,255,255,0.08)" : "rgba(15,23,42,0.08)",
+        background: isDark ? "var(--app-surface-2)" : "rgba(15,23,42,0.08)",
         border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.14)"}`,
         backdropFilter: "blur(12px)",
         boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.4)" : "0 2px 12px rgba(0,0,0,0.12)",
@@ -1511,7 +1511,7 @@ function SessionKickedModal() {
         transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
         className="w-full max-w-sm rounded-3xl p-6 text-center"
         style={{
-          background: "#0b1020",
+          background: "var(--app-bg)",
           border: "1px solid rgba(239,68,68,0.35)",
           boxShadow: "0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(239,68,68,0.10)",
         }}

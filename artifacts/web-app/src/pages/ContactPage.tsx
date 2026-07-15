@@ -88,7 +88,7 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />

@@ -274,17 +274,17 @@ function SubjectSkeletonLoader({ label, accent }: { label: string; accent: strin
 
       {/* Q number + flag skeleton */}
       <div className="flex items-center justify-between mb-4">
-        <div className="sk-pulse h-3 w-20 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
-        <div className="sk-pulse h-5 w-5 rounded-lg" style={{ background: "rgba(255,255,255,0.06)" }} />
+        <div className="sk-pulse h-3 w-20 rounded-full" style={{ background: "var(--app-surface-2)" }} />
+        <div className="sk-pulse h-5 w-5 rounded-lg" style={{ background: "var(--app-surface)" }} />
       </div>
 
       {/* Question text box skeleton */}
       <div className="mb-6 p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="flex flex-col gap-2.5">
-          <div className="sk-pulse h-3 w-full rounded-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+          <div className="sk-pulse h-3 w-full rounded-full" style={{ background: "var(--app-surface-2)" }} />
           <div className="sk-pulse h-3 w-5/6 rounded-full" style={{ background: "rgba(255,255,255,0.07)" }} />
-          <div className="sk-pulse h-3 w-3/4 rounded-full" style={{ background: "rgba(255,255,255,0.06)" }} />
-          <div className="sk-pulse h-3 w-2/3 rounded-full mt-1" style={{ background: "rgba(255,255,255,0.05)" }} />
+          <div className="sk-pulse h-3 w-3/4 rounded-full" style={{ background: "var(--app-surface)" }} />
+          <div className="sk-pulse h-3 w-2/3 rounded-full mt-1" style={{ background: "var(--app-surface)" }} />
         </div>
       </div>
 
@@ -297,7 +297,7 @@ function SubjectSkeletonLoader({ label, accent }: { label: string; accent: strin
             style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", opacity: 1 - i * 0.12 }}
           >
             <div className="flex items-center gap-3">
-              <div className="sk-pulse w-7 h-7 rounded-lg shrink-0" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <div className="sk-pulse w-7 h-7 rounded-lg shrink-0" style={{ background: "var(--app-surface-2)" }} />
               <div className="sk-pulse h-3 rounded-full flex-1" style={{ background: "rgba(255,255,255,0.07)", width: `${72 - i * 8}%` }} />
             </div>
           </div>
@@ -386,7 +386,7 @@ function ResultScreen({
                             { label: "Needs Work", color: "#ef4444" };
 
   return (
-    <div className="min-h-screen w-full overflow-y-auto" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full overflow-y-auto" style={{ background: "var(--app-bg)" }}>
       <div className="max-w-lg mx-auto px-4 pt-8 pb-24">
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
           <div className="text-5xl mb-3">
@@ -456,7 +456,7 @@ function ResultScreen({
                   </div>
                 </div>
 
-                <div className="w-full h-1.5 rounded-full mb-3" style={{ background: "rgba(255,255,255,0.06)" }}>
+                <div className="w-full h-1.5 rounded-full mb-3" style={{ background: "var(--app-surface)" }}>
                   <motion.div
                     className="h-full rounded-full"
                     style={{ background: sub.accent }}
@@ -560,7 +560,7 @@ function DemoUpgradeScreen({
   const pct = allQuestions.length > 0 ? Math.round((totalCorrect / allQuestions.length) * 100) : 0;
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-12" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full flex flex-col items-center justify-center px-4 py-12" style={{ background: "var(--app-bg)" }}>
       <style>{`
         @keyframes pulse-glow-upgrade {
           0%, 100% { box-shadow: 0 0 30px ${accent}44, 0 8px 40px rgba(0,0,0,0.6); }
@@ -589,7 +589,7 @@ function DemoUpgradeScreen({
             <span className="text-white/60 text-sm">Your Demo Score</span>
             <span className="text-3xl font-black" style={{ color: accent }}>{totalCorrect}/{allQuestions.length}</span>
           </div>
-          <div className="w-full h-2 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+          <div className="w-full h-2 rounded-full" style={{ background: "var(--app-surface-2)" }}>
             <motion.div
               className="h-full rounded-full"
               style={{ background: `linear-gradient(90deg, ${accent}, ${accent2})` }}
@@ -686,7 +686,7 @@ function DemoUpgradeScreen({
           <button
             onClick={onHome}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold border text-white/50 transition-colors"
-            style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.10)" }}
+            style={{ background: "rgba(255,255,255,0.04)", borderColor: "var(--app-border)" }}
           >
             ← Back to Home
           </button>
@@ -1017,7 +1017,7 @@ export default function MockTestPage() {
   const overLimit = activeSubjectCfg.attemptLimit !== Infinity && attemptedCount > activeSubjectCfg.attemptLimit;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#07080f" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--app-bg)" }}>
 
       {/* ── Top bar ── */}
       <div className="sticky top-0 z-40 flex flex-col"
@@ -1219,14 +1219,14 @@ export default function MockTestPage() {
                         className="w-full text-left p-4 rounded-2xl transition-all"
                         style={{
                           background: selected ? `${activeSubjectCfg.accent}20` : "rgba(255,255,255,0.04)",
-                          border: `1.5px solid ${selected ? activeSubjectCfg.accent : "rgba(255,255,255,0.08)"}`,
+                          border: `1.5px solid ${selected ? activeSubjectCfg.accent : "var(--app-surface-2)"}`,
                           boxShadow: selected ? `0 0 16px ${activeSubjectCfg.accent}30` : "none",
                         }}
                       >
                         <div className="flex items-start gap-3">
                           <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
                             style={{
-                              background: selected ? activeSubjectCfg.accent : "rgba(255,255,255,0.08)",
+                              background: selected ? activeSubjectCfg.accent : "var(--app-surface-2)",
                               color: selected ? "#fff" : "rgba(255,255,255,0.5)",
                             }}>
                             {label}

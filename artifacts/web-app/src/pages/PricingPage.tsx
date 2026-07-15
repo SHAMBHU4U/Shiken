@@ -559,7 +559,7 @@ function PaymentSheet({
 
         {plan.singleSubject && selectedSubject && (
           <div className="mb-4 px-4 py-2.5 rounded-xl flex items-center gap-2"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)" }}>
+            style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }}>
             <span className="text-sm">📚</span>
             <span className="text-white/70 text-sm font-semibold">{renderedSubjectLabel}</span>
           </div>
@@ -581,7 +581,7 @@ function PaymentSheet({
               disabled={paying}
               className="relative w-11 h-6 rounded-full transition-all shrink-0"
               style={{
-                background: useWallet ? "rgba(245,158,11,0.8)" : "rgba(255,255,255,0.12)",
+                background: useWallet ? "rgba(245,158,11,0.8)" : "var(--app-border)",
                 border: useWallet ? "1px solid rgba(245,158,11,0.5)" : "1px solid rgba(255,255,255,0.15)",
               }}>
               <span className="absolute top-0.5 transition-all duration-200 w-5 h-5 rounded-full bg-white shadow"
@@ -731,7 +731,7 @@ export default function PricingPage() {
   if (success) {
     const waLink = buildAdminWaLink(success.uid, success.plan, success.paymentId, success.subject);
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-28" style={{ background: "#07080f" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-28" style={{ background: "var(--app-bg)" }}>
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", damping: 18, stiffness: 260 }}
@@ -771,7 +771,7 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
@@ -784,7 +784,7 @@ export default function PricingPage() {
           className="text-center mb-6">
           <button onClick={() => navigate(-1 as never)}
             className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
-            style={{ background: "rgba(255,255,255,0.06)" }}>←</button>
+            style={{ background: "var(--app-surface)" }}>←</button>
           <motion.div animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
             transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }} className="text-4xl mb-3">👑</motion.div>
           <h1 className="text-white font-black text-2xl mb-1">SHIKEN Premium</h1>
@@ -858,13 +858,13 @@ export default function PricingPage() {
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="mb-6 rounded-2xl p-4"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <p className="text-white/70 font-bold text-xs mb-2">Free Plan Feature Matrix</p>
           <div className="flex flex-col gap-1">
             {["Mini Test — unlimited (10 random questions)", "1 Full Length Test per subject (free trial)"].map(f => (
               <div key={f} className="flex items-center gap-2 text-xs text-white/45">
                 <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
-                  style={{ background: "rgba(0,0,0,0.08)", color: "rgba(255,255,255,0.40)" }}>✓</span>
+                  style={{ background: "rgba(0,0,0,0.08)", color: "var(--app-text-faint)" }}>✓</span>
                 {f}
               </div>
             ))}
@@ -923,7 +923,7 @@ export default function PricingPage() {
                             className="py-2 px-1 rounded-xl text-[11px] font-bold text-center transition-all"
                             style={{
                               background: sel ? `${plan.accent}30` : "rgba(255,255,255,0.03)",
-                              border: `1px solid ${sel ? plan.accent : "rgba(255,255,255,0.08)"}`,
+                              border: `1px solid ${sel ? plan.accent : "var(--app-surface-2)"}`,
                               color: sel ? "#fff" : "rgba(255,255,255,0.40)",
                             }}>
                             {s.label.split(" / ")[0]}
@@ -944,7 +944,7 @@ export default function PricingPage() {
                   className="w-full py-3 rounded-xl font-black text-sm transition-all"
                   style={{
                     background: isButtonDisabled
-                      ? "rgba(255,255,255,0.06)"
+                      ? "var(--app-surface)"
                       : `linear-gradient(135deg, ${plan.accent}, #111115)`,
                     color: isButtonDisabled ? "rgba(255,255,255,0.2)" : "#fff",
                     boxShadow: isButtonDisabled ? "none" : `0 4px 20px ${plan.accent}25`,
