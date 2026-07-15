@@ -5,35 +5,119 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ── App-level Theme Variables ─────────────────────────────── */
+
+/* Default = DARK mode */
 html {
-  --app-bg: #07080f;
-  --app-nav-bg: rgba(26,27,46,0.97);
-  --app-nav-text: #ffffff;
-  --app-nav-text-muted: rgba(255,255,255,0.35);
-  --app-nav-border: rgba(255,255,255,0.09);
-  --app-card-bg: rgba(255,255,255,0.05);
+  --app-bg:              #1E110A;
+  --app-text:            #ffffff;
+  --app-text-muted:      rgba(255,255,255,0.70);
+  --app-text-faint:      rgba(255,255,255,0.45);
+  --app-text-ghost:      rgba(255,255,255,0.28);
+  --app-surface:         rgba(255,255,255,0.06);
+  --app-surface-2:       rgba(255,255,255,0.09);
+  --app-border:          rgba(255,255,255,0.11);
+  --app-border-soft:     rgba(255,255,255,0.07);
+  --app-selected:        #c4843a;
+  --app-nav-bg:          rgba(20,10,5,0.97);
+  --app-nav-text:        #ffffff;
+  --app-nav-text-muted:  rgba(255,255,255,0.35);
+  --app-nav-border:      rgba(255,255,255,0.09);
+  --app-card-bg:         rgba(255,255,255,0.05);
 }
 
 html.dark {
-  --app-bg: #07080f;
-  --app-nav-bg: rgba(26,27,46,0.97);
-  --app-nav-text: #ffffff;
-  --app-nav-text-muted: rgba(255,255,255,0.35);
-  --app-nav-border: rgba(255,255,255,0.09);
-  --app-card-bg: rgba(255,255,255,0.05);
+  --app-bg:              #1E110A;
+  --app-text:            #ffffff;
+  --app-text-muted:      rgba(255,255,255,0.70);
+  --app-text-faint:      rgba(255,255,255,0.45);
+  --app-text-ghost:      rgba(255,255,255,0.28);
+  --app-surface:         rgba(255,255,255,0.06);
+  --app-surface-2:       rgba(255,255,255,0.09);
+  --app-border:          rgba(255,255,255,0.11);
+  --app-border-soft:     rgba(255,255,255,0.07);
+  --app-selected:        #c4843a;
+  --app-nav-bg:          rgba(20,10,5,0.97);
+  --app-nav-text:        #ffffff;
+  --app-nav-text-muted:  rgba(255,255,255,0.35);
+  --app-nav-border:      rgba(255,255,255,0.09);
+  --app-card-bg:         rgba(255,255,255,0.05);
 }
 
+/* LIGHT mode */
 html:not(.dark) {
-  --app-bg: #e8f4fd;
-  --app-nav-bg: rgba(232,244,253,0.97);
-  --app-nav-text: #0f172a;
-  --app-nav-text-muted: rgba(15,23,42,0.50);
-  --app-nav-border: rgba(15,23,42,0.09);
-  --app-card-bg: rgba(255,255,255,0.65);
+  --app-bg:              #EBF3FC;
+  --app-text:            #000000;
+  --app-text-muted:      rgba(0,0,0,0.70);
+  --app-text-faint:      rgba(0,0,0,0.50);
+  --app-text-ghost:      rgba(0,0,0,0.32);
+  --app-surface:         rgba(0,0,0,0.06);
+  --app-surface-2:       rgba(0,0,0,0.09);
+  --app-border:          rgba(0,0,0,0.13);
+  --app-border-soft:     rgba(0,0,0,0.08);
+  --app-selected:        #0284c7;
+  --app-nav-bg:          rgba(235,243,252,0.97);
+  --app-nav-text:        #000000;
+  --app-nav-text-muted:  rgba(0,0,0,0.50);
+  --app-nav-border:      rgba(0,0,0,0.09);
+  --app-card-bg:         rgba(255,255,255,0.72);
 }
 
 body {
-  transition: background-color 0.3s ease;
+  background-color: var(--app-bg);
+  color: var(--app-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ── Light mode: override all text-white Tailwind classes ────── */
+html:not(.dark) .text-white          { color: #000000; }
+html:not(.dark) .text-white\/5       { color: rgba(0,0,0,0.08); }
+html:not(.dark) .text-white\/10      { color: rgba(0,0,0,0.14); }
+html:not(.dark) .text-white\/15      { color: rgba(0,0,0,0.18); }
+html:not(.dark) .text-white\/20      { color: rgba(0,0,0,0.26); }
+html:not(.dark) .text-white\/25      { color: rgba(0,0,0,0.30); }
+html:not(.dark) .text-white\/30      { color: rgba(0,0,0,0.36); }
+html:not(.dark) .text-white\/35      { color: rgba(0,0,0,0.42); }
+html:not(.dark) .text-white\/40      { color: rgba(0,0,0,0.52); }
+html:not(.dark) .text-white\/45      { color: rgba(0,0,0,0.56); }
+html:not(.dark) .text-white\/50      { color: rgba(0,0,0,0.62); }
+html:not(.dark) .text-white\/55      { color: rgba(0,0,0,0.66); }
+html:not(.dark) .text-white\/60      { color: rgba(0,0,0,0.72); }
+html:not(.dark) .text-white\/70      { color: rgba(0,0,0,0.80); }
+html:not(.dark) .text-white\/75      { color: rgba(0,0,0,0.84); }
+html:not(.dark) .text-white\/80      { color: rgba(0,0,0,0.87); }
+html:not(.dark) .text-white\/90      { color: rgba(0,0,0,0.92); }
+
+/* ── Light mode: placeholder override ───────────────────────── */
+html:not(.dark) .placeholder-white\/30::placeholder { color: rgba(0,0,0,0.35); }
+html:not(.dark) .placeholder-white\/40::placeholder { color: rgba(0,0,0,0.42); }
+
+/* ── Light mode: surface / border background classes ──────────── */
+html:not(.dark) .bg-white\/5  { background-color: rgba(0,0,0,0.05); }
+html:not(.dark) .bg-white\/10 { background-color: rgba(0,0,0,0.08); }
+html:not(.dark) .bg-white\/15 { background-color: rgba(0,0,0,0.11); }
+html:not(.dark) .bg-white\/20 { background-color: rgba(0,0,0,0.14); }
+html:not(.dark) .border-white\/5  { border-color: rgba(0,0,0,0.07); }
+html:not(.dark) .border-white\/10 { border-color: rgba(0,0,0,0.12); }
+html:not(.dark) .border-white\/15 { border-color: rgba(0,0,0,0.14); }
+html:not(.dark) .border-white\/20 { border-color: rgba(0,0,0,0.16); }
+
+/* ── Light mode: stroke on SVGs ──────────────────────────────── */
+html:not(.dark) .stroke-white { stroke: #000000; }
+
+/* ── Light mode: quiz option unselected cards ─────────────────── */
+html:not(.dark) .quiz-option-unselected {
+  background: rgba(255,255,255,0.80) !important;
+  border-color: rgba(0,0,0,0.13) !important;
+  color: #000000 !important;
+}
+html:not(.dark) .quiz-option-label {
+  color: #000000 !important;
+}
+
+/* ── Light mode: bottom quiz bar ─────────────────────────────── */
+html:not(.dark) .quiz-bottom-bar {
+  background: rgba(235,243,252,0.97) !important;
+  border-top-color: rgba(0,0,0,0.10) !important;
 }
 
 @theme inline {

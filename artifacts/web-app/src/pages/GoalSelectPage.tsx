@@ -77,7 +77,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
   }
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />

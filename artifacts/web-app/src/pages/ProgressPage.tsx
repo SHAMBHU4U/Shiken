@@ -87,7 +87,7 @@ function RingChart({ pct, accent, size = 72 }: { pct: number; accent: string; si
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
       <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+        stroke="var(--app-surface)" strokeWidth="5" />
       <circle cx={size / 2} cy={size / 2} r={r} fill="none"
         stroke={accent} strokeWidth="5"
         strokeDasharray={`${dash} ${circ - dash}`}
@@ -124,7 +124,7 @@ function OverallTrend({ allRecords }: { allRecords: TestRecord[] }) {
       {[60, 80].map((p) => {
         const y = PY + (1 - p / 100) * iH;
         return <line key={p} x1={PX} y1={y} x2={W - PX} y2={y}
-          stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3" />;
+          stroke="var(--app-surface)" strokeWidth="1" strokeDasharray="3 3" />;
       })}
       <path d={fillPath} fill="url(#ot-grad)" />
       <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="2"
@@ -204,7 +204,7 @@ export default function ProgressPage() {
   const hasAnyData = totalTests > 0;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       {/* Ambient blobs */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"

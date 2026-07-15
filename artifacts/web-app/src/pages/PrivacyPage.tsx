@@ -147,7 +147,7 @@ export default function PrivacyPage() {
   const [, navigate] = useLocation();
 
   return (
-    <div className="min-h-screen w-full" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full" style={{ background: "var(--app-bg)" }}>
       <div className="max-w-lg mx-auto px-4 pt-6 pb-32">
 
         {/* Header */}

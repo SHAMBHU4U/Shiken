@@ -158,7 +158,7 @@ export default function ReferralPage() {
   }
 
   return (
-    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
@@ -168,7 +168,7 @@ export default function ReferralPage() {
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-8">
           <button onClick={() => navigate(-1 as never)}
             className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
-            style={{ background: "rgba(255,255,255,0.06)" }}>←</button>
+            style={{ background: "var(--app-surface)" }}>←</button>
           <div className="text-4xl mb-3">🤝</div>
           <h1 className="text-white font-black text-2xl mb-1">Refer & Earn</h1>
           <p className="text-white/40 text-sm">Invite friends, earn Shiken Wallet rewards</p>
@@ -245,7 +245,7 @@ export default function ReferralPage() {
                   className="w-full py-3 rounded-xl font-black text-sm text-black"
                   style={{
                     background: withdrawing || !upiId.trim() || !withdrawAmount
-                      ? "rgba(255,255,255,0.08)"
+                      ? "var(--app-surface-2)"
                       : "linear-gradient(135deg, #f59e0b, #d97706)",
                     color: withdrawing || !upiId.trim() || !withdrawAmount ? "rgba(255,255,255,0.25)" : "#000",
                     boxShadow: withdrawing || !upiId.trim() || !withdrawAmount ? "none" : "0 4px 20px rgba(245,158,11,0.35)",
@@ -294,7 +294,7 @@ export default function ReferralPage() {
         {/* My referral code */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
           className="mb-6 rounded-2xl p-5"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.08)" }}>
           <p className="text-white/60 text-xs font-semibold mb-3">Your Referral Code</p>
           <div className="flex items-center gap-3 mb-4">
             <div className="flex-1 px-4 py-3 rounded-xl text-center font-mono text-lg font-black text-white tracking-wider"

@@ -93,7 +93,7 @@ function TrendChart({ sessions }: { sessions: Session[] }) {
       {[60, 80].map((pct) => {
         const y = PY + (1 - pct / 100) * iH;
         return <line key={pct} x1={PX} y1={y} x2={W - PX} y2={y}
-          stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="3 3" />;
+          stroke="var(--app-surface)" strokeWidth="1" strokeDasharray="3 3" />;
       })}
       <path d={fillPath} fill="url(#profile-trend-grad)" />
       <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="1.8"
@@ -206,7 +206,7 @@ function AuthForm() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
@@ -255,8 +255,8 @@ function AuthForm() {
                     placeholder="Your email address" required autoFocus
                     className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
                     style={{
-                      background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
-                      border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.10)"}`,
+                      background: error ? "rgba(239,68,68,0.08)" : "var(--app-surface)",
+                      border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "var(--app-border)"}`,
                     }} />
                   {error && <p className="text-xs text-red-400 -mt-1 ml-1">{error}</p>}
                   <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }}
@@ -302,7 +302,7 @@ function AuthForm() {
         {/* Google button */}
         <motion.button onClick={handleGoogle} disabled={loading} whileTap={{ scale: 0.98 }}
           className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-sm font-bold mb-4 transition-all"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "white" }}>
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.12)", color: "white" }}>
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -319,12 +319,12 @@ function AuthForm() {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 p-1 rounded-xl mb-4" style={{ background: "rgba(255,255,255,0.05)" }}>
+        <div className="flex gap-1 p-1 rounded-xl mb-4" style={{ background: "var(--app-surface)" }}>
           {(["in", "up"] as const).map((t) => (
             <button key={t} onClick={() => { setTab(t); setError(""); }}
               className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
               style={{
-                background: tab === t ? "rgba(255,255,255,0.10)" : "transparent",
+                background: tab === t ? "var(--app-border)" : "transparent",
                 color: tab === t ? "#fff" : "rgba(255,255,255,0.28)",
                 border: tab === t ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent",
               }}>
@@ -340,17 +340,17 @@ function AuthForm() {
           {tab === "up" && (
             <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }}
               placeholder="Full name" required className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }} />
           )}
           <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
             placeholder="Email address" required className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+            style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }} />
           <div className="relative">
             <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }}
               placeholder="Password" required className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
               style={{
-                background: error ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.06)",
-                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.10)"}`,
+                background: error ? "rgba(239,68,68,0.08)" : "var(--app-surface)",
+                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "var(--app-border)"}`,
               }} />
             {error && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
               className="absolute -bottom-5 left-1 text-xs text-red-400">{error}</motion.p>}
@@ -561,7 +561,7 @@ export default function ProfilePage() {
   }, [user]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: "#07080f" }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
       <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
         className="w-8 h-8 rounded-full border-2 border-transparent"
         style={{ borderTopColor: "#8b5cf6", borderRightColor: "#06b6d4" }} />
@@ -587,7 +587,7 @@ export default function ProfilePage() {
   const bestSubject = Object.entries(subjectMap).sort((a, b) => (b[1].total / b[1].count) - (a[1].total / a[1].count))[0]?.[0] ?? null;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "var(--app-bg)" }}>
 
       {/* Avatar picker — fixed full-screen overlay */}
       <AnimatePresence>
@@ -682,7 +682,7 @@ export default function ProfilePage() {
                     onKeyDown={(e) => { if (e.key === "Enter") handleNameSave(); if (e.key === "Escape") setEditingName(false); }}
                     maxLength={30}
                     className="flex-1 min-w-0 px-2 py-1 rounded-lg text-sm font-bold text-white outline-none"
-                    style={{ background: "rgba(255,255,255,0.10)", border: "1px solid rgba(139,92,246,0.5)" }}
+                    style={{ background: "var(--app-border)", border: "1px solid rgba(139,92,246,0.5)" }}
                   />
                   <motion.button onClick={handleNameSave} disabled={nameSaving} whileTap={{ scale: 0.9 }}
                     className="shrink-0 px-2 py-1 rounded-lg text-xs font-bold text-white"
@@ -702,7 +702,7 @@ export default function ProfilePage() {
                   </p>
                   <motion.button onClick={startEdit} whileTap={{ scale: 0.9 }} title="Edit name"
                     className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors"
-                    style={{ background: "rgba(255,255,255,0.06)" }}>
+                    style={{ background: "var(--app-surface)" }}>
                     <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
                       <path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z" stroke="rgba(255,255,255,0.40)" strokeWidth="1.2" strokeLinejoin="round"/>
                     </svg>
@@ -780,7 +780,7 @@ export default function ProfilePage() {
         {/* Wallet + Referral */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
           className="rounded-2xl p-4 mb-4"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-sm">💰</span>
@@ -862,7 +862,7 @@ export default function ProfilePage() {
                     <div className="flex-1">
                       <p className="text-white text-sm font-semibold capitalize">{subj}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.10)" }}>
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--app-border)" }}>
                           <div className="h-full rounded-full transition-all" style={{ width: `${avg}%`, background: SUBJECT_COLORS[subj] ?? "#8b5cf6" }} />
                         </div>
                         <span className="text-xs font-bold" style={{ color: gradeColor(avg) }}>{avg}%</span>
@@ -886,7 +886,7 @@ export default function ProfilePage() {
                 <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.32 + i * 0.03 }}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                  style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                  style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <span className="text-xl">{SUBJECT_ICONS[s.subject] ?? "📚"}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-white/80 text-xs font-semibold capitalize">
@@ -925,7 +925,7 @@ export default function ProfilePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
           className="rounded-2xl p-5"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}
+          style={{ background: "var(--app-surface)", border: "1px solid rgba(0,0,0,0.08)" }}
         >
           <h3 className="text-white/70 text-xs font-black uppercase tracking-widest mb-4">
             🔔 Reminders

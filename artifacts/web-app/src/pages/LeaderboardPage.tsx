@@ -106,7 +106,7 @@ export default function LeaderboardPage() {
   const myEntry = entries.find((e) => e.uid === myUid);
 
   return (
-    <div className="min-h-screen w-full pb-28" style={{ background: "#07080f" }}>
+    <div className="min-h-screen w-full pb-28" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
@@ -190,7 +190,7 @@ export default function LeaderboardPage() {
               <button key={c} onClick={() => setCategory(c)}
                 className="py-2 rounded-xl text-xs font-bold transition-all"
                 style={{
-                  background: isActive ? `${meta.accent}25` : "rgba(255,255,255,0.05)",
+                  background: isActive ? `${meta.accent}25` : "var(--app-surface)",
                   border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
                   color: isActive ? meta.accent : "rgba(255,255,255,0.40)",
                 }}>
@@ -217,7 +217,7 @@ export default function LeaderboardPage() {
                   ? f === "premium"
                     ? "linear-gradient(135deg, rgba(245,158,11,0.25), rgba(217,119,6,0.15))"
                     : "rgba(139,92,246,0.2)"
-                  : "rgba(255,255,255,0.05)",
+                  : "var(--app-surface)",
                 border: filter === f
                   ? f === "premium" ? "1px solid rgba(245,158,11,0.4)" : "1px solid rgba(139,92,246,0.35)"
                   : "1px solid rgba(255,255,255,0.06)",
@@ -313,7 +313,7 @@ export default function LeaderboardPage() {
                       style={
                         e.isPremium
                           ? { background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#000", boxShadow: "0 2px 10px rgba(245,158,11,0.35)" }
-                          : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.32)" }
+                          : { background: "var(--app-surface)", color: "var(--app-text-ghost)" }
                       }
                     >
                       {e.isPremium ? "👑" : e.username.charAt(0).toUpperCase()}
