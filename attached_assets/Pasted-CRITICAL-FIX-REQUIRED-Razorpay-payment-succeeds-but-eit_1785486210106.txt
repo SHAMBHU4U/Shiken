@@ -1,0 +1,31 @@
+CRITICAL FIX REQUIRED: Razorpay payment succeeds, but either the user's Premium Plan is NOT activating, OR it is expiring prematurely (e.g., a 1-month plan expires before completing 30 days). 
+
+Please debug and fix the Razorpay payment verification, subscription activation, and validity duration calculation logic without touching any other part of the application.
+
+Please follow these exact instructions:
+
+1. Frontend Payment Callback Handler:
+- Check the Razorpay checkout script options (`handler: function(response)`).
+- Ensure `response.razorpay_payment_id`, `response.razorpay_order_id`, and `response.razorpay_signature` are correctly sent to the backend verification endpoint (e.g., `/api/verify-payment`).
+- Pass the user ID, selected plan details, and plan duration in the payload.
+
+2. Fix Expiration Date & Duration Logic (Backend):
+- Locate the backend verification route or webhook handler.
+- Verify HMAC SHA256 signature using `RAZORPAY_KEY_SECRET`.
+- Fix the Expiry Calculation Bug: Calculate the exact `expiresAt` date starting from the current payment timestamp (`Date.now()`):
+  * For 1-Month Plan: Set `expiresAt` to exactly +30 days (or 1 full calendar month) from the payment time.
+  * For Year/Course-Based Plans: Set `expiresAt` to the exact duration promised.
+- Prevent premature expiration caused by timezone differences or hardcoded short timestamps.
+
+3. Database Premium Status Update:
+- Update the user record in the database with:
+  * `isPremium: true`
+  * `premiumPlan: <plan_name>`
+  * `purchasedAt: <current_timestamp>`
+  * `expiresAt: <calculated_future_timestamp>`
+- Ensure subscription checks across the app look for `isPremium === true && expiresAt > current_date`, so the plan remains active for its FULL duration.
+
+4. Instant Plan Activation (Frontend):
+- On successful verification, update the frontend local user context/auth state immediately (`isPremium: true`), so all premium features unlock instantly without needing a manual page reload or relogin.
+
+Please trace the payment and expiration logic from frontend to backend to database, fix the early expiry bug, and ensure full duration activation. Do NOT modify any UI themes, layout styles, or quiz logic.

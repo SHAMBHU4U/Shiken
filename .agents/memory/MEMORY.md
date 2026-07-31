@@ -1,1 +1,2 @@
 - [classId propagation pattern](classid-propagation.md) — classId must be passed as prop to sub-components (ResultScreen) and as API body field, not just component-level const.
+- [Payment entitlement rules](payment-entitlements.md) — premium duration is server-owned and access is gated by a future expiry timestamp.

@@ -17,6 +17,23 @@ export interface SubscriptionData {
   referredBy: string | null;
 }
 
+export interface SubscriptionUpdate {
+  isPremium: boolean;
+  subscriptionType: SubscriptionType;
+  plan: string | null;
+  premiumPlan?: string | null;
+  premiumSubjects?: string[];
+  purchasedAt?: number | null;
+  expiresAt: number | null;
+  premiumUntil?: number | null;
+}
+
+const SUBSCRIPTION_UPDATED_EVENT = "shiken:subscription-updated";
+
+export function notifySubscriptionUpdated(update: SubscriptionUpdate): void {
+  window.dispatchEvent(new CustomEvent<SubscriptionUpdate>(SUBSCRIPTION_UPDATED_EVENT, { detail: update }));
+}
+
 export function useSubscription() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionType>("free");
@@ -41,12 +58,43 @@ export function useSubscription() {
       setReferredBy(null);
       return;
     }
+
+    const applySubscriptionUpdate = (update: SubscriptionUpdate) => {
+      const exp = typeof update.expiresAt === "number"
+        ? update.expiresAt
+        : (typeof update.premiumUntil === "number" ? update.premiumUntil : null);
+      const subType: SubscriptionType = update.isPremium && update.subscriptionType === "premium"
+        ? "premium"
+        : "free";
+      const nextPlan = typeof update.plan === "string"
+        ? update.plan
+        : (typeof update.premiumPlan === "string" ? update.premiumPlan : null);
+      const nextSubjects = Array.isArray(update.premiumSubjects) ? update.premiumSubjects : [];
+
+      setSubscription(subType);
+      setPlan(nextPlan);
+      setPremiumSubjects(nextSubjects);
+      setExpiryDate(exp);
+      saveSubscriptionToCache(user.uid, {
+        subscriptionType: subType,
+        plan: nextPlan,
+        premiumSubjects: nextSubjects,
+      });
+    };
+
+    const onSubscriptionUpdated = (event: Event) => {
+      const update = (event as CustomEvent<SubscriptionUpdate>).detail;
+      if (update && typeof update === "object") applySubscriptionUpdate(update);
+    };
+    window.addEventListener(SUBSCRIPTION_UPDATED_EVENT, onSubscriptionUpdated);
+
     setSubLoading(true);
     const safeId = user.uid.replace(/[.#$/[\]]/g, "_");
     fetch(`${DB_URL}/users/${safeId}.json`)
       .then((r) => r.json())
       .then((data: Record<string, unknown> | null) => {
-        const subType = data?.subscriptionType === "premium" ? "premium" : "free";
+        const hasPremiumFlag = data?.isPremium === true || data?.subscriptionType === "premium";
+        const subType = hasPremiumFlag ? "premium" : "free";
         const planVal = typeof data?.plan === "string" ? data.plan : null;
         let subjects: string[] = [];
         if (Array.isArray(data?.premiumSubjects)) {
@@ -54,7 +102,9 @@ export function useSubscription() {
         } else if (data?.premiumSubjects && typeof data.premiumSubjects === "object") {
           subjects = Object.values(data.premiumSubjects as Record<string, string>);
         }
-        const exp = typeof data?.premiumUntil === "number" ? data.premiumUntil : null;
+        const exp = typeof data?.expiresAt === "number"
+          ? data.expiresAt
+          : (typeof data?.premiumUntil === "number" ? data.premiumUntil : null);
         const wallet = typeof data?.walletBalance === "number" ? data.walletBalance : 0;
         const refCode = typeof data?.referralCode === "string" ? data.referralCode : null;
         const refCount = typeof data?.referralCount === "number" ? data.referralCount : 0;
@@ -84,12 +134,15 @@ export function useSubscription() {
           setPremiumSubjects([]);
         }
       })
-      .finally(() => setSubLoading(false));
+    .finally(() => setSubLoading(false));
+
+    return () => window.removeEventListener(SUBSCRIPTION_UPDATED_EVENT, onSubscriptionUpdated);
   }, [user?.uid]);
 
-  const isPremium = subscription === "premium";
-  const isTopper  = isPremium;
   const now = Date.now();
+  // Premium access is active only while the verified expiry is in the future.
+  const isPremium = subscription === "premium" && expiryDate !== null && expiryDate > now;
+  const isTopper  = isPremium;
   const isActive = isPremium && expiryDate !== null && expiryDate > now;
   const daysLeft = expiryDate && expiryDate > now
     ? Math.ceil((expiryDate - now) / 86_400_000)

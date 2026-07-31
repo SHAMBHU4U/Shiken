@@ -128,7 +128,12 @@ router.get("/leaderboard", async (req, res) => {
       }
 
       const originalUid = meta.deviceId || safeId;
-      const isPremium = usersData?.[originalUid]?.subscriptionType === "premium";
+       const premiumUser = usersData?.[originalUid];
+       const expiry = typeof premiumUser?.expiresAt === "number"
+         ? premiumUser.expiresAt
+         : (typeof premiumUser?.premiumUntil === "number" ? premiumUser.premiumUntil : 0);
+       const isPremium = (premiumUser?.isPremium === true || premiumUser?.subscriptionType === "premium")
+         && expiry > Date.now();
 
       entries.push({
         uid: originalUid,

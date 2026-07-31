@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { auth } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
-import { useSubscription } from "../hooks/useSubscription";
+import { notifySubscriptionUpdated, useSubscription } from "../hooks/useSubscription";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 
@@ -439,11 +439,15 @@ function PaymentSheet({
         handler: async (response: RazorpayResponse) => {
           const VERIFY_URL = `/api/razorpay/verify-payment`;
           const verifyBody = {
-            razorpay_order_id:   response.razorpay_order_id,
+            // Razorpay normally returns the order ID, but retain the order
+            // created above if a checkout wrapper omits it.
+            razorpay_order_id:   response.razorpay_order_id || orderId,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature:  response.razorpay_signature,
             uid,
             planId: plan.id,
+            // Sent for observability/backward compatibility only. The server
+            // derives the authoritative duration from planId.
             days:   plan.days,
             planSubject: plan.singleSubject ? selectedSubject : undefined,
           };
@@ -480,6 +484,18 @@ function PaymentSheet({
               return;
             }
 
+            const expiresAt = typeof verifyData.expiresAt === "number" ? verifyData.expiresAt : null;
+            notifySubscriptionUpdated({
+              isPremium: true,
+              subscriptionType: "premium",
+              plan: typeof verifyData.plan === "string" ? verifyData.plan : plan.id,
+              premiumPlan: typeof verifyData.premiumPlan === "string" ? verifyData.premiumPlan : plan.id,
+              premiumSubjects: plan.singleSubject && selectedSubject ? [selectedSubject] : [],
+              purchasedAt: typeof verifyData.purchasedAt === "number" ? verifyData.purchasedAt : Date.now(),
+              expiresAt,
+              premiumUntil: expiresAt,
+            });
+
             console.log("[SHIKEN] Payment verified successfully. Sending WhatsApp notification...");
 
             // Fire-and-forget WhatsApp notification
@@ -498,9 +514,11 @@ function PaymentSheet({
               }),
             }).catch((e) => console.warn("[SHIKEN] WhatsApp notify failed (non-critical):", e));
 
-            // Success — show confirmation and reload so premium status loads fresh
+            // Success — update subscription state immediately; no reload or
+            // re-login is required for premium features to unlock.
+            setPaying(false);
             alert("Payment Successful and Account Upgraded!");
-            window.location.reload();
+            onSuccess(uid, response.razorpay_payment_id);
 
           } catch (err) {
             console.error("[SHIKEN] verify-payment threw an exception:", err);

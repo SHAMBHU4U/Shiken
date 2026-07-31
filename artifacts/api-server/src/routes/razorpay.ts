@@ -131,7 +131,14 @@ router.post("/razorpay/create-order", async (req, res) => {
       return res.status(400).json({ ok: false, error: "amount, planId, and uid are required" });
     }
 
-    let finalAmount    = Number(amount);
+    // Keep the price server-owned. The browser's amount is only used as a
+    // required-shape check; it must not be able to change the plan price.
+    const serverPlan = planMeta(String(planId));
+    if (serverPlan.amount <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid plan" });
+    }
+
+    let finalAmount    = serverPlan.amount;
     let discount       = 0;
     let couponApplied  = false;
     let walletDiscount = 0;
@@ -285,7 +292,6 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       razorpay_signature,
       uid,
       planId,
-      days,
       planSubject,
     } = req.body;
 
@@ -304,7 +310,13 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       .update(body)
       .digest("hex");
 
-    if (expectedSignature !== razorpay_signature) {
+    const expectedSignatureBuffer = Buffer.from(expectedSignature, "utf8");
+    const providedSignatureBuffer = Buffer.from(String(razorpay_signature), "utf8");
+    const signatureMatches =
+      expectedSignatureBuffer.length === providedSignatureBuffer.length
+      && crypto.timingSafeEqual(expectedSignatureBuffer, providedSignatureBuffer);
+
+    if (!signatureMatches) {
       logger.warn({ uid, razorpay_payment_id }, "Razorpay signature mismatch — possible fraud attempt");
       return res.status(400).json({ ok: false, error: "Payment verification failed: invalid signature" });
     }
@@ -343,10 +355,16 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       } catch { /* ignore */ }
     }
 
-    const { days: planDays, category } = planMeta(planId);
-    const effectiveDays = Number(days) || planDays;
-    const now = Date.now();
-    const newExpiry = now + effectiveDays * 86_400_000;
+    const { days: planDays, category, amount: planAmount } = planMeta(String(planId));
+    if (planAmount <= 0) {
+      return res.status(400).json({ ok: false, error: "Invalid plan" });
+    }
+
+    // Duration is deliberately derived from the verified plan ID, never from
+    // a browser-supplied `days` value. This prevents short/incorrect expiry
+    // timestamps and makes the paid period start at verification time.
+    const purchasedAt = Date.now();
+    const newExpiry = purchasedAt + planDays * 86_400_000;
 
     // ── Fetch existing user data so we can merge purchased_tests ──
     let existingPurchases: Record<string, unknown> = {};
@@ -359,33 +377,40 @@ router.post("/razorpay/verify-payment", async (req, res) => {
         existingPurchases = val.purchased_tests && typeof val.purchased_tests === "object"
           ? (val.purchased_tests as Record<string, unknown>)
           : {};
-        existingExpiry = typeof val.premiumUntil === "number" ? val.premiumUntil : 0;
-        existingSubType = typeof val.subscriptionType === "string" ? val.subscriptionType : null;
+        existingExpiry = typeof val.premiumUntil === "number"
+          ? val.premiumUntil
+          : (typeof val.expiresAt === "number" ? val.expiresAt : 0);
+        existingSubType = typeof val.subscriptionType === "string"
+          ? val.subscriptionType
+          : (val.isPremium === true ? "premium" : null);
       }
     } catch {
       logger.warn({ uid: safeId }, "Could not fetch existing user data for merge");
     }
 
-    // Extend expiry if already premium and current expiry is in the future
-    const premiumUntil = (existingSubType === "premium" && existingExpiry > now)
-      ? Math.max(newExpiry, existingExpiry)
-      : newExpiry;
+    // Each purchase gets the exact duration promised by its plan from the
+    // payment verification timestamp. Do not use an old/short client value.
+    const premiumUntil = newExpiry;
 
     const mergedPurchases = {
       ...existingPurchases,
       [planId]: {
         active:      true,
-        activatedAt: now,
+        activatedAt: purchasedAt,
         expiresAt:   premiumUntil,
         paymentId:   razorpay_payment_id,
       },
     };
 
     const firebasePayload: Record<string, unknown> = {
+      isPremium:         true,
+      premiumPlan:       planId,
+      purchasedAt,
+      expiresAt:          premiumUntil,
       subscriptionType:  "premium",
       premiumUntil:      premiumUntil,
       plan:              planId,
-      activatedAt:       now,
+      activatedAt:       purchasedAt,
       paymentVerified:   true,
       razorpayPaymentId: razorpay_payment_id,
       razorpayOrderId:   razorpay_order_id,
@@ -436,7 +461,16 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       return res.status(500).json({ ok: false, error: `Firebase update failed: ${dbMsg}` });
     }
 
-    return res.json({ ok: true, paymentId: razorpay_payment_id });
+    return res.json({
+      ok: true,
+      paymentId: razorpay_payment_id,
+      isPremium: true,
+      premiumPlan: planId,
+      plan: planId,
+      purchasedAt,
+      expiresAt: premiumUntil,
+      premiumUntil,
+    });
   } catch (err: unknown) {
     const msg = errorText(err);
     logger.error({ err: msg }, "verify-payment failed");
