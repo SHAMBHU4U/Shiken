@@ -23,7 +23,6 @@ import MockTestPage from "@/pages/MockTestPage";
 import ReferralPage from "@/pages/ReferralPage";
 import ChoosePlanPage from "@/pages/ChoosePlanPage";
 import { AuthProvider, useAuth, type UserGoal } from "@/contexts/AuthContext";
-import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
   getNotificationPermission, requestAndScheduleReminder,
@@ -723,13 +722,13 @@ function SubjectCard({
           <SubjectIcon id={subject.id} color={subject.accent} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">
+          <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: "rgba(17,17,17,0.40)" }}>
             {classId === "entrance" ? "Entrance Exam" : `Board Class ${classId ?? "10"}`}
           </p>
-          <h3 className="text-xl font-black text-white leading-tight">{subject.label}</h3>
-          <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}cc` }}>{subject.labelHindi}</p>
+          <h3 className="text-xl font-black leading-tight text-[#111111]">{subject.label}</h3>
+          <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}` }}>{subject.labelHindi}</p>
         </div>
-        <div className="ml-auto text-white/55 group-hover:text-white transition-colors duration-200">
+        <div className="ml-auto transition-colors duration-200" style={{ color: "rgba(17,17,17,0.35)" }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
               d="M9 5l7 7-7 7"
@@ -791,10 +790,10 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5"
-                  style={{ color: isPremium ? "#fbbf24" : "rgba(255,255,255,0.45)" }}>
+                  style={{ color: isPremium ? "#d97706" : "rgba(17,17,17,0.45)" }}>
                   {isPremium ? "👑 Premium Access" : "🆓 Free Demo Available"}
                 </p>
-                <h3 className="text-2xl font-black text-white leading-tight">
+                <h3 className="text-2xl font-black leading-tight text-[#111111]">
                   Full Mock Test
                 </h3>
               </div>
@@ -829,12 +828,12 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
           {/* Stats row + CTA */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-white/55 text-xs">
+              <span className="text-xs" style={{ color: "rgba(17,17,17,0.55)" }}>
                 {isPremium
                   ? `📋 ${isJee ? "90 Qs · 3 sections" : "200 Qs · 3 sections"}`
                   : "📋 5 Qs × 3 subjects · Demo"}
               </span>
-              <span className="text-white/40 text-xs">
+              <span className="text-xs" style={{ color: "rgba(17,17,17,0.40)" }}>
                 {isPremium
                   ? `⏱ ${isJee ? "3 hours" : "3 hours"}`
                   : "⏱ 15 min · Free trial"}
@@ -858,9 +857,7 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
 function NavIcon({ id, active }: { id: string; active: boolean }) {
-  const { theme } = useTheme();
-  const inactive = theme === "dark" ? "rgba(255,255,255,0.50)" : "rgba(15,23,42,0.60)";
-  const color = active ? "#38bdf8" : inactive;
+  const color = active ? "#16a34a" : "rgba(17,17,17,0.45)";
   const sw: React.SVGProps<SVGSVGElement> = {
     viewBox: "0 0 24 24", fill: "none", stroke: color,
     strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",
@@ -894,15 +891,16 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       <path d="M9 20h6" strokeWidth="1.5" />
     </svg>
   );
+  const dimColor = "rgba(17,17,17,0.35)";
   if (id === "premium") return (
     <svg {...sw} stroke="none">
       {/* Crown shape — filled with accent gradient when active */}
       <path
         d="M3 18h18l-2.5-8L14 14l-2-7-2 7-4.5-4L3 18z"
-        fill={active ? "url(#premiumGrad)" : inactive}
+        fill={active ? "url(#premiumGrad)" : dimColor}
         stroke="none"
       />
-      <path d="M3 18h18" stroke={active ? "#f59e0b" : inactive} strokeWidth="1.8" strokeLinecap="round" fill="none" />
+      <path d="M3 18h18" stroke={active ? "#f59e0b" : dimColor} strokeWidth="1.8" strokeLinecap="round" fill="none" />
       <defs>
         <linearGradient id="premiumGrad" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#fbbf24" />
@@ -962,7 +960,7 @@ function BottomNav() {
                   className="absolute top-0 left-1/2 -translate-x-1/2 rounded-full"
                   style={{
                     width: 32, height: 2,
-                    background: "#38bdf8",
+                    background: "#16a34a",
                   }}
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
@@ -970,12 +968,12 @@ function BottomNav() {
               <div className="relative">
                 <NavIcon id={tab.iconId} active={active} />
                 {tab.iconId === "profile" && user && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#1a1b2e]" />
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
                 )}
               </div>
               <span
                 className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
-                style={{ color: active ? "#38bdf8" : "var(--app-nav-text-muted)" }}
+                style={{ color: active ? "#16a34a" : "var(--app-nav-text-muted)" }}
               >
                 {tab.label}
               </span>
@@ -987,63 +985,6 @@ function BottomNav() {
   );
 }
 
-function ThemeToggle() {
-  const [location] = useLocation();
-  const { theme, toggleTheme } = useTheme();
-  const isQuiz = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/") || location.startsWith("/mock-test/");
-  const isAdmin = location === "/admin";
-  if (isQuiz || isAdmin) return null;
-
-  const isDark = theme === "dark";
-
-  return (
-    <motion.button
-      onClick={toggleTheme}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full flex items-center justify-center"
-      style={{
-        background: isDark ? "var(--app-surface-2)" : "rgba(15,23,42,0.08)",
-        border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.14)"}`,
-      }}
-    >
-      <AnimatePresence mode="wait" initial={false}>
-        {isDark ? (
-          <motion.svg
-            key="sun"
-            initial={{ rotate: -90, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            exit={{ rotate: 90, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            width="18" height="18" viewBox="0 0 24 24" fill="none"
-            stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1" x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1" y1="12" x2="3" y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-          </motion.svg>
-        ) : (
-          <motion.svg
-            key="moon"
-            initial={{ rotate: 90, opacity: 0 }}
-            animate={{ rotate: 0, opacity: 1 }}
-            exit={{ rotate: -90, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-          >
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </motion.svg>
-        )}
-      </AnimatePresence>
-    </motion.button>
-  );
-}
 
 // ─── Daily Quote ──────────────────────────────────────────────────────────────
 const DAILY_QUOTES = [
@@ -1204,7 +1145,7 @@ function Dashboard() {
             <span className="text-[11px] font-bold tracking-[0.15em] uppercase" style={{ color: `${goalCfg.accent}cc` }}>
               {goalCfg.label} · {goalCfg.labelHindi}
             </span>
-            <span className="text-white/20 group-hover:text-white/50 text-[10px] transition-colors ml-0.5">✎</span>
+            <span className="text-[11px] text-[rgba(17,17,17,0.25)] group-hover:text-[rgba(17,17,17,0.55)] transition-colors ml-0.5">✎</span>
           </motion.button>
 
 
@@ -1213,12 +1154,7 @@ function Dashboard() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.65, ease: [0.23, 1, 0.32, 1] }}
-            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none"
-            style={{
-              background: "linear-gradient(135deg, #ffffff 0%, #ddd6fe 45%, #67e8f9 90%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
+            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none text-[#111111]"
           >
             SHIKEN
           </motion.h1>
@@ -1229,7 +1165,7 @@ function Dashboard() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.5 }}
             className="text-base font-bold mb-1"
-            style={{ color: "rgba(167,139,250,0.8)", letterSpacing: "0.13em" }}
+            style={{ color: "#16a34a", letterSpacing: "0.13em" }}
           >
             शिकेन &nbsp;·&nbsp; परीक्षा की तैयारी
           </motion.p>
@@ -1239,7 +1175,8 @@ function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="text-white/35 text-sm font-medium"
+            className="text-sm font-medium"
+            style={{ color: "rgba(17,17,17,0.45)" }}
           >
             Subject चुनो और शुरू करो
           </motion.p>
@@ -1279,7 +1216,8 @@ function Dashboard() {
         >
           <button
             onClick={() => navigate("/progress")}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/8 hover:border-white/15 transition-all text-white/50 hover:text-white/80 text-xs font-medium"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-medium"
+            style={{ background: "#f5f5f5", borderColor: "#e5e7eb", color: "rgba(17,17,17,0.55)" }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 10l3-3 3 2 3-4 3 2" stroke="currentColor" strokeWidth="1.5"
@@ -1289,7 +1227,8 @@ function Dashboard() {
           </button>
           <button
             onClick={() => navigate("/admin")}
-            className="text-white/5 hover:text-white/10 transition-colors text-xs select-none"
+            className="transition-colors text-xs select-none"
+            style={{ color: "rgba(17,17,17,0.06)" }}
             title=""
             aria-hidden="true"
           >
@@ -1407,7 +1346,6 @@ function SessionKickedModal() {
 function AppRoutes() {
   return (
     <>
-      <ThemeToggle />
       <SessionKickedModal />
       <OfflineBanner />
       <AuthGuard>
@@ -1440,17 +1378,20 @@ function AppRoutes() {
   );
 }
 
+// Strip any persisted dark class — app is fixed light
+if (typeof document !== "undefined") {
+  document.documentElement.classList.remove("dark");
+}
+
 function App() {
   return (
-    <ThemeProvider>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppRoutes />
-          </WouterRouter>
-        </AuthProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <AppRoutes />
+        </WouterRouter>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

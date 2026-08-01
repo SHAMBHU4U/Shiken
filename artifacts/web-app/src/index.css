@@ -2,141 +2,29 @@
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
-@custom-variant dark (&:is(.dark *));
-
-/* ── App-level Theme Variables ─────────────────────────────── */
-
-/* Default = DARK mode */
+/* ── Fixed light theme — no dark mode ───────────────────────── */
 html {
-  --app-bg:              #1E110A;
-  --app-text:            #ffffff;
-  --app-text-muted:      rgba(255,255,255,0.70);
-  --app-text-faint:      rgba(255,255,255,0.45);
-  --app-text-ghost:      rgba(255,255,255,0.28);
-  --app-surface:         rgba(255,255,255,0.06);
-  --app-surface-2:       rgba(255,255,255,0.09);
-  --app-border:          rgba(255,255,255,0.11);
-  --app-border-soft:     rgba(255,255,255,0.07);
-  --app-selected:        #c4843a;
-  --app-nav-bg:          rgba(20,10,5,0.97);
-  --app-nav-text:        #ffffff;
-  --app-nav-text-muted:  rgba(255,255,255,0.35);
-  --app-nav-border:      rgba(255,255,255,0.09);
-  --app-card-bg:         rgba(255,255,255,0.05);
-}
-
-html.dark {
-  --app-bg:              #1E110A;
-  --app-text:            #ffffff;
-  --app-text-muted:      rgba(255,255,255,0.70);
-  --app-text-faint:      rgba(255,255,255,0.45);
-  --app-text-ghost:      rgba(255,255,255,0.28);
-  --app-surface:         rgba(255,255,255,0.06);
-  --app-surface-2:       rgba(255,255,255,0.09);
-  --app-border:          rgba(255,255,255,0.11);
-  --app-border-soft:     rgba(255,255,255,0.07);
-  --app-selected:        #c4843a;
-  --app-nav-bg:          rgba(20,10,5,0.97);
-  --app-nav-text:        #ffffff;
-  --app-nav-text-muted:  rgba(255,255,255,0.35);
-  --app-nav-border:      rgba(255,255,255,0.09);
-  --app-card-bg:         rgba(255,255,255,0.05);
-}
-
-/* LIGHT mode */
-html:not(.dark) {
-  --app-bg:              #EBF3FC;
-  --app-text:            #000000;
-  --app-text-muted:      rgba(0,0,0,0.70);
-  --app-text-faint:      rgba(0,0,0,0.50);
-  --app-text-ghost:      rgba(0,0,0,0.35);
-  --app-surface:         rgba(255,255,255,0.72);
-  --app-surface-2:       rgba(255,255,255,0.88);
-  --app-border:          rgba(0,0,0,0.13);
-  --app-border-soft:     rgba(0,0,0,0.08);
-  --app-selected:        #0284c7;
-  --app-nav-bg:          rgba(255,255,255,0.92);
-  --app-nav-text:        #000000;
-  --app-nav-text-muted:  rgba(0,0,0,0.50);
-  --app-nav-border:      rgba(0,0,0,0.09);
-  --app-card-bg:         rgba(255,255,255,0.72);
+  --app-bg:              #ffffff;
+  --app-text:            #111111;
+  --app-text-muted:      rgba(17,17,17,0.65);
+  --app-text-faint:      rgba(17,17,17,0.45);
+  --app-text-ghost:      rgba(17,17,17,0.30);
+  --app-surface:         #f5f5f5;
+  --app-surface-2:       #eeeeee;
+  --app-border:          #e5e7eb;
+  --app-border-soft:     #f0f0f0;
+  --app-selected:        #16a34a;
+  --app-nav-bg:          #ffffff;
+  --app-nav-text:        #111111;
+  --app-nav-text-muted:  rgba(17,17,17,0.45);
+  --app-nav-border:      #e5e7eb;
+  --app-card-bg:         #ffffff;
+  --app-green:           #16a34a;
 }
 
 body {
-  background-color: var(--app-bg);
-  color: var(--app-text);
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* ── Light mode: override all text-white Tailwind classes (with !important to win specificity wars) ──── */
-html:not(.dark) .text-white,
-html:not(.dark) [class*="text-white"]          { color: #000000 !important; }
-html:not(.dark) .text-white\/5,
-html:not(.dark) [class*="text-white\\/5"]       { color: rgba(0,0,0,0.12) !important; }
-html:not(.dark) .text-white\/10,
-html:not(.dark) [class*="text-white\\/10"]      { color: rgba(0,0,0,0.20) !important; }
-html:not(.dark) .text-white\/15,
-html:not(.dark) [class*="text-white\\/15"]      { color: rgba(0,0,0,0.26) !important; }
-html:not(.dark) .text-white\/20,
-html:not(.dark) [class*="text-white\\/20"]      { color: rgba(0,0,0,0.32) !important; }
-html:not(.dark) .text-white\/25,
-html:not(.dark) [class*="text-white\\/25"]      { color: rgba(0,0,0,0.38) !important; }
-html:not(.dark) .text-white\/30,
-html:not(.dark) [class*="text-white\\/30"]      { color: rgba(0,0,0,0.44) !important; }
-html:not(.dark) .text-white\/35,
-html:not(.dark) [class*="text-white\\/35"]      { color: rgba(0,0,0,0.50) !important; }
-html:not(.dark) .text-white\/40,
-html:not(.dark) [class*="text-white\\/40"]      { color: rgba(0,0,0,0.58) !important; }
-html:not(.dark) .text-white\/45,
-html:not(.dark) [class*="text-white\\/45"]      { color: rgba(0,0,0,0.62) !important; }
-html:not(.dark) .text-white\/50,
-html:not(.dark) [class*="text-white\\/50"]      { color: rgba(0,0,0,0.68) !important; }
-html:not(.dark) .text-white\/55,
-html:not(.dark) [class*="text-white\\/55"]      { color: rgba(0,0,0,0.72) !important; }
-html:not(.dark) .text-white\/60,
-html:not(.dark) [class*="text-white\\/60"]      { color: rgba(0,0,0,0.78) !important; }
-html:not(.dark) .text-white\/70,
-html:not(.dark) [class*="text-white\\/70"]      { color: rgba(0,0,0,0.84) !important; }
-html:not(.dark) .text-white\/75,
-html:not(.dark) [class*="text-white\\/75"]      { color: rgba(0,0,0,0.88) !important; }
-html:not(.dark) .text-white\/80,
-html:not(.dark) [class*="text-white\\/80"]      { color: rgba(0,0,0,0.90) !important; }
-html:not(.dark) .text-white\/90,
-html:not(.dark) [class*="text-white\\/90"]      { color: rgba(0,0,0,0.94) !important; }
-
-/* ── Light mode: placeholder override ───────────────────────── */
-html:not(.dark) .placeholder-white\/30::placeholder,
-html:not(.dark) [class*="placeholder-white\\/30"]::placeholder { color: rgba(0,0,0,0.35) !important; }
-html:not(.dark) .placeholder-white\/40::placeholder,
-html:not(.dark) [class*="placeholder-white\\/40"]::placeholder { color: rgba(0,0,0,0.42) !important; }
-
-/* ── Light mode: surface / border background classes ──────────── */
-html:not(.dark) .bg-white\/5  { background-color: rgba(0,0,0,0.05); }
-html:not(.dark) .bg-white\/10 { background-color: rgba(0,0,0,0.08); }
-html:not(.dark) .bg-white\/15 { background-color: rgba(0,0,0,0.11); }
-html:not(.dark) .bg-white\/20 { background-color: rgba(0,0,0,0.14); }
-html:not(.dark) .border-white\/5  { border-color: rgba(0,0,0,0.07); }
-html:not(.dark) .border-white\/10 { border-color: rgba(0,0,0,0.12); }
-html:not(.dark) .border-white\/15 { border-color: rgba(0,0,0,0.14); }
-html:not(.dark) .border-white\/20 { border-color: rgba(0,0,0,0.16); }
-
-/* ── Light mode: stroke on SVGs ──────────────────────────────── */
-html:not(.dark) .stroke-white { stroke: #000000; }
-
-/* ── Light mode: quiz option unselected cards ─────────────────── */
-html:not(.dark) .quiz-option-unselected {
-  background: rgba(255,255,255,0.80) !important;
-  border-color: rgba(0,0,0,0.13) !important;
-  color: #000000 !important;
-}
-html:not(.dark) .quiz-option-label {
-  color: #000000 !important;
-}
-
-/* ── Light mode: bottom quiz bar ─────────────────────────────── */
-html:not(.dark) .quiz-bottom-bar {
-  background: rgba(235,243,252,0.97) !important;
-  border-top-color: rgba(0,0,0,0.10) !important;
+  background-color: #ffffff;
+  color: #111111;
 }
 
 @theme inline {
@@ -527,99 +415,86 @@ html:not(.dark) .quiz-bottom-bar {
   }
 }
 
-/* ── Clean PW-style interaction reset ─────────────────────────
-   Keep interactions readable through color and border changes only.
-   This intentionally overrides legacy decorative inline effects while
-   leaving quiz state, loading content, and data behavior untouched. */
-button:hover,
-button:active,
-a:hover,
-a:active {
+/* ── Fixed light theme: remap all text-white/* → dark equivalents ── */
+/* text-white and all opacity variants */
+.text-white                           { color: #111111 !important; }
+[class~="text-white\/5"]              { color: rgba(17,17,17,0.08) !important; }
+[class~="text-white\/10"]             { color: rgba(17,17,17,0.16) !important; }
+[class~="text-white\/15"]             { color: rgba(17,17,17,0.22) !important; }
+[class~="text-white\/20"]             { color: rgba(17,17,17,0.28) !important; }
+[class~="text-white\/25"]             { color: rgba(17,17,17,0.35) !important; }
+[class~="text-white\/30"]             { color: rgba(17,17,17,0.40) !important; }
+[class~="text-white\/35"]             { color: rgba(17,17,17,0.46) !important; }
+[class~="text-white\/40"]             { color: rgba(17,17,17,0.52) !important; }
+[class~="text-white\/45"]             { color: rgba(17,17,17,0.58) !important; }
+[class~="text-white\/50"]             { color: rgba(17,17,17,0.60) !important; }
+[class~="text-white\/55"]             { color: rgba(17,17,17,0.65) !important; }
+[class~="text-white\/60"]             { color: rgba(17,17,17,0.70) !important; }
+[class~="text-white\/70"]             { color: rgba(17,17,17,0.76) !important; }
+[class~="text-white\/75"]             { color: rgba(17,17,17,0.82) !important; }
+[class~="text-white\/80"]             { color: rgba(17,17,17,0.88) !important; }
+[class~="text-white\/90"]             { color: rgba(17,17,17,0.94) !important; }
+
+/* bg-white/N surface tints → very-light gray equivalents */
+[class~="bg-white\/3"]                { background-color: rgba(17,17,17,0.03) !important; }
+[class~="bg-white\/5"]                { background-color: rgba(17,17,17,0.04) !important; }
+[class~="bg-white\/8"]                { background-color: rgba(17,17,17,0.06) !important; }
+[class~="bg-white\/10"]               { background-color: rgba(17,17,17,0.07) !important; }
+[class~="bg-white\/15"]               { background-color: rgba(17,17,17,0.09) !important; }
+[class~="bg-white\/20"]               { background-color: rgba(17,17,17,0.11) !important; }
+
+/* border-white/N tints → gray equivalents */
+[class~="border-white\/5"]            { border-color: rgba(17,17,17,0.08) !important; }
+[class~="border-white\/8"]            { border-color: rgba(17,17,17,0.10) !important; }
+[class~="border-white\/10"]           { border-color: rgba(17,17,17,0.12) !important; }
+[class~="border-white\/15"]           { border-color: rgba(17,17,17,0.16) !important; }
+[class~="border-white\/20"]           { border-color: rgba(17,17,17,0.20) !important; }
+
+/* hover: variants */
+.hover\:text-white\/80:hover          { color: rgba(17,17,17,0.88) !important; }
+.hover\:text-white\/70:hover          { color: rgba(17,17,17,0.80) !important; }
+.hover\:text-white\/60:hover          { color: rgba(17,17,17,0.72) !important; }
+.hover\:text-white\/50:hover          { color: rgba(17,17,17,0.60) !important; }
+.hover\:bg-white\/10:hover            { background-color: rgba(17,17,17,0.07) !important; }
+.hover\:border-white\/15:hover        { border-color: rgba(17,17,17,0.18) !important; }
+
+/* placeholder */
+.placeholder-white\/30::placeholder,
+[class~="placeholder-white\/30"]::placeholder { color: rgba(17,17,17,0.38) !important; }
+.placeholder-white\/40::placeholder,
+[class~="placeholder-white\/40"]::placeholder { color: rgba(17,17,17,0.46) !important; }
+
+/* stroke on SVGs */
+.stroke-white { stroke: #111111 !important; }
+
+/* ── Interaction reset: no decorative transforms or shadows ───── */
+button, a {
   transform: none !important;
-  box-shadow: none !important;
-}
-
-button,
-a {
-  transform: none !important;
-  transition-property: color, background-color, border-color, opacity !important;
-  transition-duration: 150ms !important;
-}
-
-/* Hide legacy decorative hover washes; state remains visible through
-   the element's own background and border colors. */
-.group:hover .pointer-events-none {
-  opacity: 0 !important;
-}
-
-*:not(.keep-shadow) {
-  box-shadow: none !important;
-  text-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  filter: none !important;
 }
 
 *:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #16a34a;
   outline-offset: 2px;
-  box-shadow: none !important;
 }
 
-html.dark *:focus-visible {
-  outline-color: #f59e0b;
-}
-
-.animate-pulse {
-  animation: none !important;
-  opacity: 0.72;
-}
-
-.blur-3xl,
-.blur-2xl,
-.blur-xl {
-  filter: none !important;
-}
-
-/* Quiz cards: flat, high-contrast, theme-aware states. */
+/* ── Quiz option cards — white bg, black text ─────────────────── */
 .quiz-option {
-  box-shadow: none !important;
-  background: var(--app-surface) !important;
-  border-color: var(--app-border-soft) !important;
-  color: var(--app-text) !important;
-}
-
-html:not(.dark) .quiz-option {
   background: #ffffff !important;
-  border-color: #cbd5e1 !important;
-  color: #000000 !important;
+  border: 1.5px solid #e5e7eb !important;
+  color: #111111 !important;
 }
 
 .quiz-option-selected {
-  background: rgba(245, 158, 11, 0.16) !important;
-  border-color: #d69e45 !important;
-  color: #ffffff !important;
-}
-
-html:not(.dark) .quiz-option-selected {
-  background: rgba(219, 234, 254, 0.72) !important;
-  border-color: #2563eb !important;
-  color: #000000 !important;
+  background: #f0fdf4 !important;
+  border-color: #16a34a !important;
+  color: #111111 !important;
 }
 
 .quiz-option-label {
-  background: transparent !important;
-  color: var(--app-text-muted) !important;
-}
-
-html:not(.dark) .quiz-option-label {
-  color: #000000 !important;
+  background: #f5f5f5 !important;
+  color: #111111 !important;
 }
 
 .quiz-option-secondary {
-  color: var(--app-text-muted) !important;
-}
-
-html:not(.dark) .quiz-option-secondary {
-  color: rgba(0, 0, 0, 0.7) !important;
+  color: rgba(17,17,17,0.55) !important;
 }
