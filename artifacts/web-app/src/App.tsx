@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, type ReactNode } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -215,15 +215,10 @@ function StreakReminderBanner({ onPractice }: { onPractice: () => void }) {
       style={{
         background: "linear-gradient(135deg, rgba(251,191,36,0.22), rgba(245,158,11,0.13))",
         border: "1px solid rgba(251,191,36,0.45)",
-        boxShadow: "0 0 32px rgba(251,191,36,0.18), inset 0 1px 0 rgba(251,191,36,0.15)",
       }}
     >
       <div className="flex items-start gap-3">
-        <motion.span
-          animate={{ scale: [1, 1.25, 1] }}
-          transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
-          className="text-2xl shrink-0 leading-none mt-0.5"
-        >🔥</motion.span>
+        <span className="text-2xl shrink-0 leading-none mt-0.5">🔥</span>
         <div className="flex-1 min-w-0">
           <p className="text-white font-black text-sm mb-0.5">
             {streak}-day streak टूटने वाला है!
@@ -234,16 +229,14 @@ function StreakReminderBanner({ onPractice }: { onPractice: () => void }) {
           <div className="flex items-center gap-2 flex-wrap">
             <motion.button
               onClick={onPractice}
-              whileTap={{ scale: 0.95 }}
               className="px-3 py-1.5 rounded-xl text-xs font-black text-black"
-              style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 2px 12px rgba(245,158,11,0.35)" }}
+              style={{ background: "#f59e0b" }}
             >
               Practice Now →
             </motion.button>
             {notifStatus === "idle" && (
               <motion.button
                 onClick={handleRemind}
-                whileTap={{ scale: 0.95 }}
                 className="px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors"
                 style={{ border: "1px solid rgba(251,191,36,0.3)", color: "#fbbf24", background: "transparent" }}
               >
@@ -385,9 +378,9 @@ function UsernameSetup({ onDone }: { onDone: (name: string) => void }) {
           className="flex-1 px-3 py-2.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
           style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }}
         />
-        <motion.button type="submit" whileTap={{ scale: 0.96 }}
+        <motion.button type="submit"
           className="px-4 py-2.5 rounded-xl text-sm font-bold text-white shrink-0"
-          style={{ background: "linear-gradient(135deg,#8b5cf6,#6366f1)", boxShadow: "0 2px 12px rgba(139,92,246,0.35)" }}>
+          style={{ background: "#6366f1" }}>
           Join →
         </motion.button>
       </form>
@@ -535,12 +528,9 @@ function AdminGuard() {
           <motion.button
             type="submit"
             disabled={submitting}
-            whileHover={{ scale: submitting ? 1 : 1.02 }}
-            whileTap={{ scale: submitting ? 1 : 0.98 }}
             className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
             style={{
               background: submitting ? "rgba(139,92,246,0.4)" : "linear-gradient(135deg, #8b5cf6, #6366f1)",
-              boxShadow: submitting ? "none" : "0 4px 20px rgba(139,92,246,0.35)",
             }}
           >
             {submitting ? (
@@ -706,8 +696,6 @@ const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
   },
 };
 
-type Ripple = { id: number; x: number; y: number; color: string };
-
 function SubjectCard({
   subject,
   index,
@@ -719,66 +707,21 @@ function SubjectCard({
   onClick: () => void;
   classId?: string;
 }) {
-  const [ripples, setRipples] = useState<Ripple[]>([]);
-
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLButtonElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const id = Date.now();
-      setRipples((prev) => [...prev, { id, x, y, color: subject.accent }]);
-      setTimeout(() => {
-        setRipples((prev) => prev.filter((r) => r.id !== id));
-        onClick();
-      }, 320);
-    },
-    [subject.accent, onClick]
-  );
-
   return (
     <motion.button
-      onClick={handleClick}
+      onClick={onClick}
       initial={{ opacity: 0, y: 40, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 + index * 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
-      whileHover={{ scale: 1.04, y: -4 }}
-      whileTap={{ scale: 0.97 }}
-      className={`relative overflow-hidden w-full bg-gradient-to-br ${subject.gradient} backdrop-blur-xl border ${subject.border} rounded-2xl p-6 text-left shadow-xl transition-all duration-300 cursor-pointer group`}
-      style={{ boxShadow: `0 8px 40px ${subject.accent}40, 0 2px 12px rgba(0,0,0,0.5), 0 0 0 1px ${subject.accent}20` }}
+      className={`relative w-full bg-[var(--app-card-bg)] border ${subject.border} rounded-2xl p-6 text-left transition-colors duration-200 cursor-pointer group hover:border-[var(--app-text-faint)]`}
     >
-      <AnimatePresence>
-        {ripples.map((ripple) => (
-          <motion.span
-            key={ripple.id}
-            initial={{ width: 0, height: 0, opacity: 0.7, x: ripple.x, y: ripple.y }}
-            animate={{ width: 400, height: 400, opacity: 0, x: ripple.x - 200, y: ripple.y - 200 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="pointer-events-none absolute rounded-full"
-            style={{
-              background: `radial-gradient(circle, ${ripple.color}70 0%, transparent 70%)`,
-            }}
-          />
-        ))}
-      </AnimatePresence>
-
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
-        style={{
-          background: `radial-gradient(ellipse at 50% 0%, ${subject.accent}20 0%, transparent 70%)`,
-        }}
-      />
-
       <div className="relative z-10 flex items-center gap-4">
-        <motion.div
+        <div
           className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
           style={{ background: `${subject.accent}18`, border: `1.5px solid ${subject.accent}38` }}
-          whileHover={{ rotate: [0, -8, 8, 0], scale: 1.1 }}
-          transition={{ duration: 0.4 }}
         >
           <SubjectIcon id={subject.id} color={subject.accent} />
-        </motion.div>
+        </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-white/35 mb-0.5">
             {classId === "entrance" ? "Entrance Exam" : `Board Class ${classId ?? "10"}`}
@@ -786,10 +729,7 @@ function SubjectCard({
           <h3 className="text-xl font-black text-white leading-tight">{subject.label}</h3>
           <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}cc` }}>{subject.labelHindi}</p>
         </div>
-        <motion.div
-          className="ml-auto text-white/55 group-hover:text-white transition-colors duration-200"
-          whileHover={{ x: 5 }}
-        >
+        <div className="ml-auto text-white/55 group-hover:text-white transition-colors duration-200">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
               d="M9 5l7 7-7 7"
@@ -799,7 +739,7 @@ function SubjectCard({
               strokeLinejoin="round"
             />
           </svg>
-        </motion.div>
+        </div>
       </div>
     </motion.button>
   );
@@ -828,65 +768,14 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
       transition={{ delay: 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
       className="mb-2"
     >
-      <style>{`
-        @keyframes shimmer-mock {
-          0% { transform: translateX(-150%); }
-          100% { transform: translateX(350%); }
-        }
-        @keyframes glow-pulse-mock {
-          0%, 100% { box-shadow: 0 0 24px ${accent1}44, 0 0 48px ${accent2}22, 0 8px 32px rgba(0,0,0,0.55); }
-          50% { box-shadow: 0 0 48px ${accent1}77, 0 0 80px ${accent2}44, 0 8px 32px rgba(0,0,0,0.55); }
-        }
-        @keyframes sparkle {
-          0%, 100% { opacity: 0.15; transform: scale(0.8); }
-          50% { opacity: 0.9; transform: scale(1.3); }
-        }
-      `}</style>
-
       <motion.button
-        whileTap={{ scale: 0.98 }}
-        whileHover={{ scale: 1.015, y: -4 }}
         onClick={() => navigate(`/mock-test/${goal}${isPremium ? "" : "?demo=true"}`)}
-        className="relative w-full overflow-hidden rounded-2xl p-6 text-left cursor-pointer"
+        className="relative w-full rounded-2xl p-6 text-left cursor-pointer border transition-colors duration-150 hover:border-[var(--app-text-faint)]"
         style={{
-          background: `linear-gradient(135deg, ${accent1}22 0%, ${accent2}18 55%, ${accent3}12 100%)`,
-          border: `1.5px solid ${accent1}55`,
-          animation: "glow-pulse-mock 2.5s ease-in-out infinite",
+          background: "var(--app-card-bg)",
+          borderColor: `${accent1}55`,
         }}
       >
-        {/* Shimmer sweep */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl" style={{ zIndex: 1 }}>
-          <div
-            className="absolute inset-y-0 w-[40%]"
-            style={{
-              background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.10), rgba(255,255,255,0.15), rgba(255,255,255,0.10), transparent)`,
-              animation: "shimmer-mock 2.4s ease-in-out infinite",
-            }}
-          />
-        </div>
-
-        {/* Sparkle dots */}
-        {[
-          { top: 10, right: 14, delay: 0 },
-          { top: 24, right: 30, delay: 0.4 },
-          { top: 8, right: 48, delay: 0.8 },
-          { top: 32, right: 12, delay: 0.6 },
-        ].map((s, i) => (
-          <span
-            key={i}
-            className="absolute text-white text-xs pointer-events-none"
-            style={{
-              top: s.top,
-              right: s.right,
-              zIndex: 2,
-              animation: `sparkle ${1.4 + i * 0.3}s ease-in-out infinite`,
-              animationDelay: `${s.delay}s`,
-            }}
-          >
-            {i % 2 === 0 ? "✦" : "✧"}
-          </span>
-        ))}
-
         <div className="relative z-10">
           {/* Top row: icon + title + badge */}
           <div className="flex items-start justify-between mb-4">
@@ -896,7 +785,6 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
                 style={{
                   background: `${accent1}20`,
                   border: `1.5px solid ${accent1}45`,
-                  boxShadow: `0 4px 16px ${accent1}30`,
                 }}
               >
                 {isJee ? "⚙️" : "🩺"}
@@ -914,8 +802,7 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
             <div
               className="px-3 py-1 rounded-full text-[11px] font-black text-white shrink-0"
               style={{
-                background: `linear-gradient(135deg, ${accent1}, ${accent2})`,
-                boxShadow: `0 2px 12px ${accent1}70`,
+                background: accent1,
               }}
             >
               {examLabel}
@@ -956,17 +843,8 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
             <motion.div
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-black text-white"
               style={{
-                background: `linear-gradient(135deg, ${accent1}, ${accent2})`,
-                boxShadow: `0 2px 16px ${accent1}60`,
+                background: accent1,
               }}
-              animate={{
-                boxShadow: [
-                  `0 2px 16px ${accent1}60`,
-                  `0 4px 28px ${accent1}99`,
-                  `0 2px 16px ${accent1}60`,
-                ],
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
             >
               {isPremium ? "Start →" : "Try Demo →"}
             </motion.div>
@@ -1065,10 +943,7 @@ function BottomNav() {
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{
         background: "var(--app-nav-bg)",
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
         borderTop: "1px solid var(--app-nav-border)",
-        boxShadow: "0 -4px 24px rgba(0,0,0,0.45)",
       }}
     >
       <div className="max-w-lg mx-auto flex items-stretch justify-around px-1 py-1 pb-safe">
@@ -1078,7 +953,6 @@ function BottomNav() {
             <motion.button
               key={tab.path}
               onClick={() => navigate(tab.path)}
-              whileTap={{ scale: 0.91 }}
               className="relative flex flex-col items-center justify-center gap-1 flex-1 py-3 min-w-0 rounded-xl transition-all duration-200"
               style={{ background: "transparent" }}
             >
@@ -1088,8 +962,7 @@ function BottomNav() {
                   className="absolute top-0 left-1/2 -translate-x-1/2 rounded-full"
                   style={{
                     width: 32, height: 2,
-                    background: "linear-gradient(90deg, #38bdf8, #818cf8)",
-                    boxShadow: "0 0 8px rgba(56,189,248,0.7)",
+                    background: "#38bdf8",
                   }}
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
@@ -1126,15 +999,11 @@ function ThemeToggle() {
   return (
     <motion.button
       onClick={toggleTheme}
-      whileTap={{ scale: 0.88 }}
-      whileHover={{ scale: 1.08 }}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className="fixed top-4 right-4 z-50 w-10 h-10 rounded-full flex items-center justify-center"
       style={{
         background: isDark ? "var(--app-surface-2)" : "rgba(15,23,42,0.08)",
         border: `1px solid ${isDark ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.14)"}`,
-        backdropFilter: "blur(12px)",
-        boxShadow: isDark ? "0 2px 12px rgba(0,0,0,0.4)" : "0 2px 12px rgba(0,0,0,0.12)",
       }}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -1324,7 +1193,6 @@ function Dashboard() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
             onClick={() => clearGoal()}
-            whileTap={{ scale: 0.96 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 cursor-pointer group"
             style={{
               background: `${goalCfg.accent}1a`,
@@ -1350,7 +1218,6 @@ function Dashboard() {
               background: "linear-gradient(135deg, #ffffff 0%, #ddd6fe 45%, #67e8f9 90%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 32px rgba(139,92,246,0.25))",
             }}
           >
             SHIKEN

@@ -665,36 +665,22 @@ function ChoosePlanOverlay({ goal, onClose }: { goal: "jee" | "neet" | "c10" | "
                     style={{ background: `${plan.accent}15` }}>{f}</span>
                 ))}
               </div>
-              <motion.button whileTap={{ scale: 0.97 }}
+              <motion.button
                 onClick={() => { onClose(); navigate(`/pricing?plan=${plan.id}`); }}
                 className="w-full py-2.5 rounded-xl font-bold text-xs text-black"
-                style={{ background: `linear-gradient(135deg, ${plan.accent}, ${plan.accent}cc)`, boxShadow: `0 4px 16px ${plan.accent}40` }}>
+                style={{ background: plan.accent }}>
                 Get {plan.name} →
               </motion.button>
             </motion.div>
           ))}
         </div>
-        <motion.button whileTap={{ scale: 0.97 }} onClick={onClose}
+        <motion.button onClick={onClose}
           className="w-full py-3 rounded-xl font-bold text-xs text-white/50"
           style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.08)" }}>
           ← Back to Free Mode
         </motion.button>
       </div>
     </motion.div>
-  );
-}
-
-// ─── Magic ripple ─────────────────────────────────────────────────────────────
-
-function MagicRipple({ color }: { color: string }) {
-  return (
-    <motion.span
-      className="absolute inset-0 rounded-xl pointer-events-none"
-      initial={{ opacity: 0.7, scale: 0.85 }}
-      animate={{ opacity: 0, scale: 1.6 }}
-      transition={{ duration: 0.7, ease: "easeOut" }}
-      style={{ background: `radial-gradient(ellipse at center, ${color}60 0%, transparent 70%)` }}
-    />
   );
 }
 
@@ -877,7 +863,7 @@ function ModeSelect({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             className="rounded-2xl border p-4 flex items-center gap-4"
-            style={{ background: `linear-gradient(135deg, ${meta.accent}22, ${meta.accent}08)`, borderColor: `${meta.accent}50`, boxShadow: `0 0 24px ${meta.accent}20` }}
+            style={{ background: `${meta.accent}12`, borderColor: `${meta.accent}50` }}
           >
             <div className="text-2xl w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${meta.accent}25` }}>
               ⏸️
@@ -891,7 +877,6 @@ function ModeSelect({
               </p>
             </div>
             <motion.button
-              whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.95 }}
               onClick={onResume}
               className="px-4 py-2 rounded-xl text-xs font-bold shrink-0"
               style={{ background: meta.accent, color: "#000" }}
@@ -937,10 +922,9 @@ function ModeSelect({
         {hasSaved && (
           <motion.button
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
-            whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.97 }}
             onClick={onSaved}
             className="relative overflow-hidden text-left rounded-2xl border p-4 flex items-center gap-4 group"
-            style={{ background: "linear-gradient(135deg,rgba(251,191,36,0.1),rgba(251,191,36,0.03))", borderColor: "rgba(251,191,36,0.3)", boxShadow: "0 4px 28px rgba(251,191,36,0.1)" }}
+            style={{ background: "rgba(251,191,36,0.08)", borderColor: "rgba(251,191,36,0.3)" }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
               style={{ background: "radial-gradient(ellipse at 50% 0%,rgba(251,191,36,0.14),transparent 70%)" }} />
@@ -961,14 +945,11 @@ function ModeSelect({
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.12, ease: [0.23, 1, 0.32, 1], duration: 0.5 }}
-            whileHover={{ scale: 1.03, y: -3 }}
-            whileTap={{ scale: 0.97 }}
             onClick={m.onClick}
             className="relative overflow-hidden text-left rounded-2xl border p-5 group"
             style={{
               background: `linear-gradient(135deg, ${m.glowColor}18, rgba(255,255,255,0.05))`,
               borderColor: `${m.glowColor}30`,
-              boxShadow: `0 4px 32px ${m.glowColor}12`,
             }}
           >
             {m.id === "ai" && !m.locked && (
@@ -983,10 +964,6 @@ function ModeSelect({
                 👑 Premium
               </div>
             )}
-            <div
-              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
-              style={{ background: `radial-gradient(ellipse at 50% 0%, ${m.glowColor}18, transparent 70%)` }}
-            />
             <div className="flex items-start gap-4 relative z-10">
               <div
                 className="text-2xl w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
@@ -1948,7 +1925,6 @@ export default function SubjectPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers]           = useState<Record<number, number>>({});
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [rippleKey, setRippleKey]       = useState(0);
   const [direction, setDirection]       = useState(1);
 
   // Timer state: -1 = not started, 0 = expired, >0 = seconds remaining
@@ -2393,7 +2369,6 @@ export default function SubjectPage() {
     setCurrentIndex(0);
     setAnswers({});
     setSelectedOption(null);
-    setRippleKey(0);
     setDirection(1);
     setTimerLeft(FULL_TIMER);
     setTimerHidden(false);
@@ -2431,7 +2406,6 @@ export default function SubjectPage() {
     setCurrentIndex(0);
     setAnswers({});
     setSelectedOption(null);
-    setRippleKey(0);
     setDirection(1);
     setTimerLeft(10 * 60);
     setTimerHidden(false);
@@ -2507,7 +2481,6 @@ export default function SubjectPage() {
     setCurrentIndex(0);
     setAnswers({});
     setSelectedOption(null);
-    setRippleKey(0);
     setDirection(1);
     setTimerLeft(-1);
     setTimerHidden(false);
@@ -2576,7 +2549,6 @@ export default function SubjectPage() {
     setCurrentIndex(0);
     setAnswers({});
     setSelectedOption(null);
-    setRippleKey(0);
     setDirection(1);
     setTimerLeft(CHAPTER_TIMER);
     setTimerHidden(false);
@@ -2592,7 +2564,6 @@ export default function SubjectPage() {
     setCurrentIndex(savedProgress.currentIndex);
     setAnswers(savedProgress.answers);
     setSelectedOption(savedProgress.answers[savedProgress.currentIndex] ?? null);
-    setRippleKey(0);
     setDirection(1);
     setTimerLeft(savedProgress.timerLeft ?? (savedProgress.mode === "full" ? FULL_TIMER : CHAPTER_TIMER));
     setTimerHidden(false);
@@ -2603,7 +2574,6 @@ export default function SubjectPage() {
     setCurrentIndex(0);
     setAnswers({});
     setSelectedOption(null);
-    setRippleKey(0);
     setDirection(1);
     setTimerLeft(-1);
     setTimerHidden(false);
@@ -2651,7 +2621,6 @@ export default function SubjectPage() {
       setCurrentIndex(0);
       setAnswers({});
       setSelectedOption(null);
-      setRippleKey(0);
       setDirection(1);
       setTimerLeft(-1);
       setTimerHidden(false);
@@ -2665,7 +2634,6 @@ export default function SubjectPage() {
   const handleSelect = (oi: number) => {
     if (selectedOption !== null) return;
     setSelectedOption(oi);
-    setRippleKey((k) => k + 1);
     const newAnswers = { ...answers, [currentIndex]: oi };
     setAnswers(newAnswers);
     persist({ ans: newAnswers });
@@ -2851,7 +2819,7 @@ export default function SubjectPage() {
                 onClick={() => {
                   const qs = [...bookmarks].sort(() => Math.random() - 0.5).slice(0, Math.min(bookmarks.length, 20));
                   setQuestions(qs); setCurrentIndex(0); setAnswers({}); setSelectedOption(null);
-                  setRippleKey(0); setDirection(1); setMode("chapter"); setSelectedChapter("Saved Questions");
+                  setDirection(1); setMode("chapter"); setSelectedChapter("Saved Questions");
                   setTimerLeft(-1); setTimerHidden(false); setScreen("quiz");
                 }}
                 className="ml-auto px-4 py-2 rounded-xl text-xs font-bold"
@@ -3101,9 +3069,6 @@ export default function SubjectPage() {
 
   const q        = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
-  const magicColors = ["#f59e0b", "#06b6d4"];
-  const magicColor  = magicColors[rippleKey % 2];
-
   // ── Timer display helpers ─────────────────────────────────────────────────────
   const timerMM  = String(Math.floor(Math.max(0, timerLeft) / 60)).padStart(2, "0");
   const timerSS  = String(Math.max(0, timerLeft) % 60).padStart(2, "0");
@@ -3473,49 +3438,37 @@ export default function SubjectPage() {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: oi * 0.07, duration: 0.35 }}
-                        whileHover={selectedOption === null ? { scale: 1.02, x: 4 } : {}}
-                        whileTap={selectedOption === null ? { scale: 0.98 } : {}}
-                        className="relative w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 overflow-hidden transition-colors duration-200"
+                        className={`quiz-option relative w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 overflow-hidden transition-colors duration-150 ${isSelected ? "quiz-option-selected" : ""}`}
                         style={{
-                          background:   isSelected ? `linear-gradient(135deg, ${magicColor}28, ${magicColor}10)` : "var(--app-surface)",
-                          borderColor:  isSelected ? `${magicColor}60` : "var(--app-border-soft)",
                           cursor:       selectedOption !== null ? "default" : "pointer",
-                          boxShadow:    isSelected ? `0 0 20px ${magicColor}25` : "none",
                         }}
                       >
-                        {isSelected && <MagicRipple key={rippleKey} color={magicColor} />}
-                        {isSelected && (
-                          <motion.div className="absolute inset-0 rounded-xl pointer-events-none"
-                            initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 0.5] }} transition={{ duration: 0.6 }}
-                            style={{ background: `radial-gradient(ellipse at 50% 50%, ${magicColor}18, transparent 70%)` }} />
-                        )}
-                        <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0"
-                          style={{ background: isSelected ? `${magicColor}40` : "var(--app-surface)", color: isSelected ? magicColor : "var(--app-text-ghost)" }}>
+                        <span className="quiz-option-label w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
                           {String.fromCharCode(65 + oi)}
                         </span>
                         <span className="flex flex-col gap-0.5 min-w-0">
                           {langMode === "hi" ? (
                             <>
                               {isTranslating && !optHindi ? (
-                                <span className="block h-4 rounded w-4/5 animate-pulse" style={{ background: "var(--app-border)" }} />
+                                 <span className="block h-4 rounded w-4/5" style={{ background: "var(--app-border)" }} />
                               ) : (
-                                <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "var(--app-text)" }}>
+                                <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-label" : ""}`}>
                                   <MathText text={displayOpt} />
                                 </span>
                               )}
                               {optHindi && !isTranslating && (
-                                <span className="text-xs leading-snug" style={{ color: isSelected ? "var(--app-text-faint)" : "var(--app-text-ghost)" }}>
+                                <span className="quiz-option-secondary text-xs leading-snug">
                                   <MathText text={opt} />
                                 </span>
                               )}
                             </>
                           ) : (
                             <>
-                              <span className="text-sm font-medium leading-snug" style={{ color: isSelected ? "#fff" : "var(--app-text)" }}>
+                              <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-label" : ""}`}>
                                 <MathText text={opt} />
                               </span>
                               {optHindi && (
-                                <span className="text-xs leading-snug" style={{ color: isSelected ? "var(--app-text-faint)" : "var(--app-text-ghost)" }}>
+                                <span className="quiz-option-secondary text-xs leading-snug">
                                   <MathText text={optHindi} />
                                 </span>
                               )}
@@ -3534,7 +3487,6 @@ export default function SubjectPage() {
           {/* Nav buttons */}
           <div className="flex gap-2 mt-5 pb-2">
             <motion.button
-              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
               onClick={handlePrev} disabled={currentIndex === 0}
               className="w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 text-base"
               style={{
@@ -3549,7 +3501,6 @@ export default function SubjectPage() {
             {selectedOption === null && currentIndex < questions.length - 1 && (
               <motion.button
                 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                 onClick={handleNext}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold border"
                 style={{ background: "var(--app-surface)", borderColor: "rgba(0,0,0,0.08)", color: "var(--app-text-faint)" }}>
@@ -3558,8 +3509,6 @@ export default function SubjectPage() {
             )}
 
             <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
               onClick={selectedOption !== null || currentIndex === questions.length - 1 ? handleNext : undefined}
               disabled={selectedOption === null && currentIndex < questions.length - 1}
               className="flex-[2] py-3 rounded-xl text-sm font-bold transition-all duration-300"
@@ -3570,9 +3519,6 @@ export default function SubjectPage() {
                 color: (selectedOption !== null || currentIndex === questions.length - 1)
                   ? "#fff"
                   : "var(--app-text-ghost)",
-                boxShadow: (selectedOption !== null || currentIndex === questions.length - 1)
-                  ? `0 4px 20px ${meta.accent}40`
-                  : "none",
                 cursor: (selectedOption === null && currentIndex < questions.length - 1)
                   ? "not-allowed"
                   : "pointer",

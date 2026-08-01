@@ -526,3 +526,100 @@ html:not(.dark) .quiz-bottom-bar {
     inset: -1px;
   }
 }
+
+/* ── Clean PW-style interaction reset ─────────────────────────
+   Keep interactions readable through color and border changes only.
+   This intentionally overrides legacy decorative inline effects while
+   leaving quiz state, loading content, and data behavior untouched. */
+button:hover,
+button:active,
+a:hover,
+a:active {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+button,
+a {
+  transform: none !important;
+  transition-property: color, background-color, border-color, opacity !important;
+  transition-duration: 150ms !important;
+}
+
+/* Hide legacy decorative hover washes; state remains visible through
+   the element's own background and border colors. */
+.group:hover .pointer-events-none {
+  opacity: 0 !important;
+}
+
+*:not(.keep-shadow) {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+
+*:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  box-shadow: none !important;
+}
+
+html.dark *:focus-visible {
+  outline-color: #f59e0b;
+}
+
+.animate-pulse {
+  animation: none !important;
+  opacity: 0.72;
+}
+
+.blur-3xl,
+.blur-2xl,
+.blur-xl {
+  filter: none !important;
+}
+
+/* Quiz cards: flat, high-contrast, theme-aware states. */
+.quiz-option {
+  box-shadow: none !important;
+  background: var(--app-surface) !important;
+  border-color: var(--app-border-soft) !important;
+  color: var(--app-text) !important;
+}
+
+html:not(.dark) .quiz-option {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #000000 !important;
+}
+
+.quiz-option-selected {
+  background: rgba(245, 158, 11, 0.16) !important;
+  border-color: #d69e45 !important;
+  color: #ffffff !important;
+}
+
+html:not(.dark) .quiz-option-selected {
+  background: rgba(219, 234, 254, 0.72) !important;
+  border-color: #2563eb !important;
+  color: #000000 !important;
+}
+
+.quiz-option-label {
+  background: transparent !important;
+  color: var(--app-text-muted) !important;
+}
+
+html:not(.dark) .quiz-option-label {
+  color: #000000 !important;
+}
+
+.quiz-option-secondary {
+  color: var(--app-text-muted) !important;
+}
+
+html:not(.dark) .quiz-option-secondary {
+  color: rgba(0, 0, 0, 0.7) !important;
+}
