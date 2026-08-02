@@ -65,11 +65,28 @@ https://api-jjfwuxybja-uc.a.run.app/api/leaderboard?category=${encodeURIComponen
 type Category = "c10" | "c12" | "jee" | "neet";
 type Filter = "all" | "premium";
 
-const CATEGORY_META: Record<Category, { label: string; emoji: string; accent: string }> = {
-  c10: { label: "Class 10", emoji: "📚", accent: "#8b5cf6" },
-  c12: { label: "Class 12", emoji: "🎓", accent: "#06b6d4" },
-  jee: { label: "JEE", emoji: "⚡", accent: "#3b82f6" },
-  neet: { label: "NEET", emoji: "🌿", accent: "#10b981" },
+const CATEGORY_META: Record<Category, {
+  label: string;
+  emoji: string;
+  accent: string;
+  surface: string;
+  border: string;
+}> = {
+  c10: { label: "Class 10", emoji: "📚", accent: "#7c3aed", surface: "#ede9fe", border: "#c4b5fd" },
+  c12: { label: "Class 12", emoji: "🎓", accent: "#0891b2", surface: "#cffafe", border: "#67e8f9" },
+  jee: { label: "JEE", emoji: "⚡", accent: "#2563eb", surface: "#dbeafe", border: "#93c5fd" },
+  neet: { label: "NEET", emoji: "🌿", accent: "#059669", surface: "#d1fae5", border: "#6ee7b7" },
+};
+
+const FILTER_META: Record<Filter, {
+  label: string;
+  emoji: string;
+  accent: string;
+  surface: string;
+  border: string;
+}> = {
+  all: { label: "All Students", emoji: "🌟", accent: "#7c3aed", surface: "#ede9fe", border: "#c4b5fd" },
+  premium: { label: "Premium Only", emoji: "👑", accent: "#b45309", surface: "#fef3c7", border: "#fcd34d" },
 };
 
 export default function LeaderboardPage() {
@@ -106,15 +123,9 @@ export default function LeaderboardPage() {
   const myEntry = entries.find((e) => e.uid === myUid);
 
   return (
-    <div className="min-h-screen w-full pb-28" style={{ background: "var(--app-bg)" }}>
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-10"
-          style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
-        <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-8"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
-      </div>
+    <div className="min-h-screen w-full pb-28 bg-slate-100">
 
-      <div className="relative z-10 max-w-lg mx-auto px-4 pt-14">
+      <div className="relative z-10 max-w-lg mx-auto px-4 pt-10">
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -128,8 +139,8 @@ export default function LeaderboardPage() {
           >
             🏆
           </motion.div>
-          <h1 className="text-white font-black text-2xl tracking-tight mb-1">Leaderboard</h1>
-          <p className="text-white/30 text-xs">
+          <h1 className="text-slate-950 font-black text-2xl tracking-tight mb-1">Leaderboard</h1>
+          <p className="text-slate-600 text-xs font-medium">
             {CATEGORY_META[category].label} rankings by average score · updates every minute
           </p>
         </motion.div>
@@ -139,39 +150,37 @@ export default function LeaderboardPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-            className="mb-4 rounded-2xl p-3.5 flex items-center gap-3"
+            className="mb-4 rounded-2xl p-4 flex items-center gap-3 shadow-sm"
             style={{
-              background: isPremium
-                ? "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.08))"
-                : "rgba(139,92,246,0.1)",
-              border: isPremium ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(139,92,246,0.25)",
+              background: isPremium ? "#fef3c7" : "#ede9fe",
+              border: `1px solid ${isPremium ? "#fcd34d" : "#c4b5fd"}`,
             }}
           >
             <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-black"
               style={{
                 background: isPremium
-                  ? "linear-gradient(135deg, #f59e0b, #d97706)"
-                  : "rgba(139,92,246,0.25)",
-                color: isPremium ? "#000" : "#c4b5fd",
+                  ? "#fbbf24"
+                  : "#ddd6fe",
+                color: isPremium ? "#78350f" : "#6d28d9",
               }}>
               {myRank < 3 ? RANK_MEDALS[myRank] : `#${myRank + 1}`}
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
-                <p className="text-white font-bold text-sm truncate">{myEntry.username}</p>
+                <p className="text-slate-950 font-bold text-sm truncate">{myEntry.username}</p>
                 {isPremium && (
                   <span className="text-xs px-1.5 py-0.5 rounded-full font-bold shrink-0"
-                    style={{ background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#000" }}>
+                    style={{ background: "#fbbf24", color: "#78350f" }}>
                     👑
                   </span>
                 )}
-                <span className="text-xs text-purple-400 font-medium shrink-0">(you)</span>
+                <span className="text-xs text-violet-700 font-semibold shrink-0">(you)</span>
               </div>
-              <p className="text-white/30 text-xs">{myEntry.totalSessions} tests · {myEntry.subjectCount} subjects</p>
+              <p className="text-slate-600 text-xs font-medium">{myEntry.totalSessions} tests · {myEntry.subjectCount} subjects</p>
             </div>
             <div className="shrink-0 text-right">
               <p className="font-black text-base" style={{ color: GRADE_COLOR(myEntry.avgPct) }}>{myEntry.avgPct}%</p>
-              <p className="text-white/20 text-xs">avg</p>
+              <p className="text-slate-500 text-xs font-medium">avg</p>
             </div>
           </motion.div>
         )}
@@ -188,11 +197,11 @@ export default function LeaderboardPage() {
             const isActive = category === c;
             return (
               <button key={c} onClick={() => setCategory(c)}
-                className="py-2 rounded-xl text-xs font-bold transition-all"
+                className="py-2.5 rounded-xl text-xs font-bold transition-all border"
                 style={{
-                  background: isActive ? `${meta.accent}25` : "var(--app-surface)",
-                  border: `1px solid ${isActive ? meta.accent : "rgba(0,0,0,0.08)"}`,
-                  color: isActive ? meta.accent : "rgba(255,255,255,0.40)",
+                  background: isActive ? meta.surface : "#e2e8f0",
+                  borderColor: isActive ? meta.border : "#cbd5e1",
+                  color: isActive ? meta.accent : "#475569",
                 }}>
                 {meta.emoji} {meta.label}
               </button>
@@ -204,29 +213,21 @@ export default function LeaderboardPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.15 }}
-          className="flex gap-2 mb-4"
+            className="grid grid-cols-2 gap-2 mb-5"
         >
           {(["all", "premium"] as Filter[]).map((f) => (
             <motion.button
               key={f}
               onClick={() => setFilter(f)}
               whileTap={{ scale: 0.96 }}
-              className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
+              className="py-2.5 rounded-xl text-xs font-bold transition-all border"
               style={{
-                background: filter === f
-                  ? f === "premium"
-                    ? "linear-gradient(135deg, rgba(245,158,11,0.25), rgba(217,119,6,0.15))"
-                    : "rgba(139,92,246,0.2)"
-                  : "var(--app-surface)",
-                border: filter === f
-                  ? f === "premium" ? "1px solid rgba(245,158,11,0.4)" : "1px solid rgba(139,92,246,0.35)"
-                  : "1px solid rgba(255,255,255,0.06)",
-                color: filter === f
-                  ? f === "premium" ? "#fbbf24" : "#a78bfa"
-                  : "rgba(255,255,255,0.22)",
+                background: filter === f ? FILTER_META[f].surface : "#e2e8f0",
+                borderColor: filter === f ? FILTER_META[f].border : "#cbd5e1",
+                color: filter === f ? FILTER_META[f].accent : "#475569",
               }}
             >
-              {f === "all" ? "🌟 All Students" : "👑 Premium Only"}
+              {FILTER_META[f].emoji} {FILTER_META[f].label}
             </motion.button>
           ))}
         </motion.div>
@@ -238,7 +239,7 @@ export default function LeaderboardPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex flex-col items-center gap-3 py-16 text-white/20"
+              className="flex flex-col items-center gap-3 py-16 text-slate-500"
             >
               <motion.div
                 animate={{ rotate: 360 }}
@@ -257,8 +258,8 @@ export default function LeaderboardPage() {
               className="text-center py-16"
             >
               <p className="text-3xl mb-3">🏅</p>
-              <p className="text-white/30 text-sm">No scores yet</p>
-              <p className="text-white/15 text-xs mt-1">Complete a test to appear here!</p>
+              <p className="text-slate-700 text-sm font-semibold">No scores yet</p>
+              <p className="text-slate-500 text-xs mt-1">Complete a test to appear here!</p>
             </motion.div>
           ) : (
             <motion.div
@@ -267,15 +268,14 @@ export default function LeaderboardPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-              className="rounded-2xl overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}
+              className="rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200"
             >
               <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                <span className="text-white/40 text-xs font-semibold uppercase tracking-widest">
+                style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <span className="text-slate-600 text-xs font-bold uppercase tracking-widest">
                   {filtered.length} students ranked
                 </span>
-                <span className="text-white/20 text-xs">
+                <span className="text-slate-500 text-xs font-medium">
                   {lastRefresh.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
@@ -295,16 +295,16 @@ export default function LeaderboardPage() {
                     className="flex items-center gap-3 px-4 py-3 transition-colors"
                     style={{
                       background: isMe
-                        ? "rgba(139,92,246,0.1)"
-                        : i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)",
-                      borderLeft: isMe ? "2px solid #8b5cf6" : "2px solid transparent",
+                        ? "#f5f3ff"
+                        : i % 2 === 0 ? "#ffffff" : "#f8fafc",
+                      borderLeft: isMe ? "3px solid #7c3aed" : "3px solid transparent",
                     }}
                   >
                     <div className="w-7 text-center shrink-0">
                       {rank < 3 ? (
                         <span className="text-base">{RANK_MEDALS[rank]}</span>
                       ) : (
-                        <span className="text-white/25 font-black text-xs tabular-nums">{rank + 1}</span>
+                        <span className="text-slate-500 font-black text-xs tabular-nums">{rank + 1}</span>
                       )}
                     </div>
 
@@ -312,8 +312,8 @@ export default function LeaderboardPage() {
                       className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-black"
                       style={
                         e.isPremium
-                          ? { background: "linear-gradient(135deg, #f59e0b, #d97706)", color: "#000", boxShadow: "0 2px 10px rgba(245,158,11,0.35)" }
-                          : { background: "var(--app-surface)", color: "var(--app-text-ghost)" }
+                          ? { background: "#fbbf24", color: "#78350f", boxShadow: "0 2px 8px rgba(180,83,9,0.18)" }
+                          : { background: "#e2e8f0", color: "#334155" }
                       }
                     >
                       {e.isPremium ? "👑" : e.username.charAt(0).toUpperCase()}
@@ -321,20 +321,20 @@ export default function LeaderboardPage() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <p className="text-sm font-bold text-white truncate leading-none">
+                        <p className="text-sm font-bold text-slate-950 truncate leading-none">
                           {e.username}
                         </p>
-                        {isMe && <span className="text-purple-400 text-xs font-medium shrink-0">(you)</span>}
+                        {isMe && <span className="text-violet-700 text-xs font-semibold shrink-0">(you)</span>}
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-white/25 text-xs">{e.totalSessions} test{e.totalSessions !== 1 ? "s" : ""}</span>
-                        <span className="text-white/15 text-xs">·</span>
-                        <span className="text-white/25 text-xs">{e.subjectCount} subj</span>
+                        <span className="text-slate-600 text-xs font-medium">{e.totalSessions} test{e.totalSessions !== 1 ? "s" : ""}</span>
+                        <span className="text-slate-400 text-xs">·</span>
+                        <span className="text-slate-600 text-xs font-medium">{e.subjectCount} subj</span>
                         {e.bestSubject && (
                           <>
-                            <span className="text-white/15 text-xs">·</span>
+                            <span className="text-slate-400 text-xs">·</span>
                             <span className="text-xs">{SUBJECT_ICONS[e.bestSubject.toLowerCase()] ?? SUBJECT_ICONS[e.bestSubject] ?? "📚"}</span>
-                            <span className="text-white/20 text-xs truncate">{SUBJECT_LABELS[e.bestSubject.toLowerCase()] ?? SUBJECT_LABELS[e.bestSubject] ?? e.bestSubject}</span>
+                            <span className="text-slate-500 text-xs font-medium truncate">{SUBJECT_LABELS[e.bestSubject.toLowerCase()] ?? SUBJECT_LABELS[e.bestSubject] ?? e.bestSubject}</span>
                           </>
                         )}
                       </div>
@@ -344,7 +344,7 @@ export default function LeaderboardPage() {
                       <p className="font-black text-sm tabular-nums" style={{ color: GRADE_COLOR(e.avgPct) }}>
                         {e.avgPct}%
                       </p>
-                      <p className="text-white/20 text-xs">avg</p>
+                      <p className="text-slate-500 text-xs font-medium">avg</p>
                     </div>
                   </motion.div>
                 );
@@ -358,7 +358,7 @@ export default function LeaderboardPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-center text-white/15 text-xs mt-4"
+            className="text-center text-slate-500 text-xs font-medium mt-4"
           >
             Complete more tests to climb the rankings!
           </motion.p>
