@@ -843,8 +843,7 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
 
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
-function NavIcon({ id, active }: { id: string; active: boolean }) {
-  const color = active ? "#059669" : "#64748b";
+function NavIcon({ id, color }: { id: string; color: string }) {
   const sw: React.SVGProps<SVGSVGElement> = {
     viewBox: "0 0 24 24", fill: "none", stroke: color,
     strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",
@@ -878,22 +877,14 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       <path d="M9 20h6" strokeWidth="1.5" />
     </svg>
   );
-  const dimColor = "#94a3b8";
   if (id === "premium") return (
     <svg {...sw} stroke="none">
-      {/* Crown shape — filled with accent gradient when active */}
       <path
         d="M3 18h18l-2.5-8L14 14l-2-7-2 7-4.5-4L3 18z"
-        fill={active ? "url(#premiumGrad)" : dimColor}
+        fill={color}
         stroke="none"
       />
-      <path d="M3 18h18" stroke={active ? "#f59e0b" : dimColor} strokeWidth="1.8" strokeLinecap="round" fill="none" />
-      <defs>
-        <linearGradient id="premiumGrad" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#fbbf24" />
-          <stop offset="100%" stopColor="#f59e0b" />
-        </linearGradient>
-      </defs>
+      <path d="M3 18h18" stroke={color} strokeWidth="1.8" strokeLinecap="round" fill="none" />
     </svg>
   );
   return (
@@ -912,12 +903,12 @@ function BottomNav() {
   if (isQuiz || isAdmin) return null;
 
   const tabs = [
-    { path: "/",             iconId: "home",        label: "Home"       },
-    { path: "/leaderboard",  iconId: "ranks",       label: "Ranks"      },
-    { path: "/profile",      iconId: "profile",     label: "Profile"    },
-    { path: "/pricing",      iconId: "premium",     label: "Premium 👑" },
-    { path: "/counselling",  iconId: "counselling", label: "Counselling"},
-    { path: "/contact",      iconId: "contact",     label: "Contact"    },
+    { path: "/",             iconId: "home",        label: "Home",        color: "#4aa6a5" },
+    { path: "/leaderboard",  iconId: "ranks",       label: "Ranks",       color: "#ff6b6b" },
+    { path: "/profile",      iconId: "profile",     label: "Profile",     color: "#8f0027" },
+    { path: "/pricing",      iconId: "premium",     label: "Premium 👑",  color: "#f59e0b" },
+    { path: "/counselling",  iconId: "counselling", label: "Counselling", color: "#ed841c" },
+    { path: "/contact",      iconId: "contact",     label: "Contact",     color: "#2563eb" },
   ];
 
   return (
@@ -947,20 +938,20 @@ function BottomNav() {
                   className="absolute top-0 left-1/2 -translate-x-1/2 rounded-full"
                   style={{
                     width: 32, height: 2,
-                    background: "#059669",
+                    background: tab.color,
                   }}
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
               )}
               <div className="relative">
-                <NavIcon id={tab.iconId} active={active} />
+                <NavIcon id={tab.iconId} color={tab.color} />
                 {tab.iconId === "profile" && user && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
                 )}
               </div>
               <span
                 className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
-                 style={{ color: active ? "#059669" : "#64748b" }}
+                 style={{ color: active ? tab.color : "#64748b" }}
               >
                 {tab.label}
               </span>
