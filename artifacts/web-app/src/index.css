@@ -488,20 +488,29 @@ button, a {
 
 /* ── Quiz option cards — enterprise surgical look ──────────────── */
 .quiz-option {
-  background: #ffffff !important;
-  border: 1.5px solid #e2e8f0 !important;  /* slate-200 */
+  background: #e8eef4 !important;
+  border: 1.5px solid #cbd5e1 !important;  /* slate-300 */
   color: #0f172a !important;               /* slate-900 */
 }
 
+.quiz-option:hover:not(.quiz-option-selected) {
+  background: #e1e8f0 !important;
+  border-color: #94a3b8 !important;
+}
+
 .quiz-option-selected {
-  background: #ecfdf5 !important;   /* emerald-50 */
+  background: #d9f5eb !important;   /* emerald-100 */
   border-color: #059669 !important; /* emerald-600 */
   color: #0f172a !important;
 }
 
 .quiz-option-label {
-  background: #f1f5f9 !important;  /* slate-100 */
-  color: #475569 !important;       /* slate-600 */
+  background: #dbe5ef !important;  /* slate-200 */
+  color: #334155 !important;       /* slate-700 */
+}
+
+.quiz-option-answer-selected {
+  color: #064e3b !important;
 }
 
 .quiz-option-secondary {

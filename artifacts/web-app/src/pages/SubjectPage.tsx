@@ -3062,13 +3062,13 @@ export default function SubjectPage() {
   const timerSS  = String(Math.max(0, timerLeft) % 60).padStart(2, "0");
   const timerDanger  = timerLeft >= 0 && timerLeft <= 60;
   const timerWarning = timerLeft >= 0 && timerLeft <= 300 && !timerDanger;
-  const timerColor   = timerDanger ? "#ef4444" : timerWarning ? "#f59e0b" : "var(--app-text-muted)";
-  const timerBg      = timerDanger ? "rgba(239,68,68,0.15)"  : timerWarning ? "rgba(245,158,11,0.14)" : "var(--app-surface)";
-  const timerBorder  = timerDanger ? "#ef444445"             : timerWarning ? "#f59e0b45"             : "var(--app-border)";
-  const timerGlow    = timerDanger ? "0 0 22px rgba(239,68,68,0.35)" : timerWarning ? "0 0 18px rgba(245,158,11,0.25)" : "none";
+  const timerColor   = timerDanger ? "#dc2626" : timerWarning ? "#b45309" : "#1d4ed8";
+  const timerBg      = timerDanger ? "#fee2e2" : timerWarning ? "#fef3c7" : "#dbeafe";
+  const timerBorder  = timerDanger ? "#fca5a5" : timerWarning ? "#fcd34d" : "#93c5fd";
+  const timerGlow    = timerDanger ? "0 0 22px rgba(220,38,38,0.22)" : timerWarning ? "0 0 18px rgba(180,83,9,0.18)" : "0 0 18px rgba(37,99,235,0.15)";
 
   return (
-    <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "var(--app-bg)" }}>
+    <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "#eef2f7" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: `radial-gradient(circle, ${meta.accent}, transparent)` }} />
@@ -3116,7 +3116,7 @@ export default function SubjectPage() {
                 <motion.button
                   onClick={() => setTimerHidden(true)}
                   whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}
-                  className="text-white/25 hover:text-white/55 transition-colors text-xs leading-none ml-0.5"
+                  className="text-slate-500 hover:text-slate-800 transition-colors text-xs leading-none ml-0.5"
                   title="Hide timer"
                 >
                   ✕
@@ -3291,15 +3291,15 @@ export default function SubjectPage() {
 
                 {/* Question card */}
                 <div className="rounded-2xl p-5 mb-4 border relative"
-                  style={{ background: `linear-gradient(135deg, ${meta.accent}18, rgba(255,255,255,0.05))`, borderColor: `${meta.accent}30`, boxShadow: `0 4px 32px ${meta.accent}15` }}>
+               style={{ background: "linear-gradient(135deg, #f1f5f9, #e5ebf2)", borderColor: "#cbd5e1", boxShadow: "0 8px 26px rgba(51,65,85,0.10)" }}>
                   {/* Bookmark button */}
                   <motion.button
                     onClick={() => setBookmarks(toggleBookmark(subject, bookmarks, q))}
                     whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
                     className="absolute top-2.5 right-2.5 w-8 h-8 flex items-center justify-center rounded-xl"
                     style={{
-                      background: isBookmarked(bookmarks, q) ? "rgba(251,191,36,0.18)" : "rgba(0,0,0,0.08)",
-                      border: isBookmarked(bookmarks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(255,255,255,0.10)",
+                       background: isBookmarked(bookmarks, q) ? "#fef3c7" : "#dbe5ef",
+                       border: isBookmarked(bookmarks, q) ? "1px solid #fbbf24" : "1px solid #b8c6d6",
                     }}
                     title={isBookmarked(bookmarks, q) ? "Remove bookmark" : "Bookmark this question"}
                   >
@@ -3310,7 +3310,7 @@ export default function SubjectPage() {
                     >
                       {isBookmarked(bookmarks, q)
                         ? <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="#fbbf24" />
-                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(255,255,255,0.40)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                         : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="#64748b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                       }
                     </motion.svg>
                   </motion.button>
@@ -3333,7 +3333,7 @@ export default function SubjectPage() {
                               onClick={() => { void fetchQuizTranslation(currentIndex, q.hindi); }}
                               disabled={!!quizTranslateLoading[currentIndex]}
                               className="mt-2 text-xs flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all"
-                              style={{ background: `${meta.accent}10`, borderColor: `${meta.accent}35`, color: `${meta.accent}cc` }}>
+                               style={{ background: "#e0f2fe", borderColor: "#7dd3fc", color: "#0369a1" }}>
                               {quizTranslateLoading[currentIndex] ? "🔄 Translating..." : "🔤 Translate to English"}
                             </motion.button>
                           )}
@@ -3389,11 +3389,11 @@ export default function SubjectPage() {
                     onClick={cycleLang}
                     whileTap={{ scale: 0.93 }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
-                    style={{
-                      background: langMode !== "both" ? `${meta.accent}22` : "var(--app-surface)",
-                      borderColor: langMode !== "both" ? `${meta.accent}55` : "var(--app-border)",
-                      color: langMode !== "both" ? meta.accent : "rgba(255,255,255,0.35)",
-                    }}
+                     style={{
+                       background: langMode !== "both" ? "#cffafe" : "#e0f2fe",
+                       borderColor: langMode !== "both" ? "#22d3ee" : "#7dd3fc",
+                       color: "#0e7490",
+                     }}
                     title="Toggle language: Both / English / Hindi"
                   >
                     🌐 {langLabel}
@@ -3440,7 +3440,7 @@ export default function SubjectPage() {
                               {isTranslating && !optHindi ? (
                                  <span className="block h-4 rounded w-4/5" style={{ background: "var(--app-border)" }} />
                               ) : (
-                                <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-label" : ""}`}>
+                               <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-answer-selected" : ""}`}>
                                   <MathText text={displayOpt} />
                                 </span>
                               )}
@@ -3452,7 +3452,7 @@ export default function SubjectPage() {
                             </>
                           ) : (
                             <>
-                              <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-label" : ""}`}>
+                              <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-answer-selected" : ""}`}>
                                 <MathText text={opt} />
                               </span>
                               {optHindi && (
@@ -3478,9 +3478,9 @@ export default function SubjectPage() {
               onClick={handlePrev} disabled={currentIndex === 0}
               className="w-12 h-12 rounded-xl flex items-center justify-center border shrink-0 text-base"
               style={{
-                background: "var(--app-surface)",
-                borderColor: "rgba(0,0,0,0.08)",
-                color: currentIndex === 0 ? "var(--app-border)" : "rgba(255,255,255,0.45)",
+                 background: "#e2e8f0",
+                 borderColor: "#cbd5e1",
+                 color: currentIndex === 0 ? "#cbd5e1" : "#475569",
                 cursor: currentIndex === 0 ? "not-allowed" : "pointer",
               }}>
               ←
@@ -3491,7 +3491,7 @@ export default function SubjectPage() {
                 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                 onClick={handleNext}
                 className="flex-1 py-3 rounded-xl text-sm font-semibold border"
-                style={{ background: "var(--app-surface)", borderColor: "rgba(0,0,0,0.08)", color: "var(--app-text-faint)" }}>
+                 style={{ background: "#fff7ed", borderColor: "#fdba74", color: "#c2410c" }}>
                 Skip ↷
               </motion.button>
             )}
@@ -3503,10 +3503,10 @@ export default function SubjectPage() {
               style={{
                 background: (selectedOption !== null || currentIndex === questions.length - 1)
                   ? `linear-gradient(135deg, ${meta.accent}, ${meta.accent}80)`
-                  : "var(--app-surface)",
+                   : "#e2e8f0",
                 color: (selectedOption !== null || currentIndex === questions.length - 1)
-                  ? "#fff"
-                  : "var(--app-text-ghost)",
+                   ? "#ffffff"
+                   : "#94a3b8",
                 cursor: (selectedOption === null && currentIndex < questions.length - 1)
                   ? "not-allowed"
                   : "pointer",
@@ -3543,11 +3543,11 @@ export default function SubjectPage() {
               borderRadius: 18,
               padding: "12px 16px",
               pointerEvents: "auto",
-              background: "var(--app-nav-bg)",
+              background: "#e7edf3",
               backdropFilter: "blur(24px)",
               WebkitBackdropFilter: "blur(24px)",
-              border: `1px solid ${meta.accent}28`,
-              boxShadow: `0 8px 40px rgba(0,0,0,0.4), 0 4px 24px ${meta.accent}1a`,
+              border: "1px solid #cbd5e1",
+              boxShadow: "0 8px 32px rgba(51,65,85,0.16)",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -3570,7 +3570,7 @@ export default function SubjectPage() {
                     <motion.button
                       onClick={cycleLang}
                       whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: langMode !== "both" ? `${meta.accent}28` : "var(--app-surface)", color: langMode !== "both" ? meta.accent : "var(--app-text-faint)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: "1px solid #67e8f9", background: langMode !== "both" ? "#cffafe" : "#dbeafe", color: "#0e7490", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                       title="Toggle language"
                     >
                       🌐 {langLabel}
@@ -3578,7 +3578,7 @@ export default function SubjectPage() {
                     <motion.button
                       onClick={() => setPaletteOpen(true)}
                       whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: `1px solid ${meta.accent}35`, background: `${meta.accent}18`, color: meta.accent, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: "1px solid #c4b5fd", background: "#ede9fe", color: "#6d28d9", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                     >
                       <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor">
                         <rect x="0" y="0" width="5" height="5" rx="1"/><rect x="7" y="0" width="5" height="5" rx="1"/>
@@ -3588,7 +3588,7 @@ export default function SubjectPage() {
                     </motion.button>
                   </div>
                 </div>
-                <div style={{ height: 6, borderRadius: 999, background: "rgba(0,0,0,0.08)", overflow: "hidden" }}>
+                <div style={{ height: 6, borderRadius: 999, background: "#cbd5e1", overflow: "hidden" }}>
                   <motion.div
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.4, ease: "easeOut" }}
