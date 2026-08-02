@@ -88,34 +88,24 @@ export default function ContactPage() {
   }
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "var(--app-bg)" }}>
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-32 -right-32 w-80 h-80 rounded-full blur-3xl opacity-10"
-          style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />
-        <div className="absolute bottom-0 -left-24 w-72 h-72 rounded-full blur-3xl opacity-8"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
-        <div className="absolute inset-0 opacity-[0.02]"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
-      </div>
+    <div className="min-h-screen w-full relative overflow-hidden pb-28 bg-slate-100">
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-12 pb-4">
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }} className="text-center mb-10">
-          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl"
-            style={{ background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.2)" }}>
+          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl bg-cyan-50 border border-cyan-200 shadow-sm">
             📩
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight mb-2">Contact Us</h1>
-          <p className="text-white/40 text-sm">Have a question or feedback? We'd love to hear from you.</p>
+          <h1 className="text-3xl font-black text-slate-950 tracking-tight mb-2">Contact Us</h1>
+          <p className="text-slate-600 text-sm font-medium">Have a question or feedback? We'd love to hear from you.</p>
         </motion.div>
 
         {/* About the App */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.5 }}
-          className="rounded-2xl p-5 mb-6"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
+          className="rounded-2xl p-5 mb-6 bg-indigo-50 border border-indigo-200 shadow-sm">
 
           {/* Brand row */}
           <div className="flex items-center gap-3 mb-4">
@@ -124,14 +114,14 @@ export default function ContactPage() {
               <img src="/shiken-logo.png" alt="SHIKEN" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <p className="text-white font-black text-base tracking-tight">SHIKEN · शिकेन</p>
-              <p className="text-violet-400/70 text-xs font-medium">Board & Entrace Exam · Shiken Engine</p>
+              <p className="text-indigo-950 font-black text-base tracking-tight">SHIKEN · शिकेन</p>
+              <p className="text-indigo-700 text-xs font-semibold">Board & Entrance Exam · Shiken Engine</p>
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-white/55 text-sm leading-relaxed mb-4">
-            SHIKEN (試験 — "exam" in Japanese) is a <span className="text-white/75 font-semibold"> exam preparation app</span> built exclusively for BSEB Board & JEE,NEET Students. Every feature is designed to help students prepare smarter and score higher.
+          <p className="text-indigo-900 text-sm leading-relaxed mb-4 font-medium">
+            SHIKEN (試験 — "exam" in Japanese) is a <span className="text-indigo-950 font-bold"> exam preparation app</span> built exclusively for BSEB Board & JEE,NEET Students. Every feature is designed to help students prepare smarter and score higher.
           </p>
 
           {/* Features grid */}
@@ -168,18 +158,17 @@ export default function ContactPage() {
                 desc: "Explore career paths and streams after Class 10 — Science, Commerce, Arts, and more.",
               },
             ].map((f) => (
-              <div key={f.title} className="flex items-start gap-3 px-3 py-2.5 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.05)" }}>
+              <div key={f.title} className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-white/70 border border-indigo-100">
                 <span className="text-lg mt-0.5 flex-shrink-0">{f.icon}</span>
                 <div>
-                  <p className="text-white/85 text-xs font-bold">{f.title}</p>
-                  <p className="text-white/35 text-xs leading-relaxed mt-0.5">{f.desc}</p>
+                  <p className="text-indigo-950 text-xs font-bold">{f.title}</p>
+                  <p className="text-indigo-800 text-xs leading-relaxed mt-0.5 font-medium">{f.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          <p className="text-white/25 text-xs text-center leading-relaxed">
+          <p className="text-indigo-700 text-xs text-center leading-relaxed font-medium">
             Fully bilingual · Hindi &amp; English · 100% Free · No login required
           </p>
         </motion.div>
@@ -187,17 +176,16 @@ export default function ContactPage() {
         {/* Share App */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.18, duration: 0.5 }}
-          className="rounded-2xl p-5 mb-6 relative overflow-hidden"
-          style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(6,182,212,0.10) 100%)", border: "1px solid rgba(139,92,246,0.3)" }}>
+          className="rounded-2xl p-5 mb-6 relative overflow-hidden bg-violet-50 border border-violet-200 shadow-sm">
           <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-2xl opacity-20"
             style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
           <div className="relative z-10 flex items-center gap-4">
             <div className="flex-1">
-              <p className="text-white font-black text-sm mb-0.5">Share SHIKEN 🚀</p>
-              <p className="text-white/45 text-xs leading-relaxed">
+              <p className="text-violet-950 font-black text-sm mb-0.5">Share SHIKEN 🚀</p>
+              <p className="text-violet-800 text-xs leading-relaxed font-medium">
                 Help a classmate prepare better — share this app with your friends!
               </p>
-              <p className="text-violet-300/60 text-[11px] mt-1.5 font-medium truncate">{APP_URL}</p>
+              <p className="text-violet-700 text-[11px] mt-1.5 font-semibold truncate">{APP_URL}</p>
             </div>
             <motion.button
               onClick={handleShare}
@@ -246,9 +234,8 @@ export default function ContactPage() {
           </div>
 
           {/* Quick share row */}
-          <div className="relative z-10 flex items-center gap-2 mt-4 pt-4"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-            <span className="text-white/25 text-[11px] font-semibold uppercase tracking-wider flex-shrink-0">Share via</span>
+          <div className="relative z-10 flex items-center gap-2 mt-4 pt-4 border-t border-violet-200">
+            <span className="text-violet-700 text-[11px] font-bold uppercase tracking-wider flex-shrink-0">Share via</span>
             {[
               {
                 label: "WhatsApp",
@@ -285,50 +272,45 @@ export default function ContactPage() {
         {/* Contact Form */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5 }}
-          className="rounded-2xl p-5 mb-6"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
-          <p className="text-white font-bold text-sm mb-4">Send a Message</p>
+          className="rounded-2xl p-5 mb-6 bg-cyan-50 border border-cyan-200 shadow-sm">
+          <p className="text-cyan-950 font-bold text-sm mb-4">Send a Message</p>
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="Your name" required
-              className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              className="w-full px-4 py-3 rounded-xl text-sm text-slate-950 placeholder-slate-500 outline-none bg-white border border-cyan-200 focus:border-cyan-500" />
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               placeholder="Your email" required
-              className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              className="w-full px-4 py-3 rounded-xl text-sm text-slate-950 placeholder-slate-500 outline-none bg-white border border-cyan-200 focus:border-cyan-500" />
             <textarea value={message} onChange={(e) => setMessage(e.target.value)}
               placeholder="Your message…" required rows={4}
-              className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none resize-none"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              className="w-full px-4 py-3 rounded-xl text-sm text-slate-950 placeholder-slate-500 outline-none resize-none bg-white border border-cyan-200 focus:border-cyan-500" />
             <motion.button type="submit" whileTap={{ scale: 0.98 }}
               className="w-full py-3.5 rounded-xl text-sm font-bold text-white"
-              style={{ background: "linear-gradient(135deg,#06b6d4,#3b82f6)", boxShadow: "0 4px 16px rgba(6,182,212,0.3)" }}>
+              style={{ background: "linear-gradient(135deg,#0891b2,#2563eb)", boxShadow: "0 4px 16px rgba(8,145,178,0.25)" }}>
               Send Message →
             </motion.button>
           </form>
-          <p className="text-white/20 text-xs text-center mt-3">Opens your default email app</p>
+          <p className="text-cyan-700 text-xs text-center mt-3 font-medium">Opens your default email app</p>
         </motion.div>
 
         {/* Rate this App */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.28, duration: 0.5 }}
-          className="rounded-2xl p-5 mb-6"
-          style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
+          className="rounded-2xl p-5 mb-6 bg-amber-50 border border-amber-200 shadow-sm">
 
           {/* Header row with aggregate */}
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-white font-black text-sm">Rate this App</p>
-              <p className="text-white/35 text-xs mt-0.5">Your feedback helps us improve</p>
+              <p className="text-amber-950 font-black text-sm">Rate this App</p>
+              <p className="text-amber-800 text-xs mt-0.5 font-medium">Your feedback helps us improve</p>
             </div>
             {summary.count > 0 && (
               <div className="text-right">
                 <div className="flex items-center gap-1 justify-end">
                   <span className="text-amber-400 text-sm">★</span>
-                  <span className="text-white font-black text-sm">{summary.avg.toFixed(1)}</span>
+                   <span className="text-amber-950 font-black text-sm">{summary.avg.toFixed(1)}</span>
                 </div>
-                <p className="text-white/25 text-[11px]">{summary.count} {summary.count === 1 ? "rating" : "ratings"}</p>
+                 <p className="text-amber-700 text-[11px] font-medium">{summary.count} {summary.count === 1 ? "rating" : "ratings"}</p>
               </div>
             )}
           </div>
@@ -341,13 +323,13 @@ export default function ContactPage() {
                 <div className="flex gap-1">
                   {[1,2,3,4,5].map((s) => (
                     <span key={s} className="text-2xl transition-all"
-                      style={{ color: s <= selected ? "#fbbf24" : "rgba(255,255,255,0.12)" }}>★</span>
+                       style={{ color: s <= selected ? "#f59e0b" : "#fcd34d" }}>★</span>
                   ))}
                 </div>
-                <p className="text-white font-bold text-sm">Thanks for rating! 🎉</p>
-                <p className="text-white/35 text-xs text-center">You gave {selected} star{selected !== 1 ? "s" : ""}. You can update your rating anytime.</p>
+                 <p className="text-amber-950 font-bold text-sm">Thanks for rating! 🎉</p>
+                 <p className="text-amber-800 text-xs text-center font-medium">You gave {selected} star{selected !== 1 ? "s" : ""}. You can update your rating anytime.</p>
                 <button onClick={() => setSubmitted(false)}
-                  className="text-violet-400 text-xs font-semibold mt-1 hover:text-violet-300 transition-colors">
+                   className="text-amber-700 text-xs font-semibold mt-1 hover:text-amber-900 transition-colors">
                   Edit rating →
                 </button>
               </motion.div>
@@ -363,7 +345,7 @@ export default function ContactPage() {
                       onClick={() => setSelected(s)}
                       className="text-3xl transition-all duration-150 select-none"
                       style={{
-                        color: s <= (hovered || selected) ? "#fbbf24" : "rgba(255,255,255,0.14)",
+                       color: s <= (hovered || selected) ? "#f59e0b" : "#fcd34d",
                         filter: s <= (hovered || selected) ? "drop-shadow(0 0 6px rgba(251,191,36,0.6))" : "none",
                         transform: s <= (hovered || selected) ? "scale(1.15)" : "scale(1)",
                       }}>
@@ -391,8 +373,7 @@ export default function ContactPage() {
                   placeholder="Any suggestions? (optional)"
                   rows={2}
                   maxLength={200}
-                  className="w-full px-4 py-3 rounded-xl text-sm text-white placeholder-white/25 outline-none resize-none mb-3"
-                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)" }}
+                   className="w-full px-4 py-3 rounded-xl text-sm text-slate-950 placeholder-slate-500 outline-none resize-none mb-3 bg-white border border-amber-200 focus:border-amber-500"
                 />
 
                 <motion.button
@@ -403,8 +384,8 @@ export default function ContactPage() {
                   style={{
                     background: selected
                       ? "linear-gradient(135deg, #f59e0b, #f97316)"
-                      : "rgba(255,255,255,0.06)",
-                    color: selected ? "white" : "rgba(255,255,255,0.20)",
+                       : "#e2e8f0",
+                     color: selected ? "white" : "#94a3b8",
                     boxShadow: selected ? "0 4px 16px rgba(245,158,11,0.35)" : "none",
                     cursor: selected ? "pointer" : "not-allowed",
                   }}>
@@ -419,31 +400,30 @@ export default function ContactPage() {
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.5 }} className="mb-6">
           <a href={`mailto:${CONTACT_EMAIL}`}
-            className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
+             className="flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors bg-rose-50 border border-rose-200 shadow-sm">
             <span className="text-xl">✉️</span>
-            <div>
-              <p className="text-white text-sm font-semibold">Email</p>
-              <p className="text-white/40 text-xs">{CONTACT_EMAIL}</p>
+             <div>
+               <p className="text-rose-950 text-sm font-semibold">Email</p>
+               <p className="text-rose-800 text-xs font-medium">{CONTACT_EMAIL}</p>
             </div>
-            <span className="ml-auto text-white/25 text-sm">→</span>
+             <span className="ml-auto text-rose-700 text-sm font-bold">→</span>
           </a>
         </motion.div>
 
         {/* Social Media */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.5 }}>
-          <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">Follow Us</p>
+           <p className="text-slate-700 text-xs font-bold uppercase tracking-widest mb-3">Follow Us</p>
           <div className="grid grid-cols-2 gap-2">
             {socials.map((s, i) => (
               <motion.a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer"
                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.45 + i * 0.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl transition-colors"
-                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}>
+                 className="flex items-center gap-2 px-4 py-3 rounded-xl transition-colors shadow-sm"
+                 style={{ background: `${s.color}12`, border: `1px solid ${s.color}35` }}>
                 <span className="text-xl">{s.icon}</span>
-                <span className="text-white/60 text-sm font-medium">{s.label}</span>
+                <span className="text-slate-800 text-sm font-semibold">{s.label}</span>
               </motion.a>
             ))}
           </div>
@@ -452,16 +432,16 @@ export default function ContactPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
           className="flex items-center justify-center gap-2 mt-8 flex-wrap">
           <a href="/privacy"
-            className="text-white/25 hover:text-white/50 text-xs transition-colors underline underline-offset-2">
+             className="text-slate-500 hover:text-slate-900 text-xs transition-colors underline underline-offset-2">
             Privacy
           </a>
-          <span className="text-white/15 text-xs">·</span>
+           <span className="text-slate-400 text-xs">·</span>
           <a href="/terms"
-            className="text-white/25 hover:text-white/50 text-xs transition-colors underline underline-offset-2">
+             className="text-slate-500 hover:text-slate-900 text-xs transition-colors underline underline-offset-2">
             Terms
           </a>
-          <span className="text-white/15 text-xs">·</span>
-          <span className="text-white/15 text-xs">SHIKEN v1.0</span>
+           <span className="text-slate-400 text-xs">·</span>
+           <span className="text-slate-400 text-xs">SHIKEN v1.0</span>
         </motion.div>
       </div>
     </div>
