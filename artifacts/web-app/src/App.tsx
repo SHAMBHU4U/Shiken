@@ -700,19 +700,32 @@ function SubjectCard({
   index,
   onClick,
   classId,
+  goal,
 }: {
   subject: (typeof subjects)[0];
   index: number;
   onClick: () => void;
   classId?: string;
+  goal?: UserGoal;
 }) {
+  const categoryTint =
+    goal === "c10"
+      ? "bg-blue-50/60 dark:bg-slate-800"
+      : goal === "c12"
+        ? "bg-indigo-50/60 dark:bg-slate-800"
+        : goal === "jee"
+          ? "bg-orange-50/60 dark:bg-slate-800"
+          : goal === "neet"
+            ? "bg-teal-50/60 dark:bg-slate-800"
+            : "bg-slate-100/50 dark:bg-slate-800";
+
   return (
     <motion.button
       onClick={onClick}
       initial={{ opacity: 0, y: 40, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 + index * 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
-      className="relative w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-all duration-200 cursor-pointer group hover:shadow-sm hover:border-slate-300"
+      className={`relative w-full ${categoryTint} border border-slate-200 dark:border-slate-700 rounded-2xl p-5 text-left transition-all duration-200 cursor-pointer group hover:shadow-sm hover:border-slate-300 dark:hover:border-slate-600`}
     >
       <div className="relative z-10 flex items-center gap-4">
         <div
@@ -726,8 +739,8 @@ function SubjectCard({
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 mb-1">
             {classId === "entrance" ? "Entrance Exam" : `Class ${classId ?? "10"}`}
           </span>
-          <h3 className="text-lg font-bold leading-tight text-slate-900">{subject.label}</h3>
-          <p className="text-xs font-medium mt-0.5 text-slate-500">{subject.labelHindi}</p>
+          <h3 className="text-lg font-bold leading-tight text-slate-950 dark:text-white">{subject.label}</h3>
+          <p className="text-xs font-medium mt-0.5 text-slate-600 dark:text-slate-300">{subject.labelHindi}</p>
         </div>
         <div className="ml-auto text-slate-300 group-hover:text-slate-500 transition-colors duration-200">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -1128,7 +1141,7 @@ function Dashboard() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.65, ease: [0.23, 1, 0.32, 1] }}
-            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none text-slate-900"
+            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none text-slate-950 dark:text-white"
           >
             SHIKEN
           </motion.h1>
@@ -1173,6 +1186,7 @@ function Dashboard() {
               subject={subject}
               index={index}
               classId={goalCfg.classId}
+              goal={goal ?? undefined}
               onClick={() => {
                 const route = goal === "jee" ? `/jee/${subject.id}` : goal === "neet" ? `/neet/${subject.id}` : `/c${goalCfg.classId === "entrance" ? "12" : goalCfg.classId}/${subject.id}`;
                 navigate(route);
