@@ -4,3 +4,4 @@
 - [Quiz interface color roles](quiz-interface-color-roles.md) — use semantic accents for test controls while keeping the question canvas slate and text navy.
 - [Home dashboard visual roles](home-dashboard-visual-roles.md) — keep white surfaces restrained while using goal-specific accents and darker hero/quote/progress text.
 - [Science subject icon mapping](science-subject-icons.md) — Physics, Chemistry, and Biology each use dedicated SVG symbols instead of the shared fallback glyph.
+- [Login dashboard color roles](login-dashboard-color-roles.md) — use muted tinted surfaces, dark copy, and distinct blue/indigo/violet/cyan/amber roles for auth controls.
