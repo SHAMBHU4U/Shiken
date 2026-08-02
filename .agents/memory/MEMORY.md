@@ -1,3 +1,4 @@
 - [classId propagation pattern](classid-propagation.md) — classId must be passed as prop to sub-components (ResultScreen) and as API body field, not just component-level const.
 - [Payment entitlement rules](payment-entitlements.md) — premium duration is server-owned and access is gated by a future expiry timestamp.
 - [Firebase Functions runtime dependencies](firebase-functions-runtime-dependencies.md) — bundled API imports must be declared in the functions package for clean Cloud Build startup.
+- [Quiz interface color roles](quiz-interface-color-roles.md) — use semantic accents for test controls while keeping the question canvas slate and text navy.
