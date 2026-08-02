@@ -710,6 +710,21 @@ function getSubjectIconTone(subjectId: string) {
   return tones[subjectId] ?? "bg-slate-100 text-slate-600";
 }
 
+function getSubjectBorderTone(subjectId: string) {
+  const borders: Record<string, string> = {
+    maths: "border-blue-100",
+    physics: "border-indigo-100",
+    english: "border-rose-100",
+    hindi: "border-red-100",
+    science: "border-emerald-100",
+    chemistry: "border-orange-100",
+    biology: "border-teal-100",
+    social: "border-amber-100",
+    sanskrit: "border-purple-100",
+  };
+  return borders[subjectId] ?? "border-slate-100";
+}
+
 function SubjectCard({
   subject,
   index,
@@ -727,7 +742,7 @@ function SubjectCard({
       initial={{ opacity: 0, y: 40, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 + index * 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
-      className="relative w-full bg-white rounded-2xl p-4 shadow-sm border border-slate-100 text-left transition-shadow duration-300 cursor-pointer group hover:shadow-md"
+      className={`relative w-full bg-white rounded-2xl p-4 shadow-sm border ${getSubjectBorderTone(subject.id)} text-left transition-shadow duration-300 cursor-pointer group hover:shadow-md`}
     >
       <div className="relative z-10 flex items-center gap-3">
         <div className="min-w-0 flex-1">
