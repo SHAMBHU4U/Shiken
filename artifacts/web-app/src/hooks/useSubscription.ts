@@ -35,7 +35,7 @@ export function notifySubscriptionUpdated(update: SubscriptionUpdate): void {
 }
 
 export function useSubscription() {
-  const { user } = useAuth();
+  const { user, userProfile, isPremium: authIsPremium } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionType>("free");
   const [plan, setPlan]                 = useState<string | null>(null);
   const [premiumSubjects, setPremiumSubjects] = useState<string[]>([]);
@@ -63,9 +63,7 @@ export function useSubscription() {
       const exp = typeof update.expiresAt === "number"
         ? update.expiresAt
         : (typeof update.premiumUntil === "number" ? update.premiumUntil : null);
-      const subType: SubscriptionType = update.isPremium && update.subscriptionType === "premium"
-        ? "premium"
-        : "free";
+      const subType: SubscriptionType = authIsPremium ? "premium" : "free";
       const nextPlan = typeof update.plan === "string"
         ? update.plan
         : (typeof update.premiumPlan === "string" ? update.premiumPlan : null);
@@ -93,8 +91,7 @@ export function useSubscription() {
     fetch(`${DB_URL}/users/${safeId}.json`)
       .then((r) => r.json())
       .then((data: Record<string, unknown> | null) => {
-        const hasPremiumFlag = data?.isPremium === true || data?.subscriptionType === "premium";
-        const subType = hasPremiumFlag ? "premium" : "free";
+        const subType: SubscriptionType = authIsPremium ? "premium" : "free";
         const planVal = typeof data?.plan === "string" ? data.plan : null;
         let subjects: string[] = [];
         if (Array.isArray(data?.premiumSubjects)) {
@@ -125,7 +122,7 @@ export function useSubscription() {
       .catch(() => {
         const cached = loadSubscriptionFromCache(user.uid);
         if (cached) {
-          setSubscription(cached.subscriptionType === "premium" ? "premium" : "free");
+          setSubscription(authIsPremium ? "premium" : "free");
           setPlan(cached.plan);
           setPremiumSubjects(cached.premiumSubjects);
         } else {
@@ -137,15 +134,18 @@ export function useSubscription() {
     .finally(() => setSubLoading(false));
 
     return () => window.removeEventListener(SUBSCRIPTION_UPDATED_EVENT, onSubscriptionUpdated);
-  }, [user?.uid]);
+  }, [user?.uid, authIsPremium]);
 
   const now = Date.now();
-  // Premium access is active only while the verified expiry is in the future.
-  const isPremium = subscription === "premium" && expiryDate !== null && expiryDate > now;
+  // AuthContext owns the exact verified payment + subscription + expiry check.
+  const isPremium = authIsPremium;
   const isTopper  = isPremium;
-  const isActive = isPremium && expiryDate !== null && expiryDate > now;
-  const daysLeft = expiryDate && expiryDate > now
-    ? Math.ceil((expiryDate - now) / 86_400_000)
+  const effectiveExpiryDate = expiryDate ?? (
+    typeof userProfile?.premiumUntil === "number" ? userProfile.premiumUntil : null
+  );
+  const isActive = isPremium && effectiveExpiryDate !== null && effectiveExpiryDate > now;
+  const daysLeft = effectiveExpiryDate && effectiveExpiryDate > now
+    ? Math.ceil((effectiveExpiryDate - now) / 86_400_000)
     : 0;
 
   function isSubjectPremium(subjectId: string): boolean {
@@ -157,6 +157,6 @@ export function useSubscription() {
   return {
     subscription, isPremium, isTopper, isActive, daysLeft,
     plan, premiumSubjects, isSubjectPremium, subLoading,
-    expiryDate, walletBalance, referralCode, referralCount, referredBy,
+    expiryDate: effectiveExpiryDate, walletBalance, referralCode, referralCount, referredBy,
   };
 }

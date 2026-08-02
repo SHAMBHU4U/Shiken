@@ -12,8 +12,17 @@ import { auth, db } from "../firebase";
 
 export type UserGoal = "neet" | "jee" | "c10" | "c12";
 
+export interface UserProfile {
+  paymentVerified?: boolean;
+  subscriptionType?: string;
+  premiumUntil?: number;
+  [key: string]: unknown;
+}
+
 interface AuthContextType {
   user: User | null;
+  userProfile: UserProfile | null;
+  isPremium: boolean;
   loading: boolean;
   goal: UserGoal | null;
   goalLoading: boolean;
@@ -21,6 +30,7 @@ interface AuthContextType {
   clearSessionKickedOut: () => void;
   setGoal: (goal: UserGoal) => Promise<void>;
   clearGoal: () => Promise<void>;
+  refreshUserProfile: (u?: User) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
@@ -38,8 +48,18 @@ function isMobileBrowser() {
   return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
 }
 
+function calculateIsPremium(userProfile: UserProfile | null): boolean {
+  const premiumUntil = userProfile?.premiumUntil;
+  return userProfile?.paymentVerified === true
+    && userProfile?.subscriptionType === "premium"
+    && typeof premiumUntil === "number"
+    && premiumUntil > Date.now();
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser]               = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isPremium, setIsPremium]     = useState(false);
   const [loading, setLoading]         = useState(true);
   const [goal, setGoalState]          = useState<UserGoal | null>(null);
   const [goalLoading, setGoalLoading] = useState(false);
@@ -49,6 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentSessionIdRef = useRef<string | null>(null);
   // Keeps the Firebase `onValue` unsubscribe handle so we can tear it down
   const sessionUnsubRef = useRef<(() => void) | null>(null);
+  // Keeps the Firebase user-profile listener live for payment/admin changes
+  const profileUnsubRef = useRef<(() => void) | null>(null);
 
   const clearSessionKickedOut = () => setSessionKickedOut(false);
 
@@ -59,6 +81,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sessionUnsubRef.current = null;
     }
   };
+
+  const detachProfileListener = () => {
+    if (profileUnsubRef.current) {
+      profileUnsubRef.current();
+      profileUnsubRef.current = null;
+    }
+  };
+
+  const applyUserProfile = (profile: UserProfile | null) => {
+    setUserProfile(profile);
+    setIsPremium(calculateIsPremium(profile));
+  };
+
+  useEffect(() => {
+    const premiumUntil = userProfile?.premiumUntil;
+    if (typeof premiumUntil !== "number" || premiumUntil <= Date.now()) return;
+
+    let expiryTimer: number;
+    const checkExpiry = () => {
+      const remaining = premiumUntil - Date.now();
+      if (remaining <= 0) {
+        setIsPremium(false);
+        return;
+      }
+      expiryTimer = window.setTimeout(checkExpiry, Math.min(remaining + 1, 2_147_483_647));
+    };
+    checkExpiry();
+
+    return () => window.clearTimeout(expiryTimer);
+  }, [userProfile]);
 
   /**
    * Called once per login:
@@ -137,6 +189,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch { /* non-blocking */ }
   };
 
+  const refreshUserProfile = async (u?: User) => {
+    const currentUser = u ?? auth.currentUser;
+    if (!currentUser) {
+      applyUserProfile(null);
+      return;
+    }
+
+    const snap = await get(ref(db, `users/${currentUser.uid}`));
+    if (auth.currentUser?.uid !== currentUser.uid) return;
+    applyUserProfile(snap.exists() ? (snap.val() as UserProfile) : null);
+  };
+
+  const startProfileSync = async (u: User) => {
+    detachProfileListener();
+    await refreshUserProfile(u);
+    if (auth.currentUser?.uid !== u.uid) return;
+
+    const profileRef = ref(db, `users/${u.uid}`);
+    profileUnsubRef.current = onValue(
+      profileRef,
+      (snap) => {
+        if (auth.currentUser?.uid !== u.uid) return;
+        applyUserProfile(snap.exists() ? (snap.val() as UserProfile) : null);
+      },
+      (error) => console.error("User profile sync error:", error),
+    );
+  };
+
   const loadGoal = async (u: User) => {
     setGoalLoading(true);
     try {
@@ -168,26 +248,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (u) {
         setUser(u);
+        applyUserProfile(null);
         setLoading(false);
-        syncUserToDB(u).catch(console.error);
+        syncUserToDB(u)
+          .catch(console.error)
+          .finally(() => startProfileSync(u).catch(console.error));
         loadGoal(u).catch(console.error);
         // Start single-session enforcement for this login
         startSession(u).catch(console.error);
       } else {
         // User signed out — tear down session listener
         detachSessionListener();
+        detachProfileListener();
         currentSessionIdRef.current = null;
         setUser(null);
+        applyUserProfile(null);
         setGoalState(null);
         setGoalLoading(false);
         setLoading(false);
       }
     });
 
+    const handleSubscriptionUpdated = () => {
+      const current = auth.currentUser;
+      if (current) refreshUserProfile(current).catch(console.error);
+    };
+    window.addEventListener("shiken:subscription-updated", handleSubscriptionUpdated);
+
     return () => {
       isMounted = false;
       unsub();
       detachSessionListener();
+      detachProfileListener();
+      window.removeEventListener("shiken:subscription-updated", handleSubscriptionUpdated);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -268,13 +361,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch { /* non-blocking */ }
     }
     await fbSignOut(auth);
+    detachProfileListener();
+    applyUserProfile(null);
     setGoalState(null);
   };
 
   return (
     <AuthContext.Provider value={{
-      user, loading,
+      user, userProfile, isPremium, loading,
       goal, goalLoading, setGoal, clearGoal,
+      refreshUserProfile,
       sessionKickedOut, clearSessionKickedOut,
       signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, signOut,
     }}>
