@@ -695,15 +695,19 @@ const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
   },
 };
 
-function getSubjectIconTone(subjectId: string, classId?: string) {
-  if (classId === "entrance") return "bg-emerald-100 text-emerald-600";
-  if (subjectId === "maths" || subjectId === "science" || subjectId === "physics" || subjectId === "chemistry" || subjectId === "biology") {
-    return "bg-blue-100 text-blue-600";
-  }
-  if (subjectId === "english" || subjectId === "hindi" || subjectId === "sanskrit") {
-    return "bg-rose-100 text-rose-600";
-  }
-  return "bg-amber-100 text-amber-600";
+function getSubjectIconTone(subjectId: string) {
+  const tones: Record<string, string> = {
+    maths: "bg-blue-100 text-blue-600",
+    physics: "bg-indigo-100 text-indigo-600",
+    english: "bg-rose-100 text-rose-600",
+    hindi: "bg-red-100 text-red-600",
+    science: "bg-emerald-100 text-emerald-600",
+    chemistry: "bg-orange-100 text-orange-600",
+    biology: "bg-teal-100 text-teal-600",
+    social: "bg-amber-100 text-amber-600",
+    sanskrit: "bg-purple-100 text-purple-600",
+  };
+  return tones[subjectId] ?? "bg-slate-100 text-slate-600";
 }
 
 function SubjectCard({
@@ -723,15 +727,10 @@ function SubjectCard({
       initial={{ opacity: 0, y: 40, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 + index * 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
-      className="relative w-full bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-left transition-shadow duration-300 cursor-pointer group hover:shadow-md"
+      className="relative w-full bg-white rounded-2xl p-4 shadow-sm border border-slate-100 text-left transition-shadow duration-300 cursor-pointer group hover:shadow-md"
     >
-      <div className="relative z-10">
-        <div
-          className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${getSubjectIconTone(subject.id, classId)}`}
-        >
-          <SubjectIcon id={subject.id} color="currentColor" size="lg" />
-        </div>
-        <div className="min-w-0 pr-7">
+      <div className="relative z-10 flex items-center gap-3">
+        <div className="min-w-0 flex-1">
           {/* Goal badge — emerald pill */}
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 mb-1">
             {classId === "entrance" ? "Entrance Exam" : `Class ${classId ?? "10"}`}
@@ -739,7 +738,12 @@ function SubjectCard({
           <h3 className="text-lg font-bold leading-tight text-slate-900">{subject.label}</h3>
           <p className="text-sm font-medium mt-0.5 text-slate-500">{subject.labelHindi}</p>
         </div>
-        <div className="absolute top-6 right-6 text-slate-300 group-hover:text-slate-500 transition-colors duration-200">
+        <div
+          className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${getSubjectIconTone(subject.id)}`}
+        >
+          <SubjectIcon id={subject.id} color="currentColor" size="lg" />
+        </div>
+        <div className="shrink-0 text-slate-300 group-hover:text-slate-500 transition-colors duration-200">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
               d="M9 5l7 7-7 7"
