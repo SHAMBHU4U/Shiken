@@ -789,40 +789,31 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen w-full pb-32 relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full blur-3xl opacity-15"
-          style={{ background: "radial-gradient(circle, #f59e0b, transparent)" }} />
-        <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-8"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
-      </div>
+     <div className="min-h-screen w-full pb-32 relative overflow-hidden bg-slate-100">
 
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-14">
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
           className="text-center mb-6">
           <button onClick={() => navigate(-1 as never)}
-            className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white/80 transition-colors"
-            style={{ background: "var(--app-surface)" }}>←</button>
+             className="absolute left-4 top-4 w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 hover:text-slate-950 transition-colors bg-slate-200 border border-slate-300">←</button>
           <motion.div animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
             transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }} className="text-4xl mb-3">👑</motion.div>
-          <h1 className="text-white font-black text-2xl mb-1">SHIKEN Premium</h1>
-          <p className="text-white/40 text-sm">Choose your package to continue configuration</p>
+           <h1 className="text-slate-950 font-black text-2xl mb-1">SHIKEN Premium</h1>
+           <p className="text-slate-600 text-sm font-medium">Choose your package to continue configuration</p>
         </motion.div>
 
         {/* Stream selector — shows goal badge when goal known, full picker when no goal or user opens picker */}
         {goalCategory && !showStreamPicker ? (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
             className="mb-6 max-w-md mx-auto">
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
-              style={{ background: "rgba(139,92,246,0.10)", border: "1px solid rgba(139,92,246,0.25)" }}>
+             <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-50 border border-violet-200 shadow-sm">
               <span className="text-base">🎯</span>
-              <p className="text-white/70 text-sm flex-1">
-                Showing plans for <span className="text-white font-black">{CATEGORY_LABELS[goalCategory]}</span>
+               <p className="text-slate-700 text-sm flex-1">
+                 Showing plans for <span className="text-slate-950 font-black">{CATEGORY_LABELS[goalCategory]}</span>
               </p>
               <button
                 onClick={() => setShowStreamPicker(true)}
-                className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg transition-all"
-                style={{ background: "rgba(139,92,246,0.20)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.35)" }}
+                 className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-lg transition-all bg-violet-200 text-violet-900 border border-violet-300 hover:bg-violet-300"
               >
                 Change Stream
               </button>
@@ -832,24 +823,24 @@ export default function PricingPage() {
           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="mb-6 max-w-md mx-auto">
             {goalCategory && showStreamPicker && (
               <div className="flex items-center justify-between mb-2 px-1">
-                <p className="text-white/40 text-xs">Select a stream:</p>
+                 <p className="text-slate-600 text-xs font-medium">Select a stream:</p>
                 <button
                   onClick={() => { setActiveTab(goalCategory); setShowStreamPicker(false); }}
-                  className="text-white/30 hover:text-white/60 text-xs transition-colors"
+                   className="text-slate-500 hover:text-slate-900 text-xs transition-colors"
                 >
                   ✕ Cancel
                 </button>
               </div>
             )}
-            <div className="grid grid-cols-4 gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+             <div className="grid grid-cols-4 gap-1 p-1 bg-slate-200 border border-slate-300 rounded-xl">
               {(["jee", "neet", "class10", "class12"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => { setActiveTab(tab); setShowStreamPicker(false); }}
                   className={`py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all ${
                     activeTab === tab
-                      ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
-                      : "text-white/40 hover:text-white/70"
+                       ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-300"
+                       : "text-slate-600 hover:text-slate-950"
                   }`}
                 >
                   {tab === "class10" ? "10th" : tab === "class12" ? "12th" : tab}
@@ -861,12 +852,11 @@ export default function PricingPage() {
 
         {isPremium && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            className="mb-6 rounded-2xl p-4 text-center"
-            style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.25)" }}>
-            <p className="text-emerald-400 font-bold text-sm">
+             className="mb-6 rounded-2xl p-4 text-center bg-emerald-50 border border-emerald-200 shadow-sm">
+             <p className="text-emerald-900 font-bold text-sm">
               ✓ आप पहले से Premium Member हैं!
               {premiumSubjects.length > 0 && (
-                <span className="text-emerald-300/70 text-xs block mt-1">
+                 <span className="text-emerald-700 text-xs block mt-1">
                   Subjects: {premiumSubjects.join(", ")}
                 </span>
               )}
@@ -875,14 +865,13 @@ export default function PricingPage() {
         )}
 
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-          className="mb-6 rounded-2xl p-4"
-          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <p className="text-white/70 font-bold text-xs mb-2">Free Plan Feature Matrix</p>
+           className="mb-6 rounded-2xl p-4 bg-slate-50 border border-slate-300 shadow-sm">
+           <p className="text-slate-900 font-bold text-xs mb-2">Free Plan Feature Matrix</p>
           <div className="flex flex-col gap-1">
             {["Mini Test — unlimited (10 random questions)", "1 Full Length Test per subject (free trial)"].map(f => (
-              <div key={f} className="flex items-center gap-2 text-xs text-white/45">
+               <div key={f} className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                 <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
-                  style={{ background: "rgba(0,0,0,0.08)", color: "var(--app-text-faint)" }}>✓</span>
+                   style={{ background: "#e2e8f0", color: "#475569" }}>✓</span>
                 {f}
               </div>
             ))}
@@ -899,29 +888,29 @@ export default function PricingPage() {
             return (
               <motion.div key={plan.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 + i * 0.05 }}
-                className="rounded-2xl p-5"
-                style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${plan.accent}25` }}>
+                 className="rounded-2xl p-5 bg-slate-50 shadow-sm"
+                 style={{ border: `1px solid ${plan.accent}45` }}>
 
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-xl">{plan.emoji}</span>
-                      <p className="text-white font-black text-base">{plan.name}</p>
+                       <p className="text-slate-950 font-black text-base">{plan.name}</p>
                       {plan.tag && (
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full text-black"
-                          style={{ background: `linear-gradient(135deg, ${plan.accent}, #fff)` }}>
+                         <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
+                           style={{ background: `${plan.accent}20`, color: plan.accent, border: `1px solid ${plan.accent}35` }}>
                           {plan.tag}
                         </span>
                       )}
                     </div>
-                    <p className="text-white/40 text-xs">{plan.period} · {plan.perMonth}</p>
+                     <p className="text-slate-600 text-xs font-medium">{plan.period} · {plan.perMonth}</p>
                   </div>
                   <p className="font-black text-2xl shrink-0" style={{ color: plan.accent }}>{plan.price}</p>
                 </div>
 
                 <ul className="flex flex-col gap-1.5 mb-4">
                   {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-xs text-white/60">
+                   <li key={f} className="flex items-center gap-2 text-xs text-slate-700 font-medium">
                       <span className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-xs"
                         style={{ background: `${plan.accent}20`, color: plan.accent }}>✓</span>
                       {f}
@@ -931,7 +920,7 @@ export default function PricingPage() {
 
                 {isSingleSub && (
                   <div className="mb-4">
-                    <p className="text-white/40 text-xs mb-1.5">Choose your subject:</p>
+                     <p className="text-slate-700 text-xs font-semibold mb-1.5">Choose your subject:</p>
                     <div className="grid grid-cols-3 gap-1.5">
                       {subjectList.map((s) => {
                         const sel = subjectForPlan[plan.id] === s.id;
@@ -940,9 +929,9 @@ export default function PricingPage() {
                             onClick={() => setSubjectForPlan(prev => ({ ...prev, [plan.id]: s.id }))}
                             className="py-2 px-1 rounded-xl text-[11px] font-bold text-center transition-all"
                             style={{
-                              background: sel ? `${plan.accent}30` : "rgba(255,255,255,0.03)",
-                              border: `1px solid ${sel ? plan.accent : "var(--app-surface-2)"}`,
-                              color: sel ? "#fff" : "rgba(255,255,255,0.40)",
+                               background: sel ? `${plan.accent}20` : "#f1f5f9",
+                               border: `1px solid ${sel ? plan.accent : "#cbd5e1"}`,
+                               color: sel ? plan.accent : "#475569",
                             }}>
                             {s.label.split(" / ")[0]}
                           </button>
@@ -950,7 +939,7 @@ export default function PricingPage() {
                       })}
                     </div>
                     {!subjectForPlan[plan.id] && (
-                      <p className="text-xs text-amber-400/70 mt-2">↑ कोई एक विषय चुनो</p>
+                       <p className="text-xs text-amber-700 font-medium mt-2">↑ कोई एक विषय चुनो</p>
                     )}
                   </div>
                 )}
@@ -962,9 +951,9 @@ export default function PricingPage() {
                   className="w-full py-3 rounded-xl font-black text-sm transition-all"
                   style={{
                     background: isButtonDisabled
-                      ? "var(--app-surface)"
-                      : `linear-gradient(135deg, ${plan.accent}, #111115)`,
-                    color: isButtonDisabled ? "rgba(255,255,255,0.2)" : "#fff",
+                       ? "#e2e8f0"
+                       : plan.accent,
+                     color: isButtonDisabled ? "#94a3b8" : "#fff",
                     boxShadow: isButtonDisabled ? "none" : `0 4px 20px ${plan.accent}25`,
                   }}
                 >
