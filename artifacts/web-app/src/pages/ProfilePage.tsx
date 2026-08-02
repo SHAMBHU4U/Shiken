@@ -278,10 +278,10 @@ function AuthForm() {
             className="w-16 h-16 rounded-2xl mx-auto mb-4 object-cover"
             style={{ boxShadow: "none" }}
           />
-          <h1 className="text-slate-900 font-bold text-2xl tracking-tight mb-1">
+           <h1 className="text-slate-950 font-bold text-2xl tracking-tight mb-1">
             {tab === "in" ? "Welcome Back" : "Join SHIKEN"}
           </h1>
-          <p className="text-slate-500 text-sm">
+           <p className="text-slate-700 text-sm">
             {tab === "in"
               ? "Board & Entrance की तैयारी, अब Shiken की ज़िम्मेदारी"
               : "Class 10 & 12 · Board & Entrance · Shiken Engine"}
@@ -290,7 +290,8 @@ function AuthForm() {
 
         {/* Google button */}
         <motion.button onClick={handleGoogle} disabled={loading} whileTap={{ scale: 0.98 }}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-sm font-bold mb-4 transition-colors bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-sm font-bold mb-4 transition-colors hover:bg-blue-50"
+          style={{ background: "#f5f9ff", border: "1px solid #bfdbfe", color: "#1e3a8a" }}>
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -301,16 +302,23 @@ function AuthForm() {
         </motion.button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex-1 h-px bg-slate-200" />
-          <span className="text-slate-400 text-xs">or</span>
-          <div className="flex-1 h-px bg-slate-200" />
+           <div className="flex-1 h-px bg-slate-300" />
+           <span className="text-slate-600 text-xs font-semibold">or</span>
+           <div className="flex-1 h-px bg-slate-300" />
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 p-1 rounded-xl mb-4 bg-slate-100 border border-slate-200">
+         <div className="flex gap-1 p-1 rounded-xl mb-4 bg-slate-200/70 border border-slate-300">
           {(["in", "up"] as const).map((t) => (
             <button key={t} onClick={() => { setTab(t); setError(""); }}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${tab === t ? "bg-white text-slate-900 border border-slate-200" : "text-slate-500 border border-transparent"}`}>
+               className="flex-1 py-2 rounded-lg text-xs font-bold transition-colors border"
+               style={tab === t
+                 ? t === "in"
+                   ? { background: "#eef2ff", color: "#3730a3", borderColor: "#a5b4fc" }
+                   : { background: "#f5f3ff", color: "#6d28d9", borderColor: "#c4b5fd" }
+                 : t === "in"
+                   ? { background: "transparent", color: "#475569", borderColor: "transparent" }
+                   : { background: "transparent", color: "#7c3aed", borderColor: "transparent" }}>
               {t === "in" ? "Sign In" : "Sign Up"}
             </button>
           ))}
@@ -322,23 +330,28 @@ function AuthForm() {
           className="flex flex-col gap-3">
           {tab === "up" && (
             <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }}
-              placeholder="Full name" required className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none bg-white border border-slate-200" />
+               placeholder="Full name" required
+               className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-500 outline-none focus:ring-2 focus:ring-slate-200"
+               style={{ background: "#f8fafc", border: "1px solid #cbd5e1" }} />
           )}
           <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
-            placeholder="Email address" required className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none bg-white border border-slate-200" />
+             placeholder="Email address" required
+             className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-600 outline-none focus:ring-2 focus:ring-cyan-200"
+             style={{ background: "#f2fbfd", border: "1px solid #67e8f9" }} />
           <div className="relative">
             <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }}
-              placeholder="Password" required className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none bg-white"
+               placeholder="Password" required
+               className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-600 outline-none focus:ring-2 focus:ring-amber-200"
               style={{
-                background: error ? "#fef2f2" : "#ffffff",
-                border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "var(--app-border)"}`,
+                 background: error ? "#fef2f2" : "#fffaf0",
+                 border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "#fcd34d"}`,
               }} />
             {error && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
               className="absolute -bottom-5 left-1 text-xs text-red-400">{error}</motion.p>}
           </div>
 
           <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }}
-            className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 transition-colors"
+             className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-slate-950 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 transition-colors"
             style={{
               opacity: loading ? 0.65 : 1,
             }}>
@@ -352,7 +365,7 @@ function AuthForm() {
           {tab === "in" && (
             <button type="button"
               onClick={() => { setTab("reset"); setError(""); setPassword(""); }}
-              className="text-center w-full text-slate-400 hover:text-slate-700 text-xs transition-colors mt-1">
+               className="text-center w-full text-slate-600 hover:text-slate-900 text-xs transition-colors mt-1">
               Forgot your password?
             </button>
           )}
