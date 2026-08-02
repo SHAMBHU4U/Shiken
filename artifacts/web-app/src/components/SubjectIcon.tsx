@@ -45,6 +45,27 @@ export function SubjectIcon({
         fontWeight="800" fill={color} fontFamily="system-ui,sans-serif">अ</text>
     </svg>
   );
+  if (id === "physics") return (
+    <svg {...sw}>
+      <path d="M5 5h8l6 14H11L5 5z" />
+      <path d="M2.5 8.5H5M19 8.5h2.5M17 14.5h3" />
+      <path d="M8.5 5l3 14" />
+    </svg>
+  );
+  if (id === "chemistry") return (
+    <svg {...sw}>
+      <path d="M9 3h6M10 3v5l-5.4 9.3A2.5 2.5 0 0 0 6.8 21h10.4a2.5 2.5 0 0 0 2.2-3.7L14 8V3" />
+      <path d="M7.1 15h9.8" />
+      <path d="M8.5 17.5h1.5M12 18.5h1.5" />
+    </svg>
+  );
+  if (id === "biology") return (
+    <svg {...sw}>
+      <path d="M20 4C11.2 4 5 7.6 4 14.2 3.4 18.1 5.7 20 9.2 20 15.8 20 20 13.8 20 4z" />
+      <path d="M4.5 19.5C8.1 14.9 12.4 11.7 18 8" />
+      <path d="M9.2 13.3l-2.8-.2M12.4 10.9l-.3-2.6M15.2 9.2l2.3.2" />
+    </svg>
+  );
   if (id === "science") return (
     <svg {...{ ...sw, strokeWidth: "1.5" }}>
       <circle cx="12" cy="12" r="2.5" fill={color} stroke="none" />
