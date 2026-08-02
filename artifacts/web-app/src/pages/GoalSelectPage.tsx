@@ -135,7 +135,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
               transition={{ delay: 0.15 + index * 0.09, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
               whileHover={saving ? {} : { scale: 1.025, y: -3 }}
               whileTap={saving ? {} : { scale: 0.975 }}
-              className="relative overflow-hidden w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-shadow hover:shadow-sm"
+              className="relative overflow-hidden w-full bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-left transition-shadow duration-300 hover:shadow-md"
               style={{
                 opacity: saving !== null && saving !== goal.id ? 0.45 : 1,
               }}
@@ -148,8 +148,13 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
 
               <div className="relative z-10 flex items-center gap-4">
                 <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-                  style={{ background: "#ecfdf5", border: "1.5px solid #d1fae5" }}
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${
+                    goal.id === "neet" || goal.id === "jee"
+                      ? "bg-emerald-100 text-emerald-600"
+                      : goal.id === "c10"
+                        ? "bg-blue-100 text-blue-600"
+                        : "bg-amber-100 text-amber-600"
+                  }`}
                 >
                   {saving === goal.id ? (
                     <motion.div

@@ -695,54 +695,51 @@ const GOAL_CONFIG: Record<UserGoal, GoalConfig> = {
   },
 };
 
+function getSubjectIconTone(subjectId: string, classId?: string) {
+  if (classId === "entrance") return "bg-emerald-100 text-emerald-600";
+  if (subjectId === "maths" || subjectId === "science" || subjectId === "physics" || subjectId === "chemistry" || subjectId === "biology") {
+    return "bg-blue-100 text-blue-600";
+  }
+  if (subjectId === "english" || subjectId === "hindi" || subjectId === "sanskrit") {
+    return "bg-rose-100 text-rose-600";
+  }
+  return "bg-amber-100 text-amber-600";
+}
+
 function SubjectCard({
   subject,
   index,
   onClick,
   classId,
-  goal,
 }: {
   subject: (typeof subjects)[0];
   index: number;
   onClick: () => void;
   classId?: string;
-  goal?: UserGoal;
 }) {
-  const categoryTint =
-    goal === "c10"
-      ? "bg-blue-50/60 dark:bg-slate-800"
-      : goal === "c12"
-        ? "bg-indigo-50/60 dark:bg-slate-800"
-        : goal === "jee"
-          ? "bg-orange-50/60 dark:bg-slate-800"
-          : goal === "neet"
-            ? "bg-teal-50/60 dark:bg-slate-800"
-            : "bg-slate-100/50 dark:bg-slate-800";
-
   return (
     <motion.button
       onClick={onClick}
       initial={{ opacity: 0, y: 40, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 + index * 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
-      className={`relative w-full ${categoryTint} border border-slate-200 dark:border-slate-700 rounded-2xl p-5 text-left transition-all duration-200 cursor-pointer group hover:shadow-sm hover:border-slate-300 dark:hover:border-slate-600`}
+      className="relative w-full bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-left transition-shadow duration-300 cursor-pointer group hover:shadow-md"
     >
-      <div className="relative z-10 flex items-center gap-4">
+      <div className="relative z-10">
         <div
-          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-          style={{ background: `${subject.accent}12`, border: `1.5px solid ${subject.accent}28` }}
+          className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 ${getSubjectIconTone(subject.id, classId)}`}
         >
-          <SubjectIcon id={subject.id} color={subject.accent} />
+          <SubjectIcon id={subject.id} color="currentColor" size="lg" />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 pr-7">
           {/* Goal badge — emerald pill */}
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 mb-1">
             {classId === "entrance" ? "Entrance Exam" : `Class ${classId ?? "10"}`}
           </span>
-          <h3 className="text-lg font-bold leading-tight text-slate-950 dark:text-white">{subject.label}</h3>
-          <p className="text-xs font-medium mt-0.5 text-slate-600 dark:text-slate-300">{subject.labelHindi}</p>
+          <h3 className="text-lg font-bold leading-tight text-slate-900">{subject.label}</h3>
+          <p className="text-sm font-medium mt-0.5 text-slate-500">{subject.labelHindi}</p>
         </div>
-        <div className="ml-auto text-slate-300 group-hover:text-slate-500 transition-colors duration-200">
+        <div className="absolute top-6 right-6 text-slate-300 group-hover:text-slate-500 transition-colors duration-200">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
               d="M9 5l7 7-7 7"
@@ -783,41 +780,22 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
     >
       <motion.button
         onClick={() => navigate(`/mock-test/${goal}${isPremium ? "" : "?demo=true"}`)}
-        className="relative w-full bg-white border border-slate-200 rounded-2xl p-6 text-left cursor-pointer transition-shadow duration-150 hover:shadow-sm"
-        style={{
-          background: "var(--app-card-bg)",
-          borderColor: "var(--app-border)",
-        }}
+        className="relative w-full bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-left cursor-pointer transition-shadow duration-300 hover:shadow-md"
       >
         <div className="relative z-10">
-          {/* Top row: icon + title + badge */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-                style={{
-                  background: "#ecfdf5",
-                  border: "1.5px solid #d1fae5",
-                }}
-              >
-                {isJee ? "⚙️" : "🩺"}
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-0.5"
-                  style={{ color: isPremium ? "#d97706" : "rgba(17,17,17,0.45)" }}>
-                  {isPremium ? "👑 Premium Access" : "🆓 Free Demo Available"}
-                </p>
-                <h3 className="text-2xl font-black leading-tight text-[#111111]">
-                  Full Mock Test
-                </h3>
-              </div>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 bg-emerald-100 text-emerald-600 text-2xl">
+            {isJee ? "⚙️" : "🩺"}
+          </div>
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div>
+              <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${isPremium ? "text-amber-600" : "text-slate-500"}`}>
+                {isPremium ? "👑 Premium Access" : "🆓 Free Demo Available"}
+              </p>
+              <h3 className="text-lg font-bold leading-tight text-slate-900">
+                Full Mock Test
+              </h3>
             </div>
-            <div
-              className="px-3 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0"
-              style={{
-                background: "#ecfdf5",
-              }}
-            >
+            <div className="px-3 py-1 rounded-full text-[11px] font-medium bg-emerald-100 text-emerald-700 shrink-0">
               {examLabel}
             </div>
           </div>
@@ -827,12 +805,7 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
             {subjects.map((sub, i) => (
               <span
                 key={sub}
-                 className="px-3 py-1 rounded-full text-[12px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
-                style={{
-                  background: "#f8fafc",
-                  color: "#475569",
-                  border: "1px solid #e2e8f0",
-                }}
+                 className="px-3 py-1 rounded-full text-[12px] font-medium bg-slate-50 text-slate-600 border border-slate-100"
               >
                 {sub}
               </span>
@@ -842,12 +815,12 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
           {/* Stats row + CTA */}
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-0.5">
-              <span className="text-xs" style={{ color: "rgba(17,17,17,0.55)" }}>
+               <span className="text-xs text-slate-500">
                 {isPremium
                   ? `📋 ${isJee ? "90 Qs · 3 sections" : "200 Qs · 3 sections"}`
                   : "📋 5 Qs × 3 subjects · Demo"}
               </span>
-              <span className="text-xs" style={{ color: "rgba(17,17,17,0.40)" }}>
+               <span className="text-xs text-slate-500">
                 {isPremium
                   ? `⏱ ${isJee ? "3 hours" : "3 hours"}`
                   : "⏱ 15 min · Free trial"}
@@ -1186,7 +1159,6 @@ function Dashboard() {
               subject={subject}
               index={index}
               classId={goalCfg.classId}
-              goal={goal ?? undefined}
               onClick={() => {
                 const route = goal === "jee" ? `/jee/${subject.id}` : goal === "neet" ? `/neet/${subject.id}` : `/c${goalCfg.classId === "entrance" ? "12" : goalCfg.classId}/${subject.id}`;
                 navigate(route);
