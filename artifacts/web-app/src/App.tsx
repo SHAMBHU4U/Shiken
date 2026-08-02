@@ -922,12 +922,12 @@ function BottomNav() {
   if (isQuiz || isAdmin) return null;
 
   const tabs = [
-    { path: "/",             iconId: "home",        label: "Home",        color: "#4aa6a5" },
-    { path: "/leaderboard",  iconId: "ranks",       label: "Ranks",       color: "#ff6b6b" },
-    { path: "/profile",      iconId: "profile",     label: "Profile",     color: "#8f0027" },
-    { path: "/pricing",      iconId: "premium",     label: "Premium 👑",  color: "#f59e0b" },
-    { path: "/counselling",  iconId: "counselling", label: "Counselling", color: "#ed841c" },
-    { path: "/contact",      iconId: "contact",     label: "Contact",     color: "#2563eb" },
+    { path: "/",             iconId: "home",        label: "Home",        color: "#0f766e", softBg: "#ecfdf5" },
+    { path: "/leaderboard",  iconId: "ranks",       label: "Ranks",       color: "#e11d48", softBg: "#fff1f2" },
+    { path: "/profile",     iconId: "profile",     label: "Profile",     color: "#9f1239", softBg: "#fff1f2" },
+    { path: "/pricing",      iconId: "premium",     label: "Premium 👑",  color: "#b45309", softBg: "#fffbeb" },
+    { path: "/counselling",  iconId: "counselling", label: "Counselling", color: "#c2410c", softBg: "#fff7ed" },
+    { path: "/contact",      iconId: "contact",     label: "Contact",     color: "#1d4ed8", softBg: "#eff6ff" },
   ];
 
   return (
@@ -949,7 +949,7 @@ function BottomNav() {
               key={tab.path}
               onClick={() => navigate(tab.path)}
               className="relative flex flex-col items-center justify-center gap-1 flex-1 py-3 min-w-0 rounded-xl transition-all duration-200"
-              style={{ background: "transparent" }}
+              style={{ background: active ? tab.softBg : "transparent" }}
             >
               {active && (
                 <motion.div
@@ -962,7 +962,10 @@ function BottomNav() {
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
               )}
-              <div className="relative">
+              <div
+                className="relative flex items-center justify-center w-8 h-7 rounded-lg transition-colors duration-200"
+                style={{ background: active ? `${tab.color}12` : "transparent" }}
+              >
                 <NavIcon id={tab.iconId} color={tab.color} />
                 {tab.iconId === "profile" && user && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
@@ -970,7 +973,7 @@ function BottomNav() {
               </div>
               <span
                 className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
-                 style={{ color: active ? tab.color : "#64748b" }}
+                style={{ color: active ? tab.color : `${tab.color}b3` }}
               >
                 {tab.label}
               </span>
