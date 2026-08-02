@@ -78,20 +78,6 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-15"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
-        <div className="absolute top-1/2 -right-32 w-80 h-80 rounded-full blur-3xl opacity-10"
-          style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />
-        <div className="absolute -bottom-20 left-1/3 w-72 h-72 rounded-full blur-3xl opacity-10"
-          style={{ background: "radial-gradient(circle, #10b981, transparent)" }} />
-        <div className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)",
-            backgroundSize: "32px 32px",
-          }} />
-      </div>
-
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-10 pb-28">
         <motion.div
           initial={{ opacity: 0, y: -16 }}
@@ -101,10 +87,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
         >
           <div className="flex justify-center mb-4">
             <div className="relative">
-              <div className="absolute inset-0 rounded-[20px] blur-2xl scale-125 opacity-50"
-                style={{ background: "linear-gradient(135deg, #8b5cf6, #06b6d4)" }} />
-              <div className="relative w-[70px] h-[70px] rounded-[18px] flex items-center justify-center overflow-hidden bg-white"
-                style={{ boxShadow: "0 12px 36px rgba(139,92,246,0.4), 0 4px 12px rgba(0,0,0,0.3)" }}>
+              <div className="relative w-[70px] h-[70px] rounded-[18px] flex items-center justify-center overflow-hidden bg-white border border-slate-200">
                 <img src="/shiken-logo.png" alt="SHIKEN" className="w-[52px] h-[52px] object-contain" />
               </div>
             </div>
@@ -114,7 +97,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.5 }}
-            className="text-3xl font-black text-white tracking-tight mb-1"
+            className="text-3xl font-bold text-slate-900 tracking-tight mb-1"
           >
             {isChanging ? "Change your Goal" : "What's your Goal?"}
           </motion.h1>
@@ -122,7 +105,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-white/40 text-sm"
+            className="text-slate-500 text-sm"
           >
             {isChanging
               ? "Choose a different preparation path"
@@ -134,7 +117,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.25 }}
-              className="text-violet-300/60 text-xs mt-1.5"
+              className="text-slate-500 text-xs mt-1.5"
             >
               {user.displayName || user.email}
             </motion.p>
@@ -152,50 +135,45 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
               transition={{ delay: 0.15 + index * 0.09, duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
               whileHover={saving ? {} : { scale: 1.025, y: -3 }}
               whileTap={saving ? {} : { scale: 0.975 }}
-              className={`relative overflow-hidden w-full bg-gradient-to-br ${goal.gradient} border ${goal.border} rounded-2xl p-5 text-left transition-all`}
+              className="relative overflow-hidden w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-shadow hover:shadow-sm"
               style={{
-                boxShadow: `0 6px 32px ${goal.accent}30, 0 2px 8px rgba(0,0,0,0.4)`,
                 opacity: saving !== null && saving !== goal.id ? 0.45 : 1,
               }}
             >
               {saving === goal.id && (
                 <motion.div
-                  className="absolute inset-0 rounded-2xl"
-                  animate={{ opacity: [0.05, 0.15, 0.05] }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  style={{ background: goal.accent }}
+                  className="absolute inset-x-0 top-0 h-1 bg-emerald-600"
                 />
               )}
 
               <div className="relative z-10 flex items-center gap-4">
                 <div
                   className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
-                  style={{ background: `${goal.accent}18`, border: `1.5px solid ${goal.accent}35` }}
+                  style={{ background: "#ecfdf5", border: "1.5px solid #d1fae5" }}
                 >
                   {saving === goal.id ? (
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                      className="w-6 h-6 rounded-full border-2 border-transparent"
-                      style={{ borderTopColor: goal.accent, borderRightColor: `${goal.accent}50` }}
+                       className="w-6 h-6 rounded-full border-2 border-emerald-200 border-t-emerald-600"
                     />
                   ) : goal.emoji}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">
-                    <h3 className="text-xl font-black text-white">{goal.title}</h3>
-                    <span className="text-xs font-semibold" style={{ color: `${goal.accent}cc` }}>
+                    <h3 className="text-xl font-bold text-slate-900">{goal.title}</h3>
+                    <span className="text-xs font-medium text-slate-500">
                       {goal.titleHindi}
                     </span>
                   </div>
-                  <p className="text-white/45 text-xs mt-0.5 mb-2">{goal.description}</p>
+                  <p className="text-slate-500 text-xs mt-0.5 mb-2">{goal.description}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {goal.subjects.map((sub) => (
                       <span
                         key={sub}
                         className="px-2 py-0.5 rounded-lg text-[10px] font-bold"
-                        style={{ background: `${goal.accent}18`, color: `${goal.accent}dd`, border: `1px solid ${goal.accent}25` }}
+                         style={{ background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}
                       >
                         {sub}
                       </span>
@@ -204,8 +182,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
                 </div>
 
                 <motion.div
-                  className="shrink-0 transition-colors"
-                  style={{ color: `${goal.accent}80` }}
+                  className="shrink-0 text-slate-400 transition-colors"
                   animate={saving === goal.id ? {} : {}}
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -226,7 +203,7 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
           >
             <button
               onClick={() => signOut()}
-              className="text-white/20 hover:text-white/40 text-xs transition-colors"
+              className="text-slate-400 hover:text-slate-700 text-xs transition-colors"
             >
               Sign out
             </button>

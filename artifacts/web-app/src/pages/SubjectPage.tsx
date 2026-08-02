@@ -840,19 +840,15 @@ function ModeSelect({
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10" style={{ background: "var(--app-bg)" }}>
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}18 0%, transparent 60%)` }}
-      />
       <motion.div
         initial={{ opacity: 0, y: -16 }}
         animate={{ opacity: 1, y: 0 }}
         className="text-center mb-8 relative z-10"
       >
         <div className="mb-3 flex justify-center"><SubjectIcon id={subject} color={meta.accent} size="lg" /></div>
-        <h2 className="text-3xl font-black text-white mb-0.5 leading-tight">{meta.label}</h2>
-        <p className="text-base font-bold mb-2" style={{ color: meta.accent }}>{meta.labelHindi}</p>
-        <p className="text-white/40 text-sm">Choose your test mode</p>
+        <h2 className="text-3xl font-black text-slate-900 mb-0.5 leading-tight">{meta.label}</h2>
+        <p className="text-base font-bold mb-2 text-emerald-600">{meta.labelHindi}</p>
+        <p className="text-slate-500 text-sm">Choose your test mode</p>
       </motion.div>
 
       <div className="w-full max-w-sm flex flex-col gap-4 relative z-10">
@@ -862,15 +858,15 @@ function ModeSelect({
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
-            className="rounded-2xl border p-4 flex items-center gap-4"
-            style={{ background: `${meta.accent}12`, borderColor: `${meta.accent}50` }}
+            className="rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-4"
+            style={{ background: "var(--app-card-bg)", borderColor: "var(--app-border)" }}
           >
             <div className="text-2xl w-11 h-11 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${meta.accent}25` }}>
               ⏸️
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-sm">Resume where you left off</p>
-              <p className="text-xs mt-0.5" style={{ color: `${meta.accent}cc` }}>
+              <p className="text-slate-900 font-bold text-sm">Resume where you left off</p>
+              <p className="text-xs mt-0.5 text-emerald-600">
                 {savedProgress.mode === "full" ? "Full Test" : savedProgress.chapter}
                 {" · "}Q{savedProgress.currentIndex + 1}/{savedProgress.questions.length}
                 {" · "}{formatRelativeTime(savedProgress.timestamp)}
@@ -878,8 +874,8 @@ function ModeSelect({
             </div>
             <motion.button
               onClick={onResume}
-              className="px-4 py-2 rounded-xl text-xs font-bold shrink-0"
-              style={{ background: meta.accent, color: "#000" }}
+              className="px-4 py-2 rounded-xl text-xs font-bold shrink-0 bg-emerald-600 text-white"
+              style={{ background: "#059669", color: "#ffffff" }}
             >
               Resume →
             </motion.button>
@@ -890,30 +886,30 @@ function ModeSelect({
         {hasHistory && (
           <motion.div
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
-            className="rounded-2xl border p-4"
-            style={{ background: `linear-gradient(135deg, ${meta.accent}10, rgba(255,255,255,0.03))`, borderColor: `${meta.accent}25` }}
+            className="rounded-2xl border border-slate-200 bg-white p-4"
+            style={{ background: "var(--app-card-bg)", borderColor: "var(--app-border)" }}
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="text-white/70 text-xs font-semibold">📈 Your Progress</p>
+              <p className="text-slate-700 text-xs font-semibold">📈 Your Progress</p>
               <div className="flex gap-3">
                 <div className="text-right">
-                  <p className="text-white text-xs font-bold">{bestPct}%</p>
-                  <p className="text-white/30 text-[10px]">Best</p>
+                  <p className="text-slate-900 text-xs font-bold">{bestPct}%</p>
+                  <p className="text-slate-400 text-[10px]">Best</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white text-xs font-bold">{avgPct}%</p>
-                  <p className="text-white/30 text-[10px]">Avg</p>
+                  <p className="text-slate-900 text-xs font-bold">{avgPct}%</p>
+                  <p className="text-slate-400 text-[10px]">Avg</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white text-xs font-bold">{safeHistory.length}</p>
-                  <p className="text-white/30 text-[10px]">Tests</p>
+                  <p className="text-slate-900 text-xs font-bold">{safeHistory.length}</p>
+                  <p className="text-slate-400 text-[10px]">Tests</p>
                 </div>
               </div>
             </div>
             <ProgressChart records={safeHistory} accent={meta.accent} />
             <div className="flex justify-between mt-1 px-1">
-              <span className="text-white/20 text-[10px]">Oldest</span>
-              <span className="text-white/20 text-[10px]">Latest →</span>
+              <span className="text-slate-400 text-[10px]">Oldest</span>
+              <span className="text-slate-400 text-[10px]">Latest →</span>
             </div>
           </motion.div>
         )}
@@ -923,16 +919,16 @@ function ModeSelect({
           <motion.button
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
             onClick={onSaved}
-            className="relative overflow-hidden text-left rounded-2xl border p-4 flex items-center gap-4 group"
-            style={{ background: "rgba(251,191,36,0.08)", borderColor: "rgba(251,191,36,0.3)" }}
+            className="relative overflow-hidden text-left rounded-2xl border border-slate-200 bg-white p-4 flex items-center gap-4 group"
+            style={{ background: "var(--app-card-bg)", borderColor: "var(--app-border)" }}
           >
             <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
               style={{ background: "radial-gradient(ellipse at 50% 0%,rgba(251,191,36,0.14),transparent 70%)" }} />
             <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0"
               style={{ background: "rgba(251,191,36,0.15)" }}>⭐</div>
             <div className="flex-1 relative z-10">
-              <p className="text-white font-bold text-sm">Saved Questions</p>
-              <p className="text-xs" style={{ color: "rgba(251,191,36,0.8)" }}>{savedCount} question{savedCount !== 1 ? "s" : ""} bookmarked • Revise anytime</p>
+              <p className="text-slate-900 font-bold text-sm">Saved Questions</p>
+              <p className="text-xs text-slate-500">{savedCount} question{savedCount !== 1 ? "s" : ""} bookmarked • Revise anytime</p>
             </div>
             <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10 text-lg">→</span>
           </motion.button>
@@ -946,21 +942,19 @@ function ModeSelect({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 + i * 0.12, ease: [0.23, 1, 0.32, 1], duration: 0.5 }}
             onClick={m.onClick}
-            className="relative overflow-hidden text-left rounded-2xl border p-5 group"
+            className="relative overflow-hidden text-left rounded-2xl border border-slate-200 bg-white p-6 group hover:shadow-sm transition-shadow"
             style={{
-              background: `linear-gradient(135deg, ${m.glowColor}18, rgba(255,255,255,0.05))`,
-              borderColor: `${m.glowColor}30`,
+              background: "var(--app-card-bg)",
+              borderColor: "var(--app-border)",
             }}
           >
             {m.id === "ai" && !m.locked && (
-              <div className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-bold"
-                style={{ background: "#6366f130", color: "#a5b4fc" }}>
+              <div className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
                 NEW ✨
               </div>
             )}
             {m.locked && (
-              <div className="absolute top-2 right-2 flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-bold"
-                style={{ background: "rgba(251,191,36,0.15)", color: "#fbbf24", border: "1px solid rgba(251,191,36,0.3)" }}>
+              <div className="absolute top-2 right-2 flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-amber-50 text-amber-700 border border-amber-100">
                 👑 Premium
               </div>
             )}
@@ -973,11 +967,11 @@ function ModeSelect({
               </div>
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-0.5">
-                  <h3 className="text-white font-bold text-base">{m.title}</h3>
-                  <span className="text-white/30 group-hover:text-white/60 transition-colors text-lg">→</span>
+                  <h3 className="text-slate-900 font-bold text-base">{m.title}</h3>
+                  <span className="text-slate-400 group-hover:text-slate-600 transition-colors text-lg">→</span>
                 </div>
                 <p className="text-xs font-semibold mb-1" style={{ color: m.glowColor }}>{m.subtitle}</p>
-                <p className="text-white/40 text-xs leading-snug">{m.desc}</p>
+                <p className="text-slate-500 text-xs leading-snug">{m.desc}</p>
               </div>
             </div>
           </motion.button>
@@ -1075,38 +1069,34 @@ function ChapterSelect({
 
   return (
     <div className="min-h-screen px-4 py-6" style={{ background: "var(--app-bg)" }}>
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{ background: `radial-gradient(ellipse at 50% 0%, ${meta.accent}15 0%, transparent 50%)` }}
-      />
       <div className="max-w-sm mx-auto relative z-10">
         <div className="flex items-center gap-3 mb-5">
-          <button onClick={onBack} className="text-white/40 hover:text-white/70 transition-colors text-xl p-1">←</button>
+          <button onClick={onBack} className="text-slate-400 hover:text-slate-700 transition-colors text-xl p-1">←</button>
           <div>
-            <p className="text-white/40 text-xs">{displayTitle}</p>
-            <h2 className="text-white font-bold text-lg">{meta.label} — Pick a Chapter</h2>
+            <p className="text-slate-500 text-xs">{displayTitle}</p>
+            <h2 className="text-slate-900 font-bold text-lg">{meta.label} — Pick a Chapter</h2>
           </div>
         </div>
 
         {/* ── Bilingual search bar ── */}
         <div className="relative mb-4">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 text-sm pointer-events-none select-none">🔍</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none select-none">🔍</span>
           <input
             type="text"
             value={chapterQuery}
             onChange={(e) => setChapterQuery(e.target.value)}
             placeholder="Search chapter… e.g. कारक or karak"
-            className="w-full rounded-xl pl-9 pr-9 py-2.5 text-sm text-white placeholder-white/30 outline-none"
+            className="w-full rounded-xl pl-9 pr-9 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none bg-white border border-slate-200"
             style={{
-              background: "var(--app-surface)",
-              border: `1px solid ${chapterQuery ? meta.accent + "60" : "var(--app-border)"}`,
+              background: "var(--app-card-bg)",
+              border: `1px solid ${chapterQuery ? "#059669" : "var(--app-border)"}`,
               caretColor: meta.accent,
             }}
           />
           {chapterQuery && (
             <button
               onClick={() => setChapterQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors text-base leading-none"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors text-base leading-none"
             >
               ×
             </button>
@@ -1115,7 +1105,7 @@ function ChapterSelect({
 
         {/* ── Result count hint ── */}
         {chapterQuery.trim() && (
-          <p className="text-white/30 text-xs mb-3 pl-1">
+          <p className="text-slate-500 text-xs mb-3 pl-1">
             {visibleChapters.length === 0
               ? "No chapters found"
               : `${visibleChapters.length} chapter${visibleChapters.length !== 1 ? "s" : ""} found`}
@@ -1129,8 +1119,8 @@ function ChapterSelect({
               transition={{ duration: 0.3 }}
               whileHover={{ scale: 1.02, x: 4 }} whileTap={{ scale: 0.97 }}
               onClick={() => onSelect("All Chapters")}
-              className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
-              style={{ background: `${meta.accent}12`, borderColor: `${meta.accent}40` }}
+              className="relative overflow-hidden text-left rounded-2xl border border-slate-200 bg-white px-4 py-3.5 flex items-center gap-3 group hover:shadow-sm transition-shadow"
+              style={{ background: "var(--app-card-bg)", borderColor: "var(--app-border)" }}
             >
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
                 style={{ background: `linear-gradient(90deg, ${meta.accent}20, transparent)` }} />
@@ -1139,10 +1129,10 @@ function ChapterSelect({
                 🌟
               </div>
               <div className="flex-1 relative z-10">
-                <p className="font-semibold text-sm" style={{ color: meta.accent }}>{allLabel ?? "All Chapters"}</p>
-                <p className="text-white/40 text-xs">{allTotalCount} questions · Mix of everything</p>
+                <p className="font-semibold text-sm text-emerald-700">{allLabel ?? "All Chapters"}</p>
+                <p className="text-slate-500 text-xs">{allTotalCount} questions · Mix of everything</p>
               </div>
-              <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10">→</span>
+              <span className="text-slate-400 group-hover:text-slate-700 transition-colors relative z-10">→</span>
             </motion.button>
           )}
 
@@ -1159,33 +1149,31 @@ function ChapterSelect({
                 whileHover={{ scale: 1.02, x: 4 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => isLocked ? onUpgrade?.() : onSelect(ch.name)}
-                className="relative overflow-hidden text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 group"
+                className="relative overflow-hidden text-left rounded-2xl border border-slate-200 bg-white px-4 py-3.5 flex items-center gap-3 group hover:shadow-sm transition-shadow"
                 style={{
-                  background: isTopper ? "rgba(245,158,11,0.06)" : isLocked ? "rgba(251,191,36,0.05)" : "var(--app-surface)",
-                  borderColor: isTopper ? "rgba(245,158,11,0.25)" : isLocked ? "rgba(251,191,36,0.2)" : "rgba(0,0,0,0.08)",
+                  background: "var(--app-card-bg)",
+                  borderColor: "var(--app-border)",
                 }}
               >
                 <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-xl"
-                  style={{ background: isLocked ? "linear-gradient(90deg, rgba(245,158,11,0.14), transparent)" : `linear-gradient(90deg, ${meta.accent}18, transparent)` }}
+                  className="hidden"
                 />
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
-                  style={{ background: isLocked ? "rgba(245,158,11,0.15)" : `${meta.accent}20` }}
+                  style={{ background: isLocked ? "#fffbeb" : "#ecfdf5" }}
                 >
                   {getChapterIcon(ch.name)}
                 </div>
                 <div className="flex-1 relative z-10">
-                  <p className={`font-semibold text-sm ${isLocked ? "text-white/60" : "text-white"}`}>{ch.name}</p>
-                  <p className="text-white/40 text-xs">{ch.count} question{ch.count !== 1 ? "s" : ""}</p>
+                  <p className={`font-semibold text-sm ${isLocked ? "text-slate-500" : "text-slate-900"}`}>{ch.name}</p>
+                  <p className="text-slate-500 text-xs">{ch.count} question{ch.count !== 1 ? "s" : ""}</p>
                 </div>
                 {isLocked ? (
-                  <span className="relative z-10 text-xs font-bold px-2 py-0.5 rounded-full shrink-0"
-                    style={{ background: "rgba(245,158,11,0.15)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.35)" }}>
+                  <span className="relative z-10 text-xs font-medium px-3 py-1 rounded-full shrink-0 bg-amber-50 text-amber-700 border border-amber-100">
                     {badgeLabel}
                   </span>
                 ) : (
-                  <span className="text-white/30 group-hover:text-white/60 transition-colors relative z-10">→</span>
+                  <span className="text-slate-400 group-hover:text-slate-700 transition-colors relative z-10">→</span>
                 )}
               </motion.button>
             );

@@ -712,23 +712,24 @@ function SubjectCard({
       initial={{ opacity: 0, y: 40, scale: 0.92 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.15 + index * 0.1, duration: 0.55, ease: [0.23, 1, 0.32, 1] }}
-      className={`relative w-full bg-[var(--app-card-bg)] border ${subject.border} rounded-2xl p-6 text-left transition-colors duration-200 cursor-pointer group hover:border-[var(--app-text-faint)]`}
+      className="relative w-full bg-white border border-slate-200 rounded-2xl p-5 text-left transition-all duration-200 cursor-pointer group hover:shadow-sm hover:border-slate-300"
     >
       <div className="relative z-10 flex items-center gap-4">
         <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
-          style={{ background: `${subject.accent}18`, border: `1.5px solid ${subject.accent}38` }}
+          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: `${subject.accent}12`, border: `1.5px solid ${subject.accent}28` }}
         >
           <SubjectIcon id={subject.id} color={subject.accent} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: "rgba(17,17,17,0.40)" }}>
-            {classId === "entrance" ? "Entrance Exam" : `Board Class ${classId ?? "10"}`}
-          </p>
-          <h3 className="text-xl font-black leading-tight text-[#111111]">{subject.label}</h3>
-          <p className="text-sm font-semibold mt-0.5" style={{ color: `${subject.accent}` }}>{subject.labelHindi}</p>
+          {/* Goal badge — emerald pill */}
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 mb-1">
+            {classId === "entrance" ? "Entrance Exam" : `Class ${classId ?? "10"}`}
+          </span>
+          <h3 className="text-lg font-bold leading-tight text-slate-900">{subject.label}</h3>
+          <p className="text-xs font-medium mt-0.5 text-slate-500">{subject.labelHindi}</p>
         </div>
-        <div className="ml-auto transition-colors duration-200" style={{ color: "rgba(17,17,17,0.35)" }}>
+        <div className="ml-auto text-slate-300 group-hover:text-slate-500 transition-colors duration-200">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
               d="M9 5l7 7-7 7"
@@ -769,10 +770,10 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
     >
       <motion.button
         onClick={() => navigate(`/mock-test/${goal}${isPremium ? "" : "?demo=true"}`)}
-        className="relative w-full rounded-2xl p-6 text-left cursor-pointer border transition-colors duration-150 hover:border-[var(--app-text-faint)]"
+        className="relative w-full bg-white border border-slate-200 rounded-2xl p-6 text-left cursor-pointer transition-shadow duration-150 hover:shadow-sm"
         style={{
           background: "var(--app-card-bg)",
-          borderColor: `${accent1}55`,
+          borderColor: "var(--app-border)",
         }}
       >
         <div className="relative z-10">
@@ -782,8 +783,8 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
               <div
                 className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
                 style={{
-                  background: `${accent1}20`,
-                  border: `1.5px solid ${accent1}45`,
+                  background: "#ecfdf5",
+                  border: "1.5px solid #d1fae5",
                 }}
               >
                 {isJee ? "⚙️" : "🩺"}
@@ -799,9 +800,9 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
               </div>
             </div>
             <div
-              className="px-3 py-1 rounded-full text-[11px] font-black text-white shrink-0"
+              className="px-3 py-1 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0"
               style={{
-                background: accent1,
+                background: "#ecfdf5",
               }}
             >
               {examLabel}
@@ -813,11 +814,11 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
             {subjects.map((sub, i) => (
               <span
                 key={sub}
-                className="px-3 py-1 rounded-lg text-[12px] font-bold"
+                 className="px-3 py-1 rounded-full text-[12px] font-medium bg-slate-50 text-slate-600 border border-slate-200"
                 style={{
-                  background: `${subAccents[i]}20`,
-                  color: subAccents[i],
-                  border: `1px solid ${subAccents[i]}45`,
+                  background: "#f8fafc",
+                  color: "#475569",
+                  border: "1px solid #e2e8f0",
                 }}
               >
                 {sub}
@@ -857,7 +858,7 @@ function FullMockCard({ goal }: { goal: "jee" | "neet" }) {
 const QUIZ_SLUGS = ["maths", "english", "hindi", "science", "social", "sanskrit"];
 
 function NavIcon({ id, active }: { id: string; active: boolean }) {
-  const color = active ? "#16a34a" : "rgba(17,17,17,0.45)";
+  const color = active ? "#059669" : "#64748b";
   const sw: React.SVGProps<SVGSVGElement> = {
     viewBox: "0 0 24 24", fill: "none", stroke: color,
     strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round",
@@ -891,7 +892,7 @@ function NavIcon({ id, active }: { id: string; active: boolean }) {
       <path d="M9 20h6" strokeWidth="1.5" />
     </svg>
   );
-  const dimColor = "rgba(17,17,17,0.35)";
+  const dimColor = "#94a3b8";
   if (id === "premium") return (
     <svg {...sw} stroke="none">
       {/* Crown shape — filled with accent gradient when active */}
@@ -960,7 +961,7 @@ function BottomNav() {
                   className="absolute top-0 left-1/2 -translate-x-1/2 rounded-full"
                   style={{
                     width: 32, height: 2,
-                    background: "#16a34a",
+                    background: "#059669",
                   }}
                   transition={{ type: "spring", stiffness: 500, damping: 35 }}
                 />
@@ -973,7 +974,7 @@ function BottomNav() {
               </div>
               <span
                 className="text-[10px] font-semibold leading-none tracking-wide transition-colors duration-200"
-                style={{ color: active ? "#16a34a" : "var(--app-nav-text-muted)" }}
+                 style={{ color: active ? "#059669" : "#64748b" }}
               >
                 {tab.label}
               </span>
@@ -1039,20 +1040,20 @@ function DailyQuote() {
       initial={{ opacity: 0, y: 16, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-      className="mb-5 rounded-2xl px-4 py-3.5 relative overflow-hidden"
-      style={{ background: q.grad, border: `1px solid ${q.border}33`, borderLeft: `3px solid ${q.border}` }}
+      className="mb-6 rounded-2xl px-5 py-4 relative overflow-hidden bg-white border border-slate-200"
+      style={{ background: "var(--app-card-bg)", border: "1px solid var(--app-border)" }}
     >
       <div className="flex items-start gap-3">
         <span className="text-2xl mt-0.5 shrink-0 select-none">{q.emoji}</span>
         <div className="min-w-0">
-          <p className="text-sm font-bold leading-snug mb-1" style={{ color: q.accent }}>
+          <p className="text-sm font-semibold leading-snug mb-1 text-emerald-700">
             {q.hi}
           </p>
-          <p className="text-white/45 text-[11px] leading-snug italic">
+          <p className="text-slate-500 text-[11px] leading-snug italic">
             {q.en}
           </p>
           {q.from && (
-            <p className="text-[10px] mt-1 font-semibold" style={{ color: `${q.accent}99` }}>
+            <p className="text-[10px] mt-1 font-semibold text-slate-400">
               {q.from}
             </p>
           )}
@@ -1075,28 +1076,6 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div
-          className="absolute -top-40 -left-40 w-96 h-96 rounded-full blur-3xl opacity-20"
-          style={{ background: `radial-gradient(circle, ${goalCfg.accent}80, transparent)` }}
-        />
-        <div
-          className="absolute top-1/2 -right-32 w-80 h-80 rounded-full blur-3xl opacity-15"
-          style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }}
-        />
-        <div
-          className="absolute -bottom-20 left-1/3 w-72 h-72 rounded-full blur-3xl opacity-10"
-          style={{ background: "radial-gradient(circle, #10b981, transparent)" }}
-        />
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)`,
-            backgroundSize: "32px 32px",
-          }}
-        />
-      </div>
-
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-10 pb-28">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -1113,14 +1092,9 @@ function Dashboard() {
               className="relative"
             >
               <div
-                className="absolute inset-0 rounded-[24px] blur-2xl scale-125 opacity-50"
-                style={{ background: `linear-gradient(135deg, ${goalCfg.accent}, #06b6d4)` }}
-              />
-              <div
-                className="relative w-[80px] h-[80px] rounded-[20px] flex items-center justify-center overflow-hidden"
+                className="relative w-[80px] h-[80px] rounded-2xl flex items-center justify-center overflow-hidden bg-white border border-slate-200 shadow-sm"
                 style={{
                   background: "#ffffff",
-                  boxShadow: `0 12px 36px ${goalCfg.accent}66, 0 4px 12px rgba(0,0,0,0.3)`,
                 }}
               >
                 <img src="/shiken-logo.png" alt="SHIKEN" className="w-[60px] h-[60px] object-contain" />
@@ -1136,16 +1110,16 @@ function Dashboard() {
             onClick={() => clearGoal()}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 cursor-pointer group"
             style={{
-              background: `${goalCfg.accent}1a`,
-              border: `1px solid ${goalCfg.accent}45`,
+              background: "#ecfdf5",
+              border: "1px solid #d1fae5",
             }}
             title="Change goal"
           >
             <span className="text-sm">{goalCfg.badge}</span>
-            <span className="text-[11px] font-bold tracking-[0.15em] uppercase" style={{ color: `${goalCfg.accent}cc` }}>
+            <span className="text-[11px] font-medium tracking-[0.15em] uppercase text-emerald-700">
               {goalCfg.label} · {goalCfg.labelHindi}
             </span>
-            <span className="text-[11px] text-[rgba(17,17,17,0.25)] group-hover:text-[rgba(17,17,17,0.55)] transition-colors ml-0.5">✎</span>
+            <span className="text-[11px] text-slate-400 group-hover:text-slate-600 transition-colors ml-0.5">✎</span>
           </motion.button>
 
 
@@ -1154,7 +1128,7 @@ function Dashboard() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.65, ease: [0.23, 1, 0.32, 1] }}
-            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none text-[#111111]"
+            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none text-slate-900"
           >
             SHIKEN
           </motion.h1>
@@ -1165,7 +1139,7 @@ function Dashboard() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.5 }}
             className="text-base font-bold mb-1"
-            style={{ color: "#16a34a", letterSpacing: "0.13em" }}
+            style={{ color: "#059669", letterSpacing: "0.13em" }}
           >
             शिकेन &nbsp;·&nbsp; परीक्षा की तैयारी
           </motion.p>
@@ -1175,8 +1149,7 @@ function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="text-sm font-medium"
-            style={{ color: "rgba(17,17,17,0.45)" }}
+            className="text-sm font-medium text-slate-500"
           >
             Subject चुनो और शुरू करो
           </motion.p>
@@ -1193,7 +1166,7 @@ function Dashboard() {
           <FullMockCard goal={goal} />
         )}
 
-        <div id="subject-cards" className="flex flex-col gap-4">
+        <div id="subject-cards" className="flex flex-col gap-5">
           {activeSubjects.map((subject, index) => (
             <SubjectCard
               key={subject.id}
@@ -1217,7 +1190,7 @@ function Dashboard() {
           <button
             onClick={() => navigate("/progress")}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-medium"
-            style={{ background: "#f5f5f5", borderColor: "#e5e7eb", color: "rgba(17,17,17,0.55)" }}
+            style={{ background: "#ffffff", borderColor: "#e2e8f0", color: "#64748b" }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 10l3-3 3 2 3-4 3 2" stroke="currentColor" strokeWidth="1.5"

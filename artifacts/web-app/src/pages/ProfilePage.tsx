@@ -207,15 +207,6 @@ function AuthForm() {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
-        <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full blur-3xl opacity-10"
-          style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />
-        <div className="absolute inset-0 opacity-[0.02]"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
-      </div>
-
       <motion.div initial={{ opacity: 0, y: 24, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
         className="relative z-10 w-full max-w-sm mx-4">
@@ -227,12 +218,11 @@ function AuthForm() {
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}>
               <div className="text-center mb-8">
-                <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl"
-                  style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)" }}>
+                <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center text-2xl bg-emerald-50 border border-emerald-100">
                   🔑
                 </div>
-                <h1 className="text-white font-black text-2xl tracking-tight mb-1">Reset Password</h1>
-                <p className="text-white/30 text-sm">We'll send a reset link to your email</p>
+                <h1 className="text-slate-900 font-bold text-2xl tracking-tight mb-1">Reset Password</h1>
+                <p className="text-slate-500 text-sm">We'll send a reset link to your email</p>
               </div>
 
               {resetSent ? (
@@ -240,10 +230,10 @@ function AuthForm() {
                   className="text-center p-6 rounded-2xl"
                   style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
                   <p className="text-3xl mb-3">📬</p>
-                  <p className="text-white font-bold text-sm mb-1">Email sent!</p>
-                  <p className="text-white/40 text-xs mb-4">Check your inbox at <span className="text-white/70">{email}</span> and follow the link to reset your password.</p>
+                  <p className="text-slate-900 font-bold text-sm mb-1">Email sent!</p>
+                  <p className="text-slate-500 text-xs mb-4">Check your inbox at <span className="text-slate-700">{email}</span> and follow the link to reset your password.</p>
                   <button onClick={() => { setTab("in"); setResetSent(false); setError(""); }}
-                    className="text-purple-400 text-sm font-semibold hover:text-purple-300 transition-colors">
+                    className="text-emerald-700 text-sm font-semibold hover:text-emerald-800 transition-colors">
                     ← Back to Sign In
                   </button>
                 </motion.div>
@@ -253,26 +243,25 @@ function AuthForm() {
                   transition={{ duration: 0.5 }} className="flex flex-col gap-3">
                   <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
                     placeholder="Your email address" required autoFocus
-                    className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
+                    className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none bg-white"
                     style={{
-                      background: error ? "rgba(239,68,68,0.08)" : "var(--app-surface)",
+                      background: error ? "#fef2f2" : "#ffffff",
                       border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "var(--app-border)"}`,
                     }} />
                   {error && <p className="text-xs text-red-400 -mt-1 ml-1">{error}</p>}
                   <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }}
-                    className="w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
+                    className="w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 transition-colors"
                     style={{
-                      background: loading ? "rgba(139,92,246,0.4)" : "linear-gradient(135deg,#8b5cf6,#6366f1)",
-                      boxShadow: loading ? "none" : "0 4px 20px rgba(139,92,246,0.35)",
+                      opacity: loading ? 0.65 : 1,
                     }}>
                     {loading ? (
                       <><motion.span animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                        className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white inline-block" />
+                        className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white inline-block" />
                         Sending…</>
                     ) : "Send Reset Link →"}
                   </motion.button>
                   <button type="button" onClick={() => { setTab("in"); setError(""); }}
-                    className="text-center text-white/25 hover:text-white/50 text-xs transition-colors mt-1">
+                    className="text-center text-slate-400 hover:text-slate-700 text-xs transition-colors mt-1">
                     ← Back to Sign In
                   </button>
                 </motion.form>
@@ -287,12 +276,12 @@ function AuthForm() {
             src="/shiken-logo.png"
             alt="SHIKEN"
             className="w-16 h-16 rounded-2xl mx-auto mb-4 object-cover"
-            style={{ boxShadow: "0 0 32px rgba(139,92,246,0.35)" }}
+            style={{ boxShadow: "none" }}
           />
-          <h1 className="text-white font-black text-2xl tracking-tight mb-1">
+          <h1 className="text-slate-900 font-bold text-2xl tracking-tight mb-1">
             {tab === "in" ? "Welcome Back" : "Join SHIKEN"}
           </h1>
-          <p className="text-white/40 text-sm">
+          <p className="text-slate-500 text-sm">
             {tab === "in"
               ? "Board & Entrance की तैयारी, अब Shiken की ज़िम्मेदारी"
               : "Class 10 & 12 · Board & Entrance · Shiken Engine"}
@@ -301,8 +290,7 @@ function AuthForm() {
 
         {/* Google button */}
         <motion.button onClick={handleGoogle} disabled={loading} whileTap={{ scale: 0.98 }}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-sm font-bold mb-4 transition-all"
-          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.12)", color: "white" }}>
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl text-sm font-bold mb-4 transition-colors bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -313,21 +301,16 @@ function AuthForm() {
         </motion.button>
 
         <div className="flex items-center gap-3 mb-4">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-white/25 text-xs">or</span>
-          <div className="flex-1 h-px bg-white/10" />
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-slate-400 text-xs">or</span>
+          <div className="flex-1 h-px bg-slate-200" />
         </div>
 
         {/* Tab switcher */}
-        <div className="flex gap-1 p-1 rounded-xl mb-4" style={{ background: "var(--app-surface)" }}>
+        <div className="flex gap-1 p-1 rounded-xl mb-4 bg-slate-100 border border-slate-200">
           {(["in", "up"] as const).map((t) => (
             <button key={t} onClick={() => { setTab(t); setError(""); }}
-              className="flex-1 py-2 rounded-lg text-xs font-bold transition-all"
-              style={{
-                background: tab === t ? "var(--app-border)" : "transparent",
-                color: tab === t ? "#fff" : "rgba(255,255,255,0.28)",
-                border: tab === t ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent",
-              }}>
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-colors ${tab === t ? "bg-white text-slate-900 border border-slate-200" : "text-slate-500 border border-transparent"}`}>
               {t === "in" ? "Sign In" : "Sign Up"}
             </button>
           ))}
@@ -339,17 +322,15 @@ function AuthForm() {
           className="flex flex-col gap-3">
           {tab === "up" && (
             <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }}
-              placeholder="Full name" required className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-              style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }} />
+              placeholder="Full name" required className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none bg-white border border-slate-200" />
           )}
           <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
-            placeholder="Email address" required className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
-            style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)" }} />
+            placeholder="Email address" required className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none bg-white border border-slate-200" />
           <div className="relative">
             <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }}
-              placeholder="Password" required className="w-full px-4 py-3.5 rounded-xl text-sm text-white placeholder-white/25 outline-none"
+              placeholder="Password" required className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-900 placeholder-slate-400 outline-none bg-white"
               style={{
-                background: error ? "rgba(239,68,68,0.08)" : "var(--app-surface)",
+                background: error ? "#fef2f2" : "#ffffff",
                 border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "var(--app-border)"}`,
               }} />
             {error && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
@@ -357,14 +338,13 @@ function AuthForm() {
           </div>
 
           <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }}
-            className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
+            className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 transition-colors"
             style={{
-              background: loading ? "rgba(139,92,246,0.4)" : "linear-gradient(135deg,#8b5cf6,#6366f1)",
-              boxShadow: loading ? "none" : "0 4px 20px rgba(139,92,246,0.35)",
+              opacity: loading ? 0.65 : 1,
             }}>
             {loading ? (
               <><motion.span animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white inline-block" />
+                className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white inline-block" />
                 Please wait…</>
             ) : tab === "in" ? "Sign In →" : "Create Account →"}
           </motion.button>
@@ -372,7 +352,7 @@ function AuthForm() {
           {tab === "in" && (
             <button type="button"
               onClick={() => { setTab("reset"); setError(""); setPassword(""); }}
-              className="text-center w-full text-white/30 hover:text-white/60 text-xs transition-colors mt-1">
+              className="text-center w-full text-slate-400 hover:text-slate-700 text-xs transition-colors mt-1">
               Forgot your password?
             </button>
           )}
@@ -607,13 +587,12 @@ export default function ProfilePage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
               transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
-              className="w-full max-w-lg mx-auto rounded-t-3xl p-6 pb-10"
-              style={{ background: "#13131f", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 -8px 64px rgba(0,0,0,0.8)" }}
+              className="w-full max-w-lg mx-auto rounded-t-3xl p-6 pb-10 bg-white border border-slate-200"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <p className="text-white font-bold text-base">Avatar चुनो</p>
-                <button onClick={() => setAvatarOpen(false)} className="text-white/40 hover:text-white/80 transition-colors text-lg leading-none">✕</button>
+                 <p className="text-slate-900 font-bold text-base">Avatar चुनो</p>
+                 <button onClick={() => setAvatarOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors text-lg leading-none">✕</button>
               </div>
               <div className="grid grid-cols-6 gap-3">
                 {AVATARS.map((av) => (
@@ -624,11 +603,11 @@ export default function ProfilePage() {
                     className="w-full aspect-square rounded-2xl flex items-center justify-center text-2xl transition-all"
                     style={{
                       background: avatarId === av.id
-                        ? isPremium ? "rgba(251,191,36,0.25)" : "rgba(139,92,246,0.3)"
-                        : "rgba(255,255,255,0.07)",
+                         ? isPremium ? "#fffbeb" : "#ecfdf5"
+                         : "#f8fafc",
                       border: avatarId === av.id
-                        ? isPremium ? "2px solid rgba(251,191,36,0.7)" : "2px solid rgba(139,92,246,0.7)"
-                        : "1px solid rgba(255,255,255,0.06)",
+                         ? isPremium ? "2px solid #fcd34d" : "2px solid #6ee7b7"
+                         : "1px solid #e2e8f0",
                     }}
                     title={av.label}
                   >
@@ -641,24 +620,12 @@ export default function ProfilePage() {
         )}
       </AnimatePresence>
 
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-10"
-          style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
-        <div className="absolute bottom-0 -right-24 w-72 h-72 rounded-full blur-3xl opacity-8"
-          style={{ background: "radial-gradient(circle, #06b6d4, transparent)" }} />
-        <div className="absolute inset-0 opacity-[0.02]"
-          style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.8) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
-      </div>
-
       <div className="relative z-10 max-w-lg mx-auto px-4 pt-12 pb-4">
 
         {/* Profile card */}
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-          className="flex items-center gap-4 p-5 rounded-2xl mb-6"
-          style={isPremium
-            ? { background: "linear-gradient(135deg, rgba(251,191,36,0.10), rgba(245,158,11,0.05))", border: "1px solid rgba(251,191,36,0.35)", boxShadow: "0 0 32px rgba(251,191,36,0.12)" }
-            : { background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)" }}>
+           className="flex items-center gap-4 p-5 rounded-2xl mb-6 bg-white border border-slate-200">
           {/* Avatar picker */}
           <div className="relative shrink-0">
             <Avatar name={user.displayName || user.email || "U"} avatarId={avatarId} size={64} isPremium={isPremium} />
@@ -667,7 +634,7 @@ export default function ProfilePage() {
               whileTap={{ scale: 0.9 }}
               title="Change avatar"
               className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center border-2 text-sm z-10"
-              style={{ background: isPremium ? "#d97706" : "#7c3aed", borderColor: "#07080f" }}
+               style={{ background: isPremium ? "#d97706" : "#059669", borderColor: "#ffffff" }}
             >✏</motion.button>
           </div>
           <div className="flex-1 min-w-0">
@@ -681,35 +648,32 @@ export default function ProfilePage() {
                     onChange={(e) => setNameVal(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") handleNameSave(); if (e.key === "Escape") setEditingName(false); }}
                     maxLength={30}
-                    className="flex-1 min-w-0 px-2 py-1 rounded-lg text-sm font-bold text-white outline-none"
-                    style={{ background: "var(--app-border)", border: "1px solid rgba(139,92,246,0.5)" }}
+                     className="flex-1 min-w-0 px-2 py-1 rounded-lg text-sm font-bold text-slate-900 outline-none bg-white border border-slate-200"
                   />
                   <motion.button onClick={handleNameSave} disabled={nameSaving} whileTap={{ scale: 0.9 }}
-                    className="shrink-0 px-2 py-1 rounded-lg text-xs font-bold text-white"
-                    style={{ background: nameSaving ? "rgba(139,92,246,0.3)" : "rgba(139,92,246,0.7)" }}>
+                     className="shrink-0 px-2 py-1 rounded-lg text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700">
                     {nameSaving ? "…" : "Save"}
                   </motion.button>
                   <button onClick={() => setEditingName(false)}
-                    className="shrink-0 px-2 py-1 rounded-lg text-xs text-white/40 hover:text-white/70 transition-colors">
+                     className="shrink-0 px-2 py-1 rounded-lg text-xs text-slate-400 hover:text-slate-700 transition-colors">
                     ✕
                   </button>
                 </motion.div>
               ) : (
                 <motion.div key="display" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="flex items-center gap-1.5 mb-0.5">
-                  <p className="text-white font-black text-lg truncate">
+                   <p className="text-slate-900 font-bold text-lg truncate">
                     {user.displayName || "Student"}
                   </p>
                   <motion.button onClick={startEdit} whileTap={{ scale: 0.9 }} title="Edit name"
-                    className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors"
-                    style={{ background: "var(--app-surface)" }}>
+                     className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center transition-colors bg-slate-50 border border-slate-200">
                     <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-                      <path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z" stroke="rgba(255,255,255,0.40)" strokeWidth="1.2" strokeLinejoin="round"/>
+                       <path d="M7.5 1.5l2 2L3 10H1V8L7.5 1.5z" stroke="#64748b" strokeWidth="1.2" strokeLinejoin="round"/>
                     </svg>
                   </motion.button>
                   {nameSaved && (
                     <motion.span initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0 }} className="text-xs text-emerald-400 font-medium">
+                       exit={{ opacity: 0 }} className="text-xs text-emerald-700 font-medium">
                       ✓ Saved
                     </motion.span>
                   )}
@@ -718,33 +682,30 @@ export default function ProfilePage() {
             </AnimatePresence>
             {isPremium && isActive && (
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-1"
-                style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", boxShadow: "0 2px 12px rgba(251,191,36,0.4)" }}>
+                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-1 bg-amber-50 border border-amber-100">
                 <span className="text-xs">👑</span>
-                <span className="text-black font-black text-xs">Premium Member</span>
+                 <span className="text-amber-800 font-semibold text-xs">Premium Member</span>
               </motion.div>
             )}
             {isPremium && !isActive && (
               <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-1"
-                style={{ background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)", color: "#ef4444" }}>
+                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full mb-1 bg-red-50 border border-red-100 text-red-600">
                 <span className="text-xs">⏰</span>
                 <span className="font-black text-xs">Expired</span>
               </motion.div>
             )}
-            <p className="text-white/40 text-xs truncate">{user.email}</p>
+             <p className="text-slate-500 text-xs truncate">{user.email}</p>
             {expiryDate && (
-              <p className="text-white/25 text-xs mt-0.5">
+               <p className="text-slate-400 text-xs mt-0.5">
                 {isActive ? `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}` : `Expired on ${new Date(expiryDate).toLocaleDateString("en-IN")}`}
               </p>
             )}
-            <p className="text-white/25 text-xs mt-0.5">
+             <p className="text-slate-400 text-xs mt-0.5">
               Joined {new Date(user.metadata.creationTime || "").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
             </p>
           </div>
           <motion.button onClick={signOut} whileTap={{ scale: 0.95 }}
-            className="shrink-0 self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "rgba(239,68,68,0.8)" }}>
+             className="shrink-0 self-start flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors bg-red-50 border border-red-100 text-red-600 hover:bg-red-100">
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
               <path d="M4.5 2H2.5A.5.5 0 002 2.5v7a.5.5 0 00.5.5h2M8 4l2 2-2 2M10 6H5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
@@ -756,10 +717,10 @@ export default function ProfilePage() {
         {(() => {
           const streak = computeStreak(sessions);
           const stats = [
-            { label: "Tests Taken",  value: statsLoading ? "…" : String(totalSessions), color: "#8b5cf6" },
+             { label: "Tests Taken",  value: statsLoading ? "…" : String(totalSessions), color: "#059669" },
             { label: "Avg Score",    value: statsLoading ? "…" : `${avgPct}%`,           color: gradeColor(avgPct) },
-            { label: "Best Subject", value: statsLoading ? "…" : bestSubject ? SUBJECT_ICONS[bestSubject] ?? "📚" : "—", color: bestSubject ? SUBJECT_COLORS[bestSubject] : "#ffffff40" },
-            { label: "Day Streak",   value: statsLoading ? "…" : streak > 0 ? `🔥 ${streak}` : "—", color: streak >= 7 ? "#f59e0b" : streak >= 3 ? "#fb923c" : "#8b5cf6" },
+             { label: "Best Subject", value: statsLoading ? "…" : bestSubject ? SUBJECT_ICONS[bestSubject] ?? "📚" : "—", color: bestSubject ? SUBJECT_COLORS[bestSubject] : "#94a3b8" },
+             { label: "Day Streak",   value: statsLoading ? "…" : streak > 0 ? `🔥 ${streak}` : "—", color: streak >= 7 ? "#f59e0b" : streak >= 3 ? "#fb923c" : "#059669" },
           ];
           return (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -768,8 +729,8 @@ export default function ProfilePage() {
               {stats.map((s, i) => (
                 <motion.div key={s.label} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.15 + i * 0.05 }}
-                  className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-                  <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
+                  className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
+                  <p className="text-xs text-slate-500 mb-1 leading-tight">{s.label}</p>
                   <p className="text-xl font-black" style={{ color: s.color }}>{s.value}</p>
                 </motion.div>
               ))}
@@ -779,31 +740,29 @@ export default function ProfilePage() {
 
         {/* Wallet + Referral */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-          className="rounded-2xl p-4 mb-4"
-          style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
+           className="rounded-2xl p-5 mb-4 bg-white border border-slate-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-sm">💰</span>
-              <p className="text-white/70 text-xs font-black uppercase tracking-widest">Wallet</p>
+               <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Wallet</p>
             </div>
             <p className="text-emerald-400 font-black text-sm">₹{walletBalance}</p>
           </div>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-sm">📞</span>
-              <p className="text-white/70 text-xs font-black uppercase tracking-widest">Referrals</p>
+               <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Referrals</p>
             </div>
-            <p className="text-white/60 font-bold text-sm">{referralCount} invited</p>
+             <p className="text-slate-700 font-bold text-sm">{referralCount} invited</p>
           </div>
           {referralCode && (
             <div className="flex items-center gap-2 mb-3">
               <span className="text-sm">🔗</span>
-              <p className="text-white/40 text-xs">Code: <span className="font-mono text-white/60 font-bold">{referralCode}</span></p>
+              <p className="text-slate-500 text-xs">Code: <span className="font-mono text-slate-700 font-bold">{referralCode}</span></p>
             </div>
           )}
           <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate("/referral")}
-            className="w-full py-2.5 rounded-xl font-bold text-xs text-white"
-            style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)", boxShadow: "0 4px 16px rgba(139,92,246,0.3)" }}>
+             className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
             Earn Rewards →
           </motion.button>
         </motion.div>
@@ -812,10 +771,9 @@ export default function ProfilePage() {
         {sessions.length >= 2 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18, duration: 0.4 }}
-            className="mb-6 rounded-2xl border p-4"
-            style={{ background: "rgba(139,92,246,0.06)", borderColor: "rgba(139,92,246,0.2)" }}>
+             className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-white/50 text-xs font-semibold">📈 Score Trend ({sessions.length} tests)</p>
+               <p className="text-slate-600 text-xs font-semibold">📈 Score Trend ({sessions.length} tests)</p>
               <div className="flex gap-3">
                 {(() => {
                   const best = Math.max(...sessions.map(s => s.pct));
@@ -823,14 +781,14 @@ export default function ProfilePage() {
                   return (
                     <>
                       <div className="text-right">
-                        <p className="text-white text-xs font-bold">{best}%</p>
-                        <p className="text-white/25 text-[10px]">Best</p>
+                         <p className="text-slate-900 text-xs font-bold">{best}%</p>
+                         <p className="text-slate-400 text-[10px]">Best</p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-xs font-bold ${trend > 0 ? "text-emerald-400" : trend < 0 ? "text-red-400" : "text-white/40"}`}>
+                         <p className={`text-xs font-bold ${trend > 0 ? "text-emerald-600" : trend < 0 ? "text-red-600" : "text-slate-400"}`}>
                           {trend > 0 ? `+${trend}` : trend === 0 ? "–" : trend}%
                         </p>
-                        <p className="text-white/25 text-[10px]">vs prev</p>
+                         <p className="text-slate-400 text-[10px]">vs prev</p>
                       </div>
                     </>
                   );
@@ -839,8 +797,8 @@ export default function ProfilePage() {
             </div>
             <TrendChart sessions={sessions} />
             <div className="flex justify-between mt-1 px-1">
-              <span className="text-white/15 text-[10px]">Older tests</span>
-              <span className="text-white/15 text-[10px]">Latest →</span>
+               <span className="text-slate-400 text-[10px]">Older tests</span>
+               <span className="text-slate-400 text-[10px]">Latest →</span>
             </div>
           </motion.div>
         )}
@@ -849,18 +807,17 @@ export default function ProfilePage() {
         {Object.keys(subjectMap).length > 0 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.4 }} className="mb-6">
-            <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">Subject Breakdown</p>
+            <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-3">Subject Breakdown</p>
             <div className="flex flex-col gap-2">
               {Object.entries(subjectMap).map(([subj, info], i) => {
                 const avg = Math.round(info.total / info.count);
                 return (
                   <motion.div key={subj} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.22 + i * 0.04 }}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                    style={{ background: `${SUBJECT_COLORS[subj] ?? "#8b5cf6"}10`, border: `1px solid ${SUBJECT_COLORS[subj] ?? "#8b5cf6"}25` }}>
+                     className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-slate-200">
                     <span className="text-xl">{SUBJECT_ICONS[subj] ?? "📚"}</span>
                     <div className="flex-1">
-                      <p className="text-white text-sm font-semibold capitalize">{subj}</p>
+                       <p className="text-slate-900 text-sm font-semibold capitalize">{subj}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--app-border)" }}>
                           <div className="h-full rounded-full transition-all" style={{ width: `${avg}%`, background: SUBJECT_COLORS[subj] ?? "#8b5cf6" }} />
@@ -868,7 +825,7 @@ export default function ProfilePage() {
                         <span className="text-xs font-bold" style={{ color: gradeColor(avg) }}>{avg}%</span>
                       </div>
                     </div>
-                    <span className="text-white/25 text-xs">{info.count} test{info.count !== 1 ? "s" : ""}</span>
+                     <span className="text-slate-400 text-xs">{info.count} test{info.count !== 1 ? "s" : ""}</span>
                   </motion.div>
                 );
               })}
@@ -880,25 +837,24 @@ export default function ProfilePage() {
         {sessions.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.4 }}>
-            <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">Recent Activity</p>
+            <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest mb-3">Recent Activity</p>
             <div className="flex flex-col gap-2">
               {sessions.slice(0, 10).map((s, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.32 + i * 0.03 }}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                  style={{ background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                   className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-slate-200">
                   <span className="text-xl">{SUBJECT_ICONS[s.subject] ?? "📚"}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white/80 text-xs font-semibold capitalize">
+                     <p className="text-slate-700 text-xs font-semibold capitalize">
                       {s.subject} · {s.mode === "ai" ? "Smart Test" : s.mode === "full" ? "Full Test" : s.chapter}
                     </p>
-                    <p className="text-white/30 text-xs">
+                     <p className="text-slate-400 text-xs">
                       {new Date(s.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-black" style={{ color: gradeColor(s.pct) }}>{s.pct}%</p>
-                    <p className="text-white/25 text-xs">{s.score}/{s.total}</p>
+                     <p className="text-slate-400 text-xs">{s.score}/{s.total}</p>
                   </div>
                 </motion.div>
               ))}
@@ -909,11 +865,10 @@ export default function ProfilePage() {
         {sessions.length === 0 && !statsLoading && (
           <div className="text-center py-12">
             <p className="text-4xl mb-3">📝</p>
-            <p className="text-white/40 text-sm font-medium">No tests yet</p>
-            <p className="text-white/20 text-xs mt-1">Complete a quiz to see your stats here</p>
+            <p className="text-slate-500 text-sm font-medium">No tests yet</p>
+            <p className="text-slate-400 text-xs mt-1">Complete a quiz to see your stats here</p>
             <motion.button onClick={() => navigate("/")} whileTap={{ scale: 0.97 }}
-              className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold text-white"
-              style={{ background: "linear-gradient(135deg,#8b5cf6,#6366f1)", boxShadow: "0 4px 16px rgba(139,92,246,0.3)" }}>
+              className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
               Start Practising →
             </motion.button>
           </div>
@@ -924,17 +879,16 @@ export default function ProfilePage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="rounded-2xl p-5"
-          style={{ background: "var(--app-surface)", border: "1px solid rgba(0,0,0,0.08)" }}
+          className="rounded-2xl p-5 bg-white border border-slate-200"
         >
-          <h3 className="text-white/70 text-xs font-black uppercase tracking-widest mb-4">
+          <h3 className="text-slate-600 text-xs font-semibold uppercase tracking-widest mb-4">
             🔔 Reminders
           </h3>
 
           {/* Browser push notifications */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-white/80 text-sm font-semibold">Browser Notifications</p>
+              <p className="text-slate-700 text-sm font-semibold">Browser Notifications</p>
               {notifPerm === "granted" && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full"
                   style={{ background: "rgba(16,185,129,0.15)", color: "#10b981" }}>ON</span>
@@ -944,7 +898,7 @@ export default function ProfilePage() {
                   style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444" }}>Blocked</span>
               )}
             </div>
-            <p className="text-white/35 text-xs mb-3">
+            <p className="text-slate-500 text-xs mb-3">
               {notifPerm === "granted"
                 ? "रात 8 बजे practice reminder आएगा अगर आज test नहीं दिया।"
                 : notifPerm === "denied"
@@ -962,8 +916,7 @@ export default function ProfilePage() {
                   else if (result === "denied") setNotifPerm("denied");
                   else setNotifPerm("unsupported");
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white"
-                style={{ background: "linear-gradient(135deg,#8b5cf6,#6366f1)", boxShadow: "0 2px 12px rgba(139,92,246,0.3)" }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors"
               >
                 🔔 Enable Reminders
               </motion.button>
@@ -981,9 +934,9 @@ export default function ProfilePage() {
           </div>
 
           {/* WhatsApp phone number */}
-          <div className="border-t border-white/8 pt-4">
-            <p className="text-white/80 text-sm font-semibold mb-1">WhatsApp Reminders</p>
-            <p className="text-white/35 text-xs mb-3">
+          <div className="border-t border-slate-200 pt-4">
+            <p className="text-slate-700 text-sm font-semibold mb-1">WhatsApp Reminders</p>
+            <p className="text-slate-500 text-xs mb-3">
               अपना WhatsApp number save करो। Admin सीधे तुम्हें message भेज सकता है streak miss पर।
             </p>
             <div className="flex gap-2">
@@ -993,7 +946,7 @@ export default function ProfilePage() {
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="91XXXXXXXXXX"
                 maxLength={15}
-                className="flex-1 px-3 py-2 rounded-xl text-sm font-medium text-white placeholder-white/20 bg-white/6 border border-white/10 focus:border-white/25 outline-none transition-colors"
+                className="flex-1 px-3 py-2 rounded-xl text-sm font-medium text-slate-900 placeholder-slate-400 bg-white border border-slate-200 focus:border-emerald-500 outline-none transition-colors"
               />
               <motion.button
                 whileTap={{ scale: 0.96 }}
