@@ -138,29 +138,34 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
               className="relative overflow-hidden w-full bg-white rounded-2xl p-6 shadow-sm border border-slate-100 text-left transition-shadow duration-300 hover:shadow-md"
               style={{
                 opacity: saving !== null && saving !== goal.id ? 0.45 : 1,
+                background: `${goal.accent}08`,
+                borderColor: `${goal.accent}45`,
               }}
             >
               {saving === goal.id && (
                 <motion.div
-                  className="absolute inset-x-0 top-0 h-1 bg-emerald-600"
+                  className="absolute inset-x-0 top-0 h-1"
+                  style={{ background: goal.accent }}
                 />
               )}
 
               <div className="relative z-10 flex items-center gap-4">
                 <div
                   className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${
-                    goal.id === "neet" || goal.id === "jee"
-                      ? "bg-emerald-100 text-emerald-600"
-                      : goal.id === "c10"
-                        ? "bg-blue-100 text-blue-600"
-                        : "bg-amber-100 text-amber-600"
+                    "border"
                   }`}
+                  style={{
+                    background: `${goal.accent}18`,
+                    borderColor: `${goal.accent}35`,
+                    color: goal.accent,
+                  }}
                 >
                   {saving === goal.id ? (
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                       className="w-6 h-6 rounded-full border-2 border-emerald-200 border-t-emerald-600"
+                      className="w-6 h-6 rounded-full border-2"
+                      style={{ borderColor: `${goal.accent}35`, borderTopColor: goal.accent }}
                     />
                   ) : goal.emoji}
                 </div>
@@ -178,7 +183,11 @@ export default function GoalSelectPage({ isChanging = false }: { isChanging?: bo
                       <span
                         key={sub}
                         className="px-2 py-0.5 rounded-lg text-[10px] font-bold"
-                         style={{ background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}
+                        style={{
+                          background: `${goal.accent}0d`,
+                          color: goal.accent,
+                          border: `1px solid ${goal.accent}28`,
+                        }}
                       >
                         {sub}
                       </span>

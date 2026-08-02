@@ -1037,19 +1037,28 @@ function DailyQuote() {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay: 0.5, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
       className="mb-6 rounded-2xl px-5 py-4 relative overflow-hidden bg-white border border-slate-200"
-      style={{ background: "var(--app-card-bg)", border: "1px solid var(--app-border)" }}
+      style={{
+        background: "var(--app-card-bg)",
+        border: "1px solid var(--app-border)",
+        borderLeft: `4px solid ${q.border}`,
+      }}
     >
       <div className="flex items-start gap-3">
-        <span className="text-2xl mt-0.5 shrink-0 select-none">{q.emoji}</span>
+        <span
+          className="text-2xl mt-0.5 shrink-0 select-none w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: `${q.border}14` }}
+        >
+          {q.emoji}
+        </span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold leading-snug mb-1 text-emerald-700">
+          <p className="text-sm font-bold leading-snug mb-1 text-emerald-900">
             {q.hi}
           </p>
-          <p className="text-slate-500 text-[11px] leading-snug italic">
+          <p className="text-slate-700 text-[11px] leading-snug italic">
             {q.en}
           </p>
           {q.from && (
-            <p className="text-[10px] mt-1 font-semibold text-slate-400">
+            <p className="text-[10px] mt-1 font-semibold text-slate-600">
               {q.from}
             </p>
           )}
@@ -1106,13 +1115,16 @@ function Dashboard() {
             onClick={() => clearGoal()}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 cursor-pointer group"
             style={{
-              background: "#ecfdf5",
-              border: "1px solid #d1fae5",
+              background: `${goalCfg.accent}0d`,
+              border: `1px solid ${goalCfg.accent}35`,
             }}
             title="Change goal"
           >
             <span className="text-sm">{goalCfg.badge}</span>
-            <span className="text-[11px] font-medium tracking-[0.15em] uppercase text-emerald-700">
+            <span
+              className="text-[11px] font-bold tracking-[0.15em] uppercase"
+              style={{ color: goalCfg.accent }}
+            >
               {goalCfg.label} · {goalCfg.labelHindi}
             </span>
             <span className="text-[11px] text-slate-400 group-hover:text-slate-600 transition-colors ml-0.5">✎</span>
@@ -1124,7 +1136,8 @@ function Dashboard() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25, duration: 0.65, ease: [0.23, 1, 0.32, 1] }}
-            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none text-slate-950 dark:text-white"
+            className="text-[4.5rem] font-black tracking-tight leading-none mb-1 select-none"
+            style={{ color: "#1e3a8a" }}
           >
             SHIKEN
           </motion.h1>
@@ -1135,7 +1148,7 @@ function Dashboard() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.5 }}
             className="text-base font-bold mb-1"
-            style={{ color: "#059669", letterSpacing: "0.13em" }}
+            style={{ color: "#065f46", letterSpacing: "0.13em" }}
           >
             शिकेन &nbsp;·&nbsp; परीक्षा की तैयारी
           </motion.p>
@@ -1186,7 +1199,7 @@ function Dashboard() {
           <button
             onClick={() => navigate("/progress")}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border transition-all text-xs font-medium"
-            style={{ background: "#ffffff", borderColor: "#e2e8f0", color: "#64748b" }}
+            style={{ background: "#ffffff", borderColor: "#e2e8f0", color: "#334155" }}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M1 10l3-3 3 2 3-4 3 2" stroke="currentColor" strokeWidth="1.5"
