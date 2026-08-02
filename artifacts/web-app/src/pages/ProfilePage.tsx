@@ -86,8 +86,8 @@ function TrendChart({ sessions }: { sessions: Session[] }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 72 }}>
       <defs>
         <linearGradient id="profile-trend-grad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.02" />
+          <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.28" />
+          <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.03" />
         </linearGradient>
       </defs>
       {[60, 80].map((pct) => {
@@ -96,7 +96,7 @@ function TrendChart({ sessions }: { sessions: Session[] }) {
           stroke="var(--app-surface)" strokeWidth="1" strokeDasharray="3 3" />;
       })}
       <path d={fillPath} fill="url(#profile-trend-grad)" />
-      <path d={linePath} fill="none" stroke="#8b5cf6" strokeWidth="1.8"
+       <path d={linePath} fill="none" stroke="#4f46e5" strokeWidth="1.8"
         strokeLinecap="round" strokeLinejoin="round" />
       {pts.map((r, i) => {
         const last = i === pts.length - 1;
@@ -105,7 +105,7 @@ function TrendChart({ sessions }: { sessions: Session[] }) {
           <g key={i}>
             {last && <circle cx={xs[i]} cy={ys[i]} r={7} fill={dc} opacity={0.22} />}
             <circle cx={xs[i]} cy={ys[i]} r={last ? 3.5 : 2.5}
-              fill={last ? dc : "#8b5cf6"} stroke={last ? "#07080f" : "none"} strokeWidth={1} />
+               fill={last ? dc : "#4f46e5"} stroke={last ? "#eef2ff" : "none"} strokeWidth={1} />
           </g>
         );
       })}
@@ -567,7 +567,7 @@ export default function ProfilePage() {
   const bestSubject = Object.entries(subjectMap).sort((a, b) => (b[1].total / b[1].count) - (a[1].total / a[1].count))[0]?.[0] ?? null;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden pb-28" style={{ background: "var(--app-bg)" }}>
+    <div className="min-h-screen w-full relative overflow-hidden pb-28 bg-slate-100">
 
       {/* Avatar picker — fixed full-screen overlay */}
       <AnimatePresence>
@@ -625,7 +625,7 @@ export default function ProfilePage() {
         {/* Profile card */}
         <motion.div initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-           className="flex items-center gap-4 p-5 rounded-2xl mb-6 bg-white border border-slate-200">
+           className="flex items-center gap-4 p-5 rounded-2xl mb-6 bg-slate-50 border border-slate-300 shadow-sm">
           {/* Avatar picker */}
           <div className="relative shrink-0">
             <Avatar name={user.displayName || user.email || "U"} avatarId={avatarId} size={64} isPremium={isPremium} />
@@ -694,13 +694,13 @@ export default function ProfilePage() {
                 <span className="font-black text-xs">Expired</span>
               </motion.div>
             )}
-             <p className="text-slate-500 text-xs truncate">{user.email}</p>
+             <p className="text-slate-600 text-xs truncate">{user.email}</p>
             {expiryDate && (
-               <p className="text-slate-400 text-xs mt-0.5">
+                <p className="text-slate-500 text-xs mt-0.5">
                 {isActive ? `Expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""}` : `Expired on ${new Date(expiryDate).toLocaleDateString("en-IN")}`}
               </p>
             )}
-             <p className="text-slate-400 text-xs mt-0.5">
+              <p className="text-slate-500 text-xs mt-0.5">
               Joined {new Date(user.metadata.creationTime || "").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}
             </p>
           </div>
@@ -716,11 +716,11 @@ export default function ProfilePage() {
         {/* Stats */}
         {(() => {
           const streak = computeStreak(sessions);
-          const stats = [
-             { label: "Tests Taken",  value: statsLoading ? "…" : String(totalSessions), color: "#059669" },
-            { label: "Avg Score",    value: statsLoading ? "…" : `${avgPct}%`,           color: gradeColor(avgPct) },
-             { label: "Best Subject", value: statsLoading ? "…" : bestSubject ? SUBJECT_ICONS[bestSubject] ?? "📚" : "—", color: bestSubject ? SUBJECT_COLORS[bestSubject] : "#94a3b8" },
-             { label: "Day Streak",   value: statsLoading ? "…" : streak > 0 ? `🔥 ${streak}` : "—", color: streak >= 7 ? "#f59e0b" : streak >= 3 ? "#fb923c" : "#059669" },
+           const stats = [
+             { label: "Tests Taken", value: statsLoading ? "…" : String(totalSessions), color: "#2563eb", surface: "#eff6ff", border: "#bfdbfe" },
+             { label: "Avg Score", value: statsLoading ? "…" : `${avgPct}%`, color: "#dc2626", surface: "#fef2f2", border: "#fecaca" },
+             { label: "Best Subject", value: statsLoading ? "…" : bestSubject ? SUBJECT_ICONS[bestSubject] ?? "📚" : "—", color: "#7c3aed", surface: "#f5f3ff", border: "#ddd6fe" },
+             { label: "Day Streak", value: statsLoading ? "…" : streak > 0 ? `🔥 ${streak}` : "—", color: "#d97706", surface: "#fffbeb", border: "#fde68a" },
           ];
           return (
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -729,8 +729,9 @@ export default function ProfilePage() {
               {stats.map((s, i) => (
                 <motion.div key={s.label} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: 0.15 + i * 0.05 }}
-                  className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
-                  <p className="text-xs text-slate-500 mb-1 leading-tight">{s.label}</p>
+                  className="rounded-2xl p-4 text-center shadow-sm"
+                  style={{ background: s.surface, border: `1px solid ${s.border}` }}>
+                  <p className="text-xs text-slate-700 font-semibold mb-1 leading-tight">{s.label}</p>
                   <p className="text-xl font-black" style={{ color: s.color }}>{s.value}</p>
                 </motion.div>
               ))}
@@ -740,28 +741,28 @@ export default function ProfilePage() {
 
         {/* Wallet + Referral */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
-           className="rounded-2xl p-5 mb-4 bg-white border border-slate-200">
-          <div className="flex items-center justify-between mb-3">
+           className="rounded-2xl p-3 mb-4 bg-slate-50 border border-slate-300 shadow-sm">
+          <div className="flex items-center justify-between mb-2 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-2.5">
             <div className="flex items-center gap-2">
               <span className="text-sm">💰</span>
-               <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Wallet</p>
+                <p className="text-emerald-900 text-xs font-bold uppercase tracking-widest">Wallet</p>
             </div>
-            <p className="text-emerald-400 font-black text-sm">₹{walletBalance}</p>
+             <p className="text-emerald-700 font-black text-sm">₹{walletBalance}</p>
           </div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between mb-2 rounded-xl bg-pink-50 border border-pink-200 px-3 py-2.5">
+             <div className="flex items-center gap-2">
               <span className="text-sm">📞</span>
-               <p className="text-slate-500 text-xs font-semibold uppercase tracking-widest">Referrals</p>
+                <p className="text-pink-900 text-xs font-bold uppercase tracking-widest">Referrals</p>
             </div>
-             <p className="text-slate-700 font-bold text-sm">{referralCount} invited</p>
+             <p className="text-pink-700 font-bold text-sm">{referralCount} invited</p>
           </div>
-          {referralCode && (
-            <div className="flex items-center gap-2 mb-3">
+           {referralCode && (
+            <div className="flex items-center gap-2 mb-3 px-3">
               <span className="text-sm">🔗</span>
-              <p className="text-slate-500 text-xs">Code: <span className="font-mono text-slate-700 font-bold">{referralCode}</span></p>
+              <p className="text-slate-700 text-xs">Code: <span className="font-mono text-slate-900 font-bold">{referralCode}</span></p>
             </div>
           )}
-          <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate("/referral")}
+           <motion.button whileTap={{ scale: 0.97 }} onClick={() => navigate("/referral")}
              className="w-full py-2.5 rounded-xl font-bold text-xs text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
             Earn Rewards →
           </motion.button>
@@ -771,9 +772,9 @@ export default function ProfilePage() {
         {sessions.length >= 2 && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18, duration: 0.4 }}
-             className="mb-6 rounded-2xl border border-slate-200 bg-white p-5">
+           className="mb-6 rounded-2xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
-               <p className="text-slate-600 text-xs font-semibold">📈 Score Trend ({sessions.length} tests)</p>
+               <p className="text-indigo-900 text-xs font-bold">📈 Score Trend ({sessions.length} tests)</p>
               <div className="flex gap-3">
                 {(() => {
                   const best = Math.max(...sessions.map(s => s.pct));
@@ -781,14 +782,14 @@ export default function ProfilePage() {
                   return (
                     <>
                       <div className="text-right">
-                         <p className="text-slate-900 text-xs font-bold">{best}%</p>
-                         <p className="text-slate-400 text-[10px]">Best</p>
+                         <p className="text-indigo-800 text-xs font-black">{best}%</p>
+                         <p className="text-indigo-600 text-[10px] font-semibold">Best</p>
                       </div>
                       <div className="text-right">
                          <p className={`text-xs font-bold ${trend > 0 ? "text-emerald-600" : trend < 0 ? "text-red-600" : "text-slate-400"}`}>
                           {trend > 0 ? `+${trend}` : trend === 0 ? "–" : trend}%
                         </p>
-                         <p className="text-slate-400 text-[10px]">vs prev</p>
+                          <p className="text-indigo-600 text-[10px] font-semibold">vs prev</p>
                       </div>
                     </>
                   );
@@ -797,8 +798,8 @@ export default function ProfilePage() {
             </div>
             <TrendChart sessions={sessions} />
             <div className="flex justify-between mt-1 px-1">
-               <span className="text-slate-400 text-[10px]">Older tests</span>
-               <span className="text-slate-400 text-[10px]">Latest →</span>
+                <span className="text-indigo-600 text-[10px] font-medium">Older tests</span>
+                <span className="text-indigo-600 text-[10px] font-medium">Latest →</span>
             </div>
           </motion.div>
         )}
@@ -814,7 +815,7 @@ export default function ProfilePage() {
                 return (
                   <motion.div key={subj} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.22 + i * 0.04 }}
-                     className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-slate-200">
+                      className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-300 shadow-sm">
                     <span className="text-xl">{SUBJECT_ICONS[subj] ?? "📚"}</span>
                     <div className="flex-1">
                        <p className="text-slate-900 text-sm font-semibold capitalize">{subj}</p>
@@ -825,7 +826,7 @@ export default function ProfilePage() {
                         <span className="text-xs font-bold" style={{ color: gradeColor(avg) }}>{avg}%</span>
                       </div>
                     </div>
-                     <span className="text-slate-400 text-xs">{info.count} test{info.count !== 1 ? "s" : ""}</span>
+                      <span className="text-slate-500 text-xs font-medium">{info.count} test{info.count !== 1 ? "s" : ""}</span>
                   </motion.div>
                 );
               })}
@@ -842,19 +843,19 @@ export default function ProfilePage() {
               {sessions.slice(0, 10).map((s, i) => (
                 <motion.div key={i} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.32 + i * 0.03 }}
-                   className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-slate-200">
+                   className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-50 border border-slate-300 shadow-sm">
                   <span className="text-xl">{SUBJECT_ICONS[s.subject] ?? "📚"}</span>
                   <div className="flex-1 min-w-0">
                      <p className="text-slate-700 text-xs font-semibold capitalize">
                       {s.subject} · {s.mode === "ai" ? "Smart Test" : s.mode === "full" ? "Full Test" : s.chapter}
                     </p>
-                     <p className="text-slate-400 text-xs">
+                     <p className="text-slate-500 text-xs">
                       {new Date(s.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-black" style={{ color: gradeColor(s.pct) }}>{s.pct}%</p>
-                     <p className="text-slate-400 text-xs">{s.score}/{s.total}</p>
+                     <p className="text-slate-500 text-xs font-medium">{s.score}/{s.total}</p>
                   </div>
                 </motion.div>
               ))}
@@ -866,7 +867,7 @@ export default function ProfilePage() {
           <div className="text-center py-12">
             <p className="text-4xl mb-3">📝</p>
             <p className="text-slate-500 text-sm font-medium">No tests yet</p>
-            <p className="text-slate-400 text-xs mt-1">Complete a quiz to see your stats here</p>
+            <p className="text-slate-500 text-xs mt-1">Complete a quiz to see your stats here</p>
             <motion.button onClick={() => navigate("/")} whileTap={{ scale: 0.97 }}
               className="mt-4 px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
               Start Practising →
@@ -879,7 +880,7 @@ export default function ProfilePage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="rounded-2xl p-5 bg-white border border-slate-200"
+          className="rounded-2xl p-5 bg-slate-50 border border-slate-300 shadow-sm"
         >
           <h3 className="text-slate-600 text-xs font-semibold uppercase tracking-widest mb-4">
             🔔 Reminders
