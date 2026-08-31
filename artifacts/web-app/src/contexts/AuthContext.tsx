@@ -394,7 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateProfile(newUser, { displayName: name });
     }
 
-    await set(ref(db, `users/${newUser.uid}`), {
+    await update(ref(db, `users/${newUser.uid}`), {
       uid: newUser.uid,
       name: name || "Student",
       email: newUser.email,
@@ -421,8 +421,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!refreshedUser) throw new Error("No signed-in user");
     setUser(refreshedUser);
     if (!refreshedUser.emailVerified) return false;
-    await set(ref(db, `users/${refreshedUser.uid}/emailVerified`), true);
-    await set(ref(db, `users/${refreshedUser.uid}/onboardingStep`), "exams");
+    await update(ref(db, `users/${refreshedUser.uid}`), {
+      emailVerified: true,
+      onboardingStep: "exams",
+    });
     return true;
   };
 

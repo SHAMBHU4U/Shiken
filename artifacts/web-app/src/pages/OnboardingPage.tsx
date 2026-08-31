@@ -36,7 +36,7 @@ export interface OnboardingValues {
 export interface OnboardingPageProps {
   initialValues: OnboardingValues;
   onRegister: (values: OnboardingValues) => Promise<void>;
-  onVerify: () => Promise<void>;
+  onVerify: () => Promise<boolean>;
   onResendVerification: () => Promise<void>;
   onSelectExams: (examIds: string[]) => Promise<void>;
   onSkipExams: () => Promise<void>;
@@ -369,8 +369,9 @@ export default function OnboardingPage({
         return;
       }
       try {
-        await onVerify();
+        const verified = await onVerify();
         setVerificationChecked(true);
+        if (verified) setStep(3);
       } catch {
         setActionError("We could not check your verification yet. Please try again.");
       }

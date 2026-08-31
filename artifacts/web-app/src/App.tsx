@@ -633,11 +633,11 @@ function OnboardingRoute() {
     }
   }
 
-  async function handleVerify() {
+  async function handleVerify(): Promise<boolean> {
     setVerificationError("");
     setVerifying(true);
     try {
-      await verifyEmail();
+      return await verifyEmail();
     } catch (error) {
       setVerificationError("We could not check your email yet. Please try again.");
       throw error;
