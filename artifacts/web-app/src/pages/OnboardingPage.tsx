@@ -42,6 +42,7 @@ export interface OnboardingPageProps {
   onSkipExams: () => Promise<void>;
   onSignOut: () => Promise<void>;
   onComplete?: () => void;
+  isAuthenticated: boolean;
   emailVerified: boolean;
   registering: boolean;
   verifying: boolean;
@@ -263,6 +264,7 @@ export default function OnboardingPage({
   onSkipExams,
   onSignOut,
   onComplete,
+  isAuthenticated,
   emailVerified,
   registering,
   verifying,
@@ -446,20 +448,20 @@ export default function OnboardingPage({
   const districtOptions = DISTRICTS[form.state] ?? [];
 
   return (
-    <main className="min-h-[100dvh] overflow-x-hidden bg-[#f3f6f2] text-[#182b40]">
+    <main className="min-h-[100dvh] overflow-x-hidden bg-[#edf4ff] text-[#102e55]">
       <div className="pointer-events-none fixed inset-0 opacity-60" aria-hidden="true">
-        <div className="absolute -left-20 top-24 h-72 w-72 rounded-full bg-[#d9e8e3] blur-3xl" />
-        <div className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-[#f6ddc6] blur-3xl" />
+        <div className="absolute -left-20 top-24 h-72 w-72 rounded-full bg-[#cfe2ff] blur-3xl" />
+        <div className="absolute -right-20 bottom-0 h-96 w-96 rounded-full bg-[#c8eee8] blur-3xl" />
       </div>
 
       <header className="relative z-10 mx-auto flex w-full max-w-[1240px] items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
         <div className="flex items-center gap-3" data-testid="text-brand">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[#17344f] shadow-[0_8px_18px_rgba(23,52,79,0.18)]">
-            <span className="font-mono text-sm font-bold tracking-[-0.12em] text-[#f7efe4]">SK</span>
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#d5e5f7] bg-white p-1.5 shadow-[0_8px_18px_rgba(31,78,121,0.12)]">
+            <img src="/shiken-logo.png" alt="SHIKEN logo" className="h-full w-full rounded-xl object-contain" />
           </div>
           <div>
-            <p className="text-[15px] font-bold tracking-[0.18em] text-[#17344f]">SHIKEN</p>
-            <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#7d8e9d]">Prepare with purpose</p>
+            <p className="text-[15px] font-black leading-none tracking-[0.22em] text-[#163a63]">SHIKEN</p>
+            <p className="mt-1 text-[9px] font-bold leading-none tracking-[0.14em] text-[#4e7194]">PREPARE WITH PURPOSE</p>
           </div>
         </div>
         <button
@@ -467,25 +469,25 @@ export default function OnboardingPage({
           onClick={handleSignOut}
           disabled={signingOut}
           data-testid="button-sign-out"
-          className="inline-flex items-center gap-2 rounded-full border border-[#d5dfdc] bg-[#f8fbf7]/80 px-3.5 py-2 text-xs font-semibold text-[#5d7180] transition-colors hover:border-[#aebfba] hover:text-[#17344f] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-full border border-[#c9ddf4] bg-white/90 px-3.5 py-2 text-xs font-bold text-[#52708f] shadow-sm transition-colors hover:border-[#9dbfe5] hover:text-[#163a63] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {signingOut ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <LogOut size={14} aria-hidden="true" />}
-          <span>{signingOut ? "Signing out" : "Sign out"}</span>
+          {signingOut ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : isAuthenticated ? <LogOut size={14} aria-hidden="true" /> : <ArrowLeft size={14} aria-hidden="true" />}
+          <span>{signingOut ? "Signing out" : isAuthenticated ? "Sign out" : "Back to sign in"}</span>
         </button>
       </header>
 
       <div className="relative z-10 mx-auto grid w-full max-w-[1240px] gap-8 px-5 pb-10 pt-2 sm:px-8 lg:grid-cols-[280px_minmax(0,720px)] lg:gap-16 lg:px-12 lg:pb-16 lg:pt-10">
         <aside className="lg:pt-7">
           <div className="mb-7 max-w-[520px]">
-            <p className="mb-3 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#d46148]">
+            <p className="mb-3 inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.16em] text-[#2c8d78]">
               <Sparkles size={14} strokeWidth={2.2} aria-hidden="true" />
               Your study profile
             </p>
-            <h1 className="max-w-[540px] text-[clamp(2.2rem,7vw,4.1rem)] font-bold leading-[0.98] tracking-[-0.065em] text-[#17344f]">
+            <h1 className="max-w-[540px] text-[clamp(2.2rem,7vw,4.1rem)] font-black leading-[0.98] tracking-[-0.065em] text-[#163a63]">
               Start where
-              <span className="block text-[#d46148]">you are.</span>
+              <span className="block text-[#1763c4]">you are.</span>
             </h1>
-            <p className="mt-4 max-w-[420px] text-[15px] leading-6 text-[#6d7e89]">
+            <p className="mt-4 max-w-[420px] text-[15px] font-medium leading-6 text-[#52708f]">
               A few details now, a clearer path to your next exam later. You can change your choices anytime.
             </p>
           </div>
@@ -501,23 +503,23 @@ export default function OnboardingPage({
                   data-testid={`step-${item.label.toLowerCase()}`}
                   aria-current={isActive ? "step" : undefined}
                   className={`relative flex items-center gap-3 rounded-2xl px-1 py-2.5 transition-colors lg:px-3 ${
-                    isActive ? "bg-[#e4eee9] lg:py-3" : ""
+                    isActive ? "bg-[#e1efff] lg:py-3" : ""
                   }`}
                 >
                   <div
                     className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border text-sm transition-colors ${
                       isDone
-                        ? "border-[#2c8d78] bg-[#2c8d78] text-[#f7fffb]"
+                         ? "border-[#1aa394] bg-[#1aa394] text-white"
                         : isActive
-                          ? "border-[#17344f] bg-[#17344f] text-[#f7efe4]"
-                          : "border-[#cedbd6] bg-[#edf3ef] text-[#8b9ba3]"
+                           ? "border-[#1763c4] bg-[#1763c4] text-white"
+                           : "border-[#c9ddf4] bg-[#f6f9fd] text-[#829bb5]"
                     }`}
                   >
                     {isDone ? <Check size={16} strokeWidth={3} aria-hidden="true" /> : <Icon size={16} aria-hidden="true" />}
                   </div>
                   <div className="hidden min-w-0 lg:block">
-                    <p className={`text-sm font-bold ${isActive ? "text-[#17344f]" : "text-[#6f828d]"}`}>{item.label}</p>
-                    <p className="mt-0.5 text-xs text-[#91a0a6]">{item.caption}</p>
+                     <p className={`text-sm font-bold ${isActive ? "text-[#163a63]" : "text-[#6d88a4]"}`}>{item.label}</p>
+                     <p className="mt-0.5 text-xs text-[#8da3ba]">{item.caption}</p>
                   </div>
                   <span className="sr-only">{item.label}{isActive ? " — current step" : isDone ? " — complete" : ""}</span>
                 </div>
@@ -525,31 +527,31 @@ export default function OnboardingPage({
             })}
           </nav>
 
-          <div className="mt-7 hidden rounded-2xl border border-[#dbe5e0] bg-[#f7faf7]/80 p-4 lg:block">
-            <div className="mb-2 flex items-center gap-2 text-[#2c8d78]">
+           <div className="mt-7 hidden rounded-2xl border border-[#d5e5f7] bg-white/70 p-4 lg:block">
+               <div className="mb-2 flex items-center gap-2 text-[#1aa394]">
               <ShieldCheck size={17} aria-hidden="true" />
               <span className="text-xs font-bold uppercase tracking-[0.12em]">Private by design</span>
             </div>
-            <p className="text-xs leading-5 text-[#7b8c91]">Your details stay yours. SHIKEN only uses them to personalise your preparation.</p>
+             <p className="text-xs leading-5 text-[#6d88a4]">Your details stay yours. SHIKEN only uses them to personalise your preparation.</p>
           </div>
         </aside>
 
         <section className="min-w-0">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#8b9aa1]" data-testid="text-step-count">
+               <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#6d88a4]" data-testid="text-step-count">
                 Step {step + 1} of {STEPS.length}
               </p>
-              <h2 className="mt-1 text-xl font-bold tracking-[-0.035em] text-[#17344f]" data-testid="text-step-title">
+               <h2 className="mt-1 text-xl font-bold tracking-[-0.035em] text-[#163a63]" data-testid="text-step-title">
                 {currentStep.label}
               </h2>
             </div>
-            <div className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-[#dce7e2] sm:block" aria-label={`${((step + 1) / STEPS.length) * 100}% complete`}>
-              <div className="h-full rounded-full bg-[#d46148] transition-[width] duration-500" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+             <div className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-[#d7e7f8] sm:block" aria-label={`${((step + 1) / STEPS.length) * 100}% complete`}>
+               <div className="h-full rounded-full bg-[#1aa394] transition-[width] duration-500" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-[#dbe5e0] bg-[#fbfcf9]/90 p-5 shadow-[0_20px_60px_rgba(34,68,76,0.07)] sm:p-8 lg:p-10">
+           <div className="rounded-[28px] border border-[#d5e5f7] bg-white/95 p-5 shadow-[0_20px_60px_rgba(31,78,121,0.1)] sm:p-8 lg:p-10">
             {completed ? (
               <div className="flex min-h-[390px] flex-col items-center justify-center py-10 text-center" data-testid="status-onboarding-complete">
                 <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[26px] bg-[#dcefe8] text-[#2c8d78]">
@@ -793,7 +795,7 @@ export default function OnboardingPage({
               </>
             )}
           </div>
-          <p className="mt-5 text-center text-xs text-[#8c9b9e]">Need help? Reach us at <span className="font-semibold text-[#647c83]">support@shiken.in</span></p>
+          <p className="mt-5 text-center text-xs text-[#829bb5]">Need help? Reach us at <span className="font-semibold text-[#52708f]">shiken.query@gmail.com</span></p>
         </section>
       </div>
     </main>

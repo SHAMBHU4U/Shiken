@@ -684,6 +684,7 @@ function OnboardingRoute() {
       onSkipExams={handleSkipExams}
       onSignOut={async () => { await signOut(); navigate("/"); }}
       onComplete={() => navigate("/")}
+      isAuthenticated={Boolean(user)}
       emailVerified={Boolean(user?.emailVerified)}
       registering={registering}
       verifying={verifying}
