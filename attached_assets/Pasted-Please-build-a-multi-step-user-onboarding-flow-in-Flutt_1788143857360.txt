@@ -1,0 +1,52 @@
+Please build a multi-step user onboarding flow in Flutter / React Native / React using Firebase Authentication and Firestore DB, based on the following specifications:
+
+---
+
+### 🔹 STEP 1: Registration Screen (User Details)
+Create a card-style registration form with the following fields:
+1. Full Name (Text - Required)
+2. Mobile Number (10-digit Phone Input - Required)
+3. Email Address (Email Input - Required)
+4. State & District (Dropdown Selectors - Required)
+5. Village / Landmark (Text Input - Optional)
+6. Password & Confirm Password (Min 6 chars with toggle visibility - Required)
+
+Submit Logic:
+- Call `firebase.auth().createUserWithEmailAndPassword(email, password)`.
+- Save Full Name, Mobile, State, District, and Village into Firebase Firestore database under collection `users/{userId}`.
+- Trigger `user.sendEmailVerification()` for free Firebase Email OTP/Verification link.
+- Show an OTP / Verification screen with a "Verify Email" button before unlocking Step 2.
+
+---
+
+### 🔹 STEP 2: Choose Your Exam Stream (Skippable)
+Header: "Choose your exam stream"
+Sub-header: "Select targets to customize your test dashboard"
+Top-Right Action: Show a "Skip for now" button.
+
+Grid Categories (Multi-select cards with icons):
+- Board Exams (Class 10th, Class 12th)
+- JEE & NEET Entrance Exams
+- State Govt / Competitive Exams
+
+Bottom Bar:
+- Active "Next" button (if selected) or "Skip" action routing directly to Main Dashboard.
+- Save selected target exams into Firestore under `users/{userId}.selectedExams`.
+
+---
+
+### 🔹 STEP 3: Main Dashboard Integration (Empty / Default State)
+1. Top Section: Banner showcasing "Shiken AI Pass / Test Series Pass" with "Unlock Now" button.
+2. Section: "Choose your exam / Mere Exams".
+- IF `selectedExams` array in Firestore is EMPTY (user skipped Step 2):
+  Show placeholder card: "Abhi koi exam add nahi kiya - Apne exams add kijiye taaki hum aapko sahi tests dikha sakein" with a blue "Add Exams" button.
+- IF user clicks "Add Exams", open a Bottom Sheet / Modal to select streams without logging out.
+
+---
+
+### 🔹 STEP 4: Login / Sign In Screen
+Fields:
+- Mobile Number / Registered Email
+- Password (with "Forgot Password?" trigger)
+- Primary CTA: "Sign In" button
+- Secondary CTA: "New here? Create Account" button (Navigates to Step 1).
