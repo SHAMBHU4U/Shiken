@@ -146,9 +146,9 @@ function Avatar({ name, avatarId, size = 64, isPremium: isP }: { name: string; a
 }
 
 function AuthForm() {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword } = useAuth();
+  const { signInWithGoogle, signInWithEmail, resetPassword } = useAuth();
+  const [, navigate] = useLocation();
   const [tab,         setTab]         = useState<"in" | "up" | "reset">("in");
-  const [name,        setName]        = useState("");
   const [email,       setEmail]       = useState("");
   const [password,    setPassword]    = useState("");
   const [error,       setError]       = useState("");
@@ -196,8 +196,7 @@ function AuthForm() {
     e.preventDefault();
     setError(""); setLoading(true);
     try {
-      if (tab === "in") await signInWithEmail(email.trim(), password);
-      else              await signUpWithEmail(email.trim(), password, name.trim());
+      await signInWithEmail(email.trim(), password);
     } catch (e: unknown) {
       setError(friendlyError((e as { code?: string }).code ?? ""));
       setShake(true); setPassword("");
@@ -324,52 +323,58 @@ function AuthForm() {
           ))}
         </div>
 
-        <motion.form onSubmit={handleSubmit}
-          animate={shake ? { x: [-8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col gap-3">
-          {tab === "up" && (
-            <input value={name} onChange={(e) => { setName(e.target.value); setError(""); }}
-               placeholder="Full name" required
-               className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-500 outline-none focus:ring-2 focus:ring-slate-200"
-               style={{ background: "#f8fafc", border: "1px solid #cbd5e1" }} />
-          )}
-          <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
-             placeholder="Email address" required
-             className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-600 outline-none focus:ring-2 focus:ring-cyan-200"
-             style={{ background: "#f2fbfd", border: "1px solid #67e8f9" }} />
-          <div className="relative">
-            <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }}
-               placeholder="Password" required
-               className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-600 outline-none focus:ring-2 focus:ring-amber-200"
-              style={{
-                 background: error ? "#fef2f2" : "#fffaf0",
-                 border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "#fcd34d"}`,
-              }} />
-            {error && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-              className="absolute -bottom-5 left-1 text-xs text-red-400">{error}</motion.p>}
-          </div>
+         {tab === "up" ? (
+           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+             className="rounded-2xl border border-violet-200 bg-violet-50 p-5 text-center">
+             <p className="text-2xl mb-3">Start with a focused plan</p>
+             <p className="text-sm leading-6 text-slate-600">
+               Tell us a little about yourself, verify your email, and choose the exams you want to prepare for.
+             </p>
+             <motion.button type="button" onClick={() => navigate("/onboarding")} whileTap={{ scale: 0.98 }}
+               data-testid="button-start-onboarding"
+               className="mt-5 w-full py-3.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-700 transition-colors">
+               Start guided registration →
+             </motion.button>
+           </motion.div>
+         ) : (
+           <motion.form onSubmit={handleSubmit}
+             animate={shake ? { x: [-8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+             transition={{ duration: 0.5 }}
+             className="flex flex-col gap-3">
+             <input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }}
+                placeholder="Email address" required
+                className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-600 outline-none focus:ring-2 focus:ring-cyan-200"
+                style={{ background: "#f2fbfd", border: "1px solid #67e8f9" }} />
+             <div className="relative">
+               <input type="password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }}
+                  placeholder="Password" required
+                  className="w-full px-4 py-3.5 rounded-xl text-sm text-slate-950 placeholder-slate-600 outline-none focus:ring-2 focus:ring-amber-200"
+                 style={{
+                    background: error ? "#fef2f2" : "#fffaf0",
+                    border: `1px solid ${error ? "rgba(239,68,68,0.4)" : "#fcd34d"}`,
+                 }} />
+               {error && <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                 className="absolute -bottom-5 left-1 text-xs text-red-400">{error}</motion.p>}
+             </div>
 
-          <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }}
-             className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-slate-950 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 transition-colors"
-            style={{
-              opacity: loading ? 0.65 : 1,
-            }}>
-            {loading ? (
-              <><motion.span animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white inline-block" />
-                Please wait…</>
-            ) : tab === "in" ? "Sign In →" : "Create Account →"}
-          </motion.button>
+             <motion.button type="submit" disabled={loading} whileTap={{ scale: 0.98 }}
+                data-testid="button-sign-in"
+                className="mt-3 w-full py-3.5 rounded-xl text-sm font-bold text-slate-950 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 transition-colors"
+               style={{ opacity: loading ? 0.65 : 1 }}>
+               {loading ? (
+                 <><motion.span animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                   className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white inline-block" />
+                   Please wait…</>
+               ) : "Sign In →"}
+             </motion.button>
 
-          {tab === "in" && (
-            <button type="button"
-              onClick={() => { setTab("reset"); setError(""); setPassword(""); }}
-               className="text-center w-full text-slate-600 hover:text-slate-900 text-xs transition-colors mt-1">
-              Forgot your password?
-            </button>
-          )}
-        </motion.form>
+             <button type="button"
+               onClick={() => { setTab("reset"); setError(""); setPassword(""); }}
+                className="text-center w-full text-slate-600 hover:text-slate-900 text-xs transition-colors mt-1">
+               Forgot your password?
+             </button>
+           </motion.form>
+         )}
         </>)}
       </motion.div>
     </div>

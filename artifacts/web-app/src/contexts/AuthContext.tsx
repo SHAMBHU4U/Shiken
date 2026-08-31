@@ -3,14 +3,25 @@ import {
   signInWithPopup, signInWithRedirect, getRedirectResult,
   setPersistence, browserLocalPersistence,
   signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  sendPasswordResetEmail,
+  sendPasswordResetEmail, sendEmailVerification, reload,
   signOut as fbSignOut, onAuthStateChanged, GoogleAuthProvider, updateProfile,
   type User,
 } from "firebase/auth";
-import { ref, get, set, onValue, onDisconnect, serverTimestamp } from "firebase/database";
+import { ref, get, set, update, onValue, onDisconnect, serverTimestamp } from "firebase/database";
 import { auth, db } from "../firebase";
 
 export type UserGoal = "neet" | "jee" | "c10" | "c12";
+
+export interface RegistrationDetails {
+  fullName: string;
+  mobileNumber: string;
+  email: string;
+  state: string;
+  district: string;
+  village: string;
+  password: string;
+  confirmPassword: string;
+}
 
 export interface UserProfile {
   paymentVerified?: boolean;
@@ -25,7 +36,10 @@ interface AuthContextType {
   isPremium: boolean;
   loading: boolean;
   goal: UserGoal | null;
+  selectedExams: string[];
+  onboardingComplete: boolean;
   goalLoading: boolean;
+  profileLoading: boolean;
   sessionKickedOut: boolean;
   clearSessionKickedOut: () => void;
   setGoal: (goal: UserGoal) => Promise<void>;
@@ -34,6 +48,11 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
+  registerWithEmail: (details: RegistrationDetails) => Promise<void>;
+  verifyEmail: () => Promise<boolean>;
+  resendEmailVerification: () => Promise<void>;
+  saveSelectedExams: (examIds: string[]) => Promise<void>;
+  skipExamSelection: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -62,7 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isPremium, setIsPremium]     = useState(false);
   const [loading, setLoading]         = useState(true);
   const [goal, setGoalState]          = useState<UserGoal | null>(null);
+  const [selectedExams, setSelectedExamsState] = useState<string[]>([]);
+  const [onboardingComplete, setOnboardingComplete] = useState(true);
   const [goalLoading, setGoalLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [sessionKickedOut, setSessionKickedOut] = useState(false);
 
   // In-memory session ID — unique per page-load, never persisted
@@ -92,6 +114,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const applyUserProfile = (profile: UserProfile | null) => {
     setUserProfile(profile);
     setIsPremium(calculateIsPremium(profile));
+    const rawExams = profile?.selectedExams;
+    const exams = Array.isArray(rawExams)
+      ? rawExams.filter((exam): exam is string => typeof exam === "string")
+      : rawExams && typeof rawExams === "object"
+        ? Object.values(rawExams as Record<string, unknown>).filter((exam): exam is string => typeof exam === "string")
+        : [];
+    setSelectedExamsState(exams);
+    setOnboardingComplete(profile?.onboardingComplete !== false);
   };
 
   useEffect(() => {
@@ -164,7 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const name = u.displayName || "New Student";
 
     if (!userSnap.exists()) {
-      await set(userRef, {
+      await update(userRef, {
         uid: u.uid,
         name,
         email: u.email,
@@ -203,18 +233,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const startProfileSync = async (u: User) => {
     detachProfileListener();
-    await refreshUserProfile(u);
-    if (auth.currentUser?.uid !== u.uid) return;
+    setProfileLoading(true);
+    try {
+      await refreshUserProfile(u);
+      if (auth.currentUser?.uid !== u.uid) return;
 
-    const profileRef = ref(db, `users/${u.uid}`);
-    profileUnsubRef.current = onValue(
-      profileRef,
-      (snap) => {
-        if (auth.currentUser?.uid !== u.uid) return;
-        applyUserProfile(snap.exists() ? (snap.val() as UserProfile) : null);
-      },
-      (error) => console.error("User profile sync error:", error),
-    );
+      const profileRef = ref(db, `users/${u.uid}`);
+      profileUnsubRef.current = onValue(
+        profileRef,
+        (snap) => {
+          if (auth.currentUser?.uid !== u.uid) return;
+          applyUserProfile(snap.exists() ? (snap.val() as UserProfile) : null);
+        },
+        (error) => console.error("User profile sync error:", error),
+      );
+    } finally {
+      if (auth.currentUser?.uid === u.uid) setProfileLoading(false);
+    }
   };
 
   const loadGoal = async (u: User) => {
@@ -249,6 +284,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         setUser(u);
         applyUserProfile(null);
+        setProfileLoading(true);
         setLoading(false);
         syncUserToDB(u)
           .catch(console.error)
@@ -264,7 +300,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         applyUserProfile(null);
         setGoalState(null);
+        setSelectedExamsState([]);
+        setOnboardingComplete(true);
         setGoalLoading(false);
+        setProfileLoading(false);
         setLoading(false);
       }
     });
@@ -336,13 +375,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await updateProfile(newUser, { displayName: name.trim() });
     }
 
-    await set(ref(db, `users/${newUser.uid}`), {
+    await update(ref(db, `users/${newUser.uid}`), {
       uid: newUser.uid,
       name: name.trim() || newUser.displayName || "Student",
       email: newUser.email,
       createdAt: serverTimestamp(),
       role: "student",
     });
+  };
+
+  const registerWithEmail = async (details: RegistrationDetails) => {
+    const email = details.email.trim();
+    const name = details.fullName.trim();
+    const cred = await createUserWithEmailAndPassword(auth, email, details.password);
+    const newUser = cred.user;
+
+    if (name) {
+      await updateProfile(newUser, { displayName: name });
+    }
+
+    await set(ref(db, `users/${newUser.uid}`), {
+      uid: newUser.uid,
+      name: name || "Student",
+      email: newUser.email,
+      mobileNumber: details.mobileNumber.replace(/\D/g, ""),
+      state: details.state,
+      district: details.district.trim(),
+      village: details.village.trim(),
+      createdAt: serverTimestamp(),
+      role: "student",
+      selectedExams: [],
+      onboardingStep: "verification",
+      onboardingComplete: false,
+      emailVerified: false,
+    });
+
+    await sendEmailVerification(newUser);
+  };
+
+  const verifyEmail = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("No signed-in user");
+    await reload(currentUser);
+    const refreshedUser = auth.currentUser;
+    if (!refreshedUser) throw new Error("No signed-in user");
+    setUser(refreshedUser);
+    if (!refreshedUser.emailVerified) return false;
+    await set(ref(db, `users/${refreshedUser.uid}/emailVerified`), true);
+    await set(ref(db, `users/${refreshedUser.uid}/onboardingStep`), "exams");
+    return true;
+  };
+
+  const resendEmailVerification = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("No signed-in user");
+    if (currentUser.emailVerified) return;
+    await sendEmailVerification(currentUser);
+  };
+
+  const saveSelectedExams = async (examIds: string[]) => {
+    if (!user) throw new Error("No signed-in user");
+    const normalized = [...new Set(examIds.filter(Boolean))];
+    await set(ref(db, `users/${user.uid}/selectedExams`), normalized);
+    await set(ref(db, `users/${user.uid}/onboardingStep`), "complete");
+    await set(ref(db, `users/${user.uid}/onboardingComplete`), true);
+    setSelectedExamsState(normalized);
+    setOnboardingComplete(true);
+  };
+
+  const skipExamSelection = async () => {
+    await saveSelectedExams([]);
   };
 
   const resetPassword = async (email: string) => {
@@ -364,15 +466,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     detachProfileListener();
     applyUserProfile(null);
     setGoalState(null);
+    setSelectedExamsState([]);
+    setOnboardingComplete(true);
   };
 
   return (
     <AuthContext.Provider value={{
       user, userProfile, isPremium, loading,
-      goal, goalLoading, setGoal, clearGoal,
+      goal, selectedExams, onboardingComplete, goalLoading, profileLoading, setGoal, clearGoal,
       refreshUserProfile,
       sessionKickedOut, clearSessionKickedOut,
-      signInWithGoogle, signInWithEmail, signUpWithEmail, resetPassword, signOut,
+      signInWithGoogle, signInWithEmail, signUpWithEmail, registerWithEmail,
+      verifyEmail, resendEmailVerification, saveSelectedExams, skipExamSelection,
+      resetPassword, signOut,
     }}>
       {children}
     </AuthContext.Provider>

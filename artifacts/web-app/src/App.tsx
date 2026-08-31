@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Check, X } from "lucide-react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
@@ -23,6 +24,7 @@ import MockTestPage from "@/pages/MockTestPage";
 import ReferralPage from "@/pages/ReferralPage";
 import ChoosePlanPage from "@/pages/ChoosePlanPage";
 import { AuthProvider, useAuth, type UserGoal } from "@/contexts/AuthContext";
+import OnboardingPage, { type OnboardingValues } from "@/pages/OnboardingPage";
 import {
   getLocalStreak, hasTestedToday, isBannerDismissedToday, dismissBannerForToday,
   getNotificationPermission, requestAndScheduleReminder,
@@ -574,12 +576,130 @@ function SplashLoader() {
   );
 }
 
+function OnboardingRoute() {
+  const {
+    user,
+    userProfile,
+    registerWithEmail,
+    verifyEmail,
+    resendEmailVerification,
+    saveSelectedExams,
+    skipExamSelection,
+    signOut,
+  } = useAuth();
+  const [, navigate] = useLocation();
+  const [registering, setRegistering] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [registrationError, setRegistrationError] = useState("");
+  const [verificationError, setVerificationError] = useState("");
+
+  useEffect(() => {
+    if (user && userProfile && userProfile.onboardingComplete !== false) {
+      navigate("/");
+    }
+  }, [navigate, user, userProfile]);
+
+  const initialValues: OnboardingValues = {
+    fullName: typeof userProfile?.name === "string" ? userProfile.name : user?.displayName ?? "",
+    mobileNumber: typeof userProfile?.mobileNumber === "string" ? userProfile.mobileNumber : "",
+    email: user?.email ?? (typeof userProfile?.email === "string" ? userProfile.email : ""),
+    state: typeof userProfile?.state === "string" ? userProfile.state : "",
+    district: typeof userProfile?.district === "string" ? userProfile.district : "",
+    village: typeof userProfile?.village === "string" ? userProfile.village : "",
+    password: "",
+    confirmPassword: "",
+  };
+
+  async function handleRegister(values: OnboardingValues) {
+    setRegistrationError("");
+    setRegistering(true);
+    try {
+      await registerWithEmail(values);
+    } catch (error) {
+      const code = (error as { code?: string }).code ?? "";
+      setRegistrationError(
+        code.includes("email-already-in-use")
+          ? "An account already exists for this email. Sign in instead."
+          : code.includes("invalid-email")
+            ? "Enter a valid email address."
+            : code.includes("weak-password")
+              ? "Your password needs at least 6 characters."
+              : "We could not create your account. Please try again.",
+      );
+      throw error;
+    } finally {
+      setRegistering(false);
+    }
+  }
+
+  async function handleVerify() {
+    setVerificationError("");
+    setVerifying(true);
+    try {
+      await verifyEmail();
+    } catch (error) {
+      setVerificationError("We could not check your email yet. Please try again.");
+      throw error;
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function handleResend() {
+    setVerificationError("");
+    try {
+      await resendEmailVerification();
+    } catch (error) {
+      setVerificationError("The verification email could not be sent. Please try again.");
+      throw error;
+    }
+  }
+
+  async function handleSaveExams(examIds: string[]) {
+    setSaving(true);
+    try {
+      await saveSelectedExams(examIds);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSkipExams() {
+    setSaving(true);
+    try {
+      await skipExamSelection();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <OnboardingPage
+      initialValues={initialValues}
+      onRegister={handleRegister}
+      onVerify={handleVerify}
+      onResendVerification={handleResend}
+      onSelectExams={handleSaveExams}
+      onSkipExams={handleSkipExams}
+      onSignOut={async () => { await signOut(); navigate("/"); }}
+      onComplete={() => navigate("/")}
+      emailVerified={Boolean(user?.emailVerified)}
+      registering={registering}
+      verifying={verifying}
+      saving={saving}
+      verificationError={verificationError}
+      registrationError={registrationError}
+    />
+  );
+}
+
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
 // Public paths that bypass the auth+goal check
-const PUBLIC_PATHS = ["/admin", "/admin-shiken-portal", "/privacy", "/terms"];
+const PUBLIC_PATHS = ["/admin", "/admin-shiken-portal", "/privacy", "/terms", "/onboarding"];
 
 function AuthGuard({ children }: { children: ReactNode }) {
-  const { user, loading, goal, goalLoading } = useAuth();
+  const { user, loading, goal, selectedExams, onboardingComplete, goalLoading, profileLoading } = useAuth();
   const [location] = useLocation();
 
   const isPublic = PUBLIC_PATHS.some((p) => location === p || location.startsWith(p + "/"));
@@ -587,8 +707,10 @@ function AuthGuard({ children }: { children: ReactNode }) {
 
   if (loading) return <SplashLoader />;
   if (!user) return <ProfilePage />;
+  if (profileLoading) return <SplashLoader />;
+  if (!onboardingComplete) return <OnboardingRoute />;
   if (goalLoading) return <SplashLoader />;
-  if (!goal) return <GoalSelectPage />;
+  if (!goal && selectedExams.length === 0) return <GoalSelectPage />;
 
   return <>{children}</>;
 }
@@ -919,7 +1041,7 @@ function BottomNav() {
   const { user } = useAuth();
   const isQuiz  = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/") || location.startsWith("/mock-test/");
   const isAdmin = location === "/admin";
-  if (isQuiz || isAdmin) return null;
+  if (!user || location === "/onboarding" || isQuiz || isAdmin) return null;
 
   const tabs = [
     { path: "/",             iconId: "home",        label: "Home",        color: "#0f766e", softBg: "#ecfdf5" },
@@ -1071,13 +1193,201 @@ function DailyQuote() {
   );
 }
 
+const DASHBOARD_EXAMS = [
+  { id: "class-10", label: "Class 10 boards", shortLabel: "10" },
+  { id: "class-12", label: "Class 12 boards", shortLabel: "12" },
+  { id: "jee-main", label: "JEE Main", shortLabel: "JEE" },
+  { id: "neet", label: "NEET", shortLabel: "NEET" },
+  { id: "ssc", label: "SSC exams", shortLabel: "SSC" },
+  { id: "railway", label: "Railway exams", shortLabel: "RRB" },
+  { id: "banking", label: "Banking exams", shortLabel: "BANK" },
+  { id: "defence", label: "Defence exams", shortLabel: "DEF" },
+  { id: "state-govt", label: "State Government", shortLabel: "STATE" },
+  { id: "iit", label: "IIT entrance", shortLabel: "IIT" },
+  { id: "nta", label: "NTA exams", shortLabel: "NTA" },
+  { id: "crpf", label: "CRPF exams", shortLabel: "CRPF" },
+];
+
+const DASHBOARD_EXAM_LABELS = Object.fromEntries(
+  DASHBOARD_EXAMS.map((exam) => [exam.id, exam.label]),
+);
+
+function examToGoal(examId: string): UserGoal | null {
+  if (examId === "neet") return "neet";
+  if (examId === "jee-main" || examId === "iit") return "jee";
+  if (examId === "class-10") return "c10";
+  if (examId === "class-12" || examId === "cuet" || examId === "nta") return "c12";
+  return null;
+}
+
+function ExamSelectionSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { selectedExams, goal, setGoal, clearGoal, saveSelectedExams } = useAuth();
+  const [draft, setDraft] = useState<string[]>(selectedExams);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setDraft(selectedExams);
+      setError("");
+    }
+  }, [open, selectedExams]);
+
+  if (!open) return null;
+
+  const toggle = (id: string) => {
+    setDraft((current) => current.includes(id)
+      ? current.filter((examId) => examId !== id)
+      : [...current, id]);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await saveSelectedExams(draft);
+      const nextGoal = draft.map(examToGoal).find((candidate): candidate is UserGoal => candidate !== null);
+      if (nextGoal) await setGoal(nextGoal);
+      else if (goal) await clearGoal();
+      onClose();
+    } catch {
+      setError("Your exam choices could not be saved. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/45 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+      data-testid="modal-exam-selection"
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px] sm:p-7"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Mere Exams</p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">Add or change exams</h2>
+            <p className="mt-1 text-sm text-slate-500">Choose every target you want to see on your dashboard.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close exam selection" data-testid="button-close-exam-selection" className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X size={19} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          {DASHBOARD_EXAMS.map((exam) => {
+            const selected = draft.includes(exam.id);
+            return (
+              <button
+                key={exam.id}
+                type="button"
+                onClick={() => toggle(exam.id)}
+                data-testid={`button-select-exam-${exam.id}`}
+                className="flex items-center gap-2.5 rounded-2xl border p-3 text-left transition-colors"
+                style={{
+                  borderColor: selected ? "#10b981" : "#e2e8f0",
+                  background: selected ? "#ecfdf5" : "#f8fafc",
+                }}
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-black" style={{ background: selected ? "#10b981" : "#e2e8f0", color: selected ? "#ffffff" : "#64748b" }}>
+                  {selected ? <Check size={15} strokeWidth={3} aria-hidden="true" /> : exam.shortLabel}
+                </span>
+                <span className="min-w-0 text-xs font-bold text-slate-700">{exam.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {error && <p className="mt-3 text-xs font-semibold text-red-600" role="alert" data-testid="status-exam-selection-error">{error}</p>}
+
+        <div className="mt-6 flex gap-2">
+          <button type="button" onClick={onClose} data-testid="button-cancel-exam-selection" className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50">
+            Cancel
+          </button>
+          <button type="button" onClick={() => void save()} disabled={saving} data-testid="button-save-dashboard-exams" className="flex-1 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-60">
+            {saving ? "Saving…" : "Save exams"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function EmptyExamDashboard() {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const { selectedExams } = useAuth();
+  const [, navigate] = useLocation();
+  const selectedLabels = selectedExams.map((id) => DASHBOARD_EXAM_LABELS[id] ?? id);
+
+  return (
+    <div className="min-h-screen w-full" style={{ background: "var(--app-bg)" }}>
+      <div className="mx-auto max-w-lg px-4 pb-28 pt-10">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">SHIKEN</p>
+            <h1 className="mt-1 text-3xl font-black tracking-tight text-slate-900">Your study space</h1>
+          </div>
+          <img src="/shiken-logo.png" alt="SHIKEN" className="h-12 w-12 rounded-2xl object-cover" data-testid="img-empty-dashboard-logo" />
+        </div>
+
+        <div className="mb-5 rounded-3xl p-5 text-white shadow-lg" style={{ background: "linear-gradient(135deg, #17344f, #2c8d78)" }}>
+          <p className="text-xs font-bold uppercase tracking-[0.15em] text-white/70">Test Series Pass</p>
+          <h2 className="mt-2 text-2xl font-black tracking-tight">Practice with purpose.</h2>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-white/75">Unlock focused tests, progress insights and a smarter daily routine.</p>
+          <button type="button" onClick={() => navigate("/pricing")} data-testid="button-unlock-pass" className="mt-5 rounded-xl bg-[#f5d6bd] px-4 py-2.5 text-sm font-black text-[#17344f]">
+            Unlock now
+          </button>
+        </div>
+
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm" data-testid="section-mere-exams">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.15em] text-slate-500">Mere Exams</p>
+              <h2 className="mt-1 text-xl font-black text-slate-900">{selectedLabels.length ? "Your targets" : "Choose your exam"}</h2>
+            </div>
+            {selectedLabels.length > 0 && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{selectedLabels.length} added</span>}
+          </div>
+          {selectedLabels.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {selectedLabels.map((label, index) => <span key={`${label}-${index}`} className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800" data-testid={`text-selected-exam-${index}`}>{label}</span>)}
+            </div>
+          ) : (
+            <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
+              <p className="text-sm font-bold text-slate-800">Abhi koi exam add nahi kiya</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500">Apne exams add kijiye taaki hum aapko sahi tests dikha sakein.</p>
+            </div>
+          )}
+          <button type="button" onClick={() => setSheetOpen(true)} data-testid="button-add-exams" className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white hover:bg-blue-700">
+            {selectedLabels.length ? "Manage exams" : "Add Exams"}
+          </button>
+        </section>
+      </div>
+      <AnimatePresence>
+        {sheetOpen && <ExamSelectionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function Dashboard() {
   const [, navigate] = useLocation();
-  const { goal, clearGoal } = useAuth();
-  const goalCfg = goal ? GOAL_CONFIG[goal] : GOAL_CONFIG.c10;
+  const { goal, selectedExams, clearGoal } = useAuth();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const dashboardGoal = goal ?? selectedExams.map(examToGoal).find((candidate): candidate is UserGoal => candidate !== null) ?? null;
+  const goalCfg = dashboardGoal ? GOAL_CONFIG[dashboardGoal] : null;
+  if (!goalCfg) return <EmptyExamDashboard />;
   const allSubjectPool =
-    goal === "jee" ? entranceSubjects :
-    goal === "neet" ? neetSubjects :
+    dashboardGoal === "jee" ? entranceSubjects :
+    dashboardGoal === "neet" ? neetSubjects :
     goalCfg.classId === "entrance" ? entranceSubjects :
     goalCfg.classId === "12" ? class12Subjects : subjects;
   const activeSubjects = allSubjectPool.filter((s) => goalCfg.subjectIds.includes(s.id));
@@ -1115,7 +1425,7 @@ function Dashboard() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            onClick={() => clearGoal()}
+            onClick={() => selectedExams.length ? setSheetOpen(true) : clearGoal()}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 cursor-pointer group"
             style={{
               background: `${goalCfg.accent}0d`,
@@ -1128,7 +1438,7 @@ function Dashboard() {
               className="text-[11px] font-bold tracking-[0.15em] uppercase"
               style={{ color: goalCfg.accent }}
             >
-              {goalCfg.label} · {goalCfg.labelHindi}
+               {goalCfg.label} · {goalCfg.labelHindi}
             </span>
             <span className="text-[11px] text-slate-400 group-hover:text-slate-600 transition-colors ml-0.5">✎</span>
           </motion.button>
@@ -1174,8 +1484,8 @@ function Dashboard() {
           document.getElementById("subject-cards")?.scrollIntoView({ behavior: "smooth" });
         }} />
 
-        {(goal === "jee" || goal === "neet") && (
-          <FullMockCard goal={goal} />
+         {(dashboardGoal === "jee" || dashboardGoal === "neet") && (
+           <FullMockCard goal={dashboardGoal} />
         )}
 
         <div id="subject-cards" className="flex flex-col gap-5">
@@ -1186,7 +1496,7 @@ function Dashboard() {
               index={index}
               classId={goalCfg.classId}
               onClick={() => {
-                const route = goal === "jee" ? `/jee/${subject.id}` : goal === "neet" ? `/neet/${subject.id}` : `/c${goalCfg.classId === "entrance" ? "12" : goalCfg.classId}/${subject.id}`;
+                 const route = dashboardGoal === "jee" ? `/jee/${subject.id}` : dashboardGoal === "neet" ? `/neet/${subject.id}` : `/c${goalCfg.classId === "entrance" ? "12" : goalCfg.classId}/${subject.id}`;
                 navigate(route);
               }}
             />
@@ -1221,6 +1531,9 @@ function Dashboard() {
           </button>
         </motion.div>
       </div>
+      <AnimatePresence>
+        {sheetOpen && <ExamSelectionSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1336,6 +1649,7 @@ function AppRoutes() {
       <AuthGuard>
         <UsernamePromptWrap>
           <Switch>
+             <Route path="/onboarding" component={OnboardingRoute} />
             <Route path="/" component={Dashboard} />
             <Route path="/admin" component={AdminGuard} />
             <Route path="/progress" component={ProgressPage} />
