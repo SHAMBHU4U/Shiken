@@ -269,31 +269,32 @@ function AuthForm() {
         </AnimatePresence>
 
         {tab !== "reset" && (<>
-        <div className="relative overflow-hidden rounded-t-[32px] bg-gradient-to-br from-[#155fc7] via-[#246ed0] to-[#1ba497] px-5 pb-16 pt-8 text-white sm:px-9" style={{ color: "#ffffff" }}>
-          <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full border-[22px] border-white/10" aria-hidden="true" />
-          <div className="absolute -bottom-28 -left-10 h-48 w-48 rounded-full bg-white/10" aria-hidden="true" />
+        <div className="relative overflow-hidden rounded-t-[32px] bg-[#eaf3ff] px-5 pb-16 pt-8 sm:px-9" style={{ color: "#102e55" }}>
+          <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full border-[22px] border-[#bdd5f7]" aria-hidden="true" />
+          <div className="absolute -bottom-28 -left-10 h-48 w-48 rounded-full bg-[#c8eee8]" aria-hidden="true" />
+          <div className="absolute right-10 top-28 h-20 w-20 rounded-full bg-[#d9f5f1]" aria-hidden="true" />
           <div className="relative">
             <div className="mb-7 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/95 p-1.5 shadow-lg shadow-blue-950/15">
-                  <img src="/shiken-logo.png" alt="SHIKEN logo" className="h-full w-full rounded-xl object-cover" />
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#d5e5f7] bg-white p-1.5 shadow-[0_8px_18px_rgba(31,78,121,0.12)]">
+                  <img src="/shiken-logo.png" alt="SHIKEN logo" className="h-full w-full rounded-xl object-contain" />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-black tracking-[0.24em]" style={{ color: "#ffffff" }}>SHIKEN</p>
-                  <p className="mt-0.5 text-[9px] font-semibold tracking-[0.18em] text-white/70" style={{ color: "rgba(255,255,255,0.72)" }}>PREPARE WITH PURPOSE</p>
+                  <p className="text-[15px] font-black leading-none tracking-[0.22em]" style={{ color: "#163a63" }}>SHIKEN</p>
+                  <p className="mt-1 text-[9px] font-bold leading-none tracking-[0.14em]" style={{ color: "#4e7194" }}>PREPARE WITH PURPOSE</p>
                 </div>
               </div>
-              <span className="hidden rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[10px] font-bold tracking-wide text-white/90 min-[360px]:block">
+              <span className="hidden rounded-full border border-[#c9ddf4] bg-white px-3 py-1.5 text-[10px] font-extrabold tracking-wide text-[#315a82] shadow-sm min-[360px]:block">
                 BOARD · JEE · NEET
               </span>
             </div>
-            <p className="mb-2 text-left text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">
+            <p className="mb-2 text-left text-[11px] font-extrabold uppercase tracking-[0.2em] text-[#4b739c]">
               {tab === "in" ? "Your study space" : "Start your journey"}
             </p>
-            <h1 className="text-left text-[2.35rem] font-black leading-[1.05] tracking-[-0.045em]" style={{ color: "#ffffff" }}>
+            <h1 className="text-left text-[2.35rem] font-black leading-[1.05] tracking-[-0.045em] text-[#102e55]">
               {tab === "in" ? "Welcome back" : "Create your account"}
             </h1>
-            <p className="mt-3 max-w-[300px] text-left text-sm leading-6 text-white/80" style={{ color: "rgba(255,255,255,0.8)" }}>
+            <p className="mt-3 max-w-[300px] text-left text-sm font-medium leading-6 text-[#52708f]">
               Board & Entrance की तैयारी, अब Shiken की ज़िम्मेदारी
             </p>
           </div>
