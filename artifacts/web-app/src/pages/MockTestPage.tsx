@@ -795,8 +795,9 @@ export default function MockTestPage() {
           let secA: MockQuestion[] = [];
           if (sub.sectionA > 0) {
             const cached = await loadFromCache(examType, sub.id, "A");
-            // Use up to 50% from cache, rest from AI generation
-            const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionA * 0.5)));
+            // Reuse the Firebase question bank first. Once the bank has enough
+            // questions, this avoids paying Gemini to recreate equivalent items.
+            const fromCache = shuffled(cached).slice(0, sub.sectionA);
             let generated: MockQuestion[] = [];
             try {
               const needGen = sub.sectionA - fromCache.length;
@@ -818,7 +819,9 @@ export default function MockTestPage() {
           let secB: MockQuestion[] = [];
           if (sub.sectionB > 0) {
             const cached = await loadFromCache(examType, sub.id, "B");
-            const fromCache = shuffled(cached).slice(0, Math.min(cached.length, Math.floor(sub.sectionB * 0.5)));
+            // Reuse the Firebase question bank first. Generate only the
+            // shortfall while the cache is still being populated.
+            const fromCache = shuffled(cached).slice(0, sub.sectionB);
             let generated: MockQuestion[] = [];
             try {
               const needGen = sub.sectionB - fromCache.length;

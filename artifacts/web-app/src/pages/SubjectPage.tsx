@@ -290,6 +290,15 @@ interface TestRecord {
 
 function historyKey(subject: string) { return `shiken_history_${subject}`; }
 
+function stableContentKey(value: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `v1_${(hash >>> 0).toString(36)}`;
+}
+
 function loadHistory(subject: string): TestRecord[] {
   try {
     const raw = localStorage.getItem(historyKey(subject));
@@ -1300,66 +1309,24 @@ function ResultScreen({
         return;
       }
 
-      // ── Not cached — call Shiken Engine directly from browser ─────────
+      // ── Not cached — call Shiken Engine once ─────────────────────────────
+      // explainWithShikenEngine already posts to /api/explain. Retrying the
+      // same endpoint after a stream/network error can create a second Gemini
+      // request for one click, so do not duplicate that request.
       let fullText = "";
-      const tryDirect = async () => {
-        fullText = await explainWithShikenEngine(
-          {
-            questionEnglish: q.english,
-            questionHindi:   q.hindi || "",
-            options:         q.options,
-            optionsHindi:    q.optionsHindi,
-            correctAnswer:   q.options[q.answerIndex] ?? "",
-            subject:         label,
-            lang:            effectiveLang,
-            classId,
-          },
-          (chunk) => setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + chunk })),
-        );
-      };
-
-      // ── Fallback to API server if direct call fails ─────────────────────────
-      try {
-        await tryDirect();
-      } catch {
-        setExplainTexts((t) => ({ ...t, [i]: "" }));
-        fullText = "";
-        const resp = await fetch("/api/explain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            questionEnglish: q.english,
-            questionHindi:   q.hindi || "",
-            options:         q.options,
-            optionsHindi:    q.optionsHindi,
-            correctAnswer:   q.options[q.answerIndex] ?? "",
-            subject:         label,
-            lang:            effectiveLang,
-            classId,
-          }),
-        });
-        const reader = resp.body?.getReader();
-        const decoder = new TextDecoder();
-        if (!reader) throw new Error("No stream");
-        let buf = "";
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() ?? "";
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            try {
-              const payload = JSON.parse(line.slice(6));
-              if (payload.content) {
-                fullText += payload.content;
-                setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + payload.content }));
-              }
-            } catch { /* skip */ }
-          }
-        }
-      }
+      fullText = await explainWithShikenEngine(
+        {
+          questionEnglish: q.english,
+          questionHindi:   q.hindi || "",
+          options:         q.options,
+          optionsHindi:    q.optionsHindi,
+          correctAnswer:   q.options[q.answerIndex] ?? "",
+          subject:         label,
+          lang:            effectiveLang,
+          classId,
+        },
+        (chunk) => setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + chunk })),
+      );
 
       if (fullText.length > 10) {
         const cacheKey = explainCacheKey(q.english, effectiveLang);
@@ -1391,7 +1358,26 @@ function ResultScreen({
         userAnswer: answers[i] !== undefined ? (q.options[answers[i]] ?? "") : undefined,
       }))
       .filter((_, i) => answers[i] !== questions[i].answerIndex);
+    const analysisKey = stableContentKey(JSON.stringify({
+      subject,
+      score,
+      total: questions.length,
+      mode,
+      chapter,
+      classId,
+      wrong,
+    }));
+    const safeSubject = subject.replace(/[.#$/[\]]/g, "_");
     try {
+      // Reuse analysis for the same completed result instead of charging
+      // Gemini again when the result is reopened.
+      const cached = await get(ref(db, `testAnalyses/${safeSubject}/${analysisKey}`));
+      if (cached.exists()) {
+        setAnalysisText(String(cached.val() ?? ""));
+        return;
+      }
+
+      let fullAnalysisText = "";
       const resp = await fetch("/api/analyze-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1411,10 +1397,19 @@ function ResultScreen({
           if (!line.startsWith("data: ")) continue;
           try {
             const payload = JSON.parse(line.slice(6));
-            if (payload.content) setAnalysisText((t) => t + payload.content);
-            if (payload.error)   setAnalysisText((t) => t + payload.error);
+            if (payload.content) {
+              fullAnalysisText += payload.content;
+              setAnalysisText((t) => t + payload.content);
+            }
+            if (payload.error) {
+              fullAnalysisText += payload.error;
+              setAnalysisText((t) => t + payload.error);
+            }
           } catch { /* skip */ }
         }
+      }
+      if (fullAnalysisText.length > 10) {
+        set(ref(db, `testAnalyses/${safeSubject}/${analysisKey}`), fullAnalysisText).catch(() => {});
       }
     } catch {
       setAnalysisText("Analysis में दिक्कत आई। फिर से try करो 🙏");
@@ -2500,31 +2495,40 @@ export default function SubjectPage() {
       setScreen("chapter-generating");
       try {
         const subjectLabel = meta?.label ?? subject;
-        let fetched = await (async () => {
-          try {
-            return await generateQuestions(subjectLabel, chapter, need, classId);
-          } catch {
-            const resp = await fetch("/api/generate-questions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ subject: subjectLabel, chapter, count: need, classId }),
-            });
-            const data = await resp.json() as { questions?: unknown[] };
-            if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("empty");
-            return (data.questions as Record<string, unknown>[]).map((q) => ({
-              english:      String(q.english      ?? ""),
-              hindi:        String(q.hindi        ?? ""),
-              options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
-              optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
-              answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
-            }));
-          }
-        })();
+        // Reuse the shared Firebase AI cache before asking Gemini for the
+        // same chapter content again.
+        const cachedAI = await getCachedQuestions(subjectLabel, chapter, need);
+        let fetched;
+        if (cachedAI && cachedAI.length >= need) {
+          fetched = cachedAI;
+        } else {
+          fetched = await (async () => {
+            try {
+              return await generateQuestions(subjectLabel, chapter, need, classId);
+            } catch {
+              const resp = await fetch("/api/generate-questions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subject: subjectLabel, chapter, count: need, classId }),
+              });
+              const data = await resp.json() as { questions?: unknown[] };
+              if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error("empty");
+              return (data.questions as Record<string, unknown>[]).map((q) => ({
+                english:      String(q.english      ?? ""),
+                hindi:        String(q.hindi        ?? ""),
+                options:      Array.isArray(q.options)      ? (q.options      as unknown[]).map(String) : [],
+                optionsHindi: Array.isArray(q.optionsHindi) ? (q.optionsHindi as unknown[]).map(String) : [],
+                answerIndex:  typeof q.answerIndex === "number" ? q.answerIndex : 0,
+              }));
+            }
+          })();
+        }
         const ai = fetched
           .map((q) => ({ ...q, chapter: chapter || "Shiken Generated" }))
           .filter((q) => q.english && q.options.length >= 2);
-        // Save to DB so next time they're cached
-        if (ai.length > 0) {
+        // Save fresh results to both caches so later tests can reuse them.
+        if (!cachedAI && fetched.length > 0) {
+          mergeQuestionsToCache(subjectLabel, chapter, fetched).catch(() => {});
           saveAIQuestionsToFirebase(ai.map(q => ({ ...q, chapter: chapter || "Shiken Generated" }))).catch(() => {});
         }
         finalQuestions = shuffle([...picked, ...ai.slice(0, need)]);
