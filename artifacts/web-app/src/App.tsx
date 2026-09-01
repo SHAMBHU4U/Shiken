@@ -1029,6 +1029,13 @@ function NavIcon({ id, color }: { id: string; color: string }) {
       <path d="M3 18h18" stroke={color} strokeWidth="1.8" strokeLinecap="round" fill="none" />
     </svg>
   );
+  if (id === "more") return (
+    <svg {...sw}>
+      <circle cx="5" cy="12" r="1.3" fill={color} stroke="none" />
+      <circle cx="12" cy="12" r="1.3" fill={color} stroke="none" />
+      <circle cx="19" cy="12" r="1.3" fill={color} stroke="none" />
+    </svg>
+  );
   return (
     <svg {...sw}>
       <path d="M4 4h16c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -1040,18 +1047,27 @@ function NavIcon({ id, color }: { id: string; color: string }) {
 function BottomNav() {
   const [location, navigate] = useLocation();
   const { user } = useAuth();
+  const [moreOpen, setMoreOpen] = useState(false);
   const isQuiz  = QUIZ_SLUGS.some((s) => location === `/${s}`) || location.startsWith("/c10/") || location.startsWith("/c12/") || location.startsWith("/mock-test/");
   const isAdmin = location === "/admin";
   if (!user || location === "/onboarding" || isQuiz || isAdmin) return null;
 
   const tabs = [
-    { path: "/",             iconId: "home",        label: "Home",        color: "#0f766e", softBg: "#ecfdf5" },
-    { path: "/leaderboard",  iconId: "ranks",       label: "Ranks",       color: "#e11d48", softBg: "#fff1f2" },
-    { path: "/profile",     iconId: "profile",     label: "Profile",     color: "#9f1239", softBg: "#fff1f2" },
-    { path: "/pricing",      iconId: "premium",     label: "Premium 👑",  color: "#b45309", softBg: "#fffbeb" },
-    { path: "/counselling",  iconId: "counselling", label: "Counselling", color: "#c2410c", softBg: "#fff7ed" },
-    { path: "/contact",      iconId: "contact",     label: "Contact",     color: "#1d4ed8", softBg: "#eff6ff" },
+    { path: "/",             iconId: "home",    label: "Home",    color: "#0f766e", softBg: "#ecfdf5" },
+    { path: "/profile",     iconId: "profile", label: "Profile", color: "#2563eb", softBg: "#eff6ff" },
+    { path: "/pricing",     iconId: "premium", label: "Premium", color: "#b45309", softBg: "#fffbeb" },
+    { path: "__more__",     iconId: "more",    label: "More",    color: "#7c3aed", softBg: "#f5f3ff" },
   ];
+  const moreItems = [
+    { path: "/leaderboard", iconId: "ranks",       label: "Ranks",       color: "#e11d48", softBg: "#fff1f2" },
+    { path: "/contact",     iconId: "contact",     label: "Contact",     color: "#0891b2", softBg: "#ecfeff" },
+    { path: "/counselling", iconId: "counselling", label: "Counselling", color: "#ea580c", softBg: "#fff7ed" },
+  ];
+  const moreActive = moreItems.some((item) => location === item.path);
+  const goTo = (path: string) => {
+    setMoreOpen(false);
+    navigate(path);
+  };
 
   return (
     <motion.div
@@ -1059,19 +1075,60 @@ function BottomNav() {
       animate={{ y: 0 }}
       transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
       className="fixed bottom-0 left-0 right-0 z-50"
-      style={{
-        background: "var(--app-nav-bg)",
-        borderTop: "1px solid var(--app-nav-border)",
-      }}
+      style={{ background: "linear-gradient(to top, rgba(248,250,252,0.98), rgba(248,250,252,0.72), transparent)" }}
     >
-      <div className="max-w-lg mx-auto flex items-stretch justify-around px-1 py-1 pb-safe">
+      <AnimatePresence>
+        {moreOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="absolute bottom-[calc(100%-4px)] left-3 right-3 mx-auto max-w-lg rounded-3xl border border-slate-200 bg-white/95 p-2.5 shadow-[0_18px_45px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+          >
+            <div className="grid grid-cols-3 gap-2">
+              {moreItems.map((item) => {
+                const active = location === item.path;
+                return (
+                  <motion.button
+                    key={item.path}
+                    whileTap={{ scale: 0.96 }}
+                    onClick={() => goTo(item.path)}
+                    className="flex min-w-0 flex-col items-center justify-center gap-1.5 rounded-2xl px-1 py-3 transition-colors"
+                    style={{
+                      background: active ? item.softBg : "#f8fafc",
+                      color: item.color,
+                      border: `1px solid ${active ? `${item.color}35` : "#e2e8f0"}`,
+                    }}
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: `${item.color}12` }}>
+                      <NavIcon id={item.iconId} color={item.color} />
+                    </div>
+                    <span className="truncate text-[11px] font-bold leading-none">{item.label}</span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="mx-auto max-w-lg px-3 pb-safe pt-2">
+        <div
+          className="flex items-stretch justify-around rounded-[26px] border px-1 py-1.5 shadow-[0_10px_35px_rgba(15,23,42,0.14)]"
+          style={{ background: "rgba(255,255,255,0.96)", borderColor: "var(--app-nav-border)", backdropFilter: "blur(18px)" }}
+        >
         {tabs.map((tab) => {
-          const active = location === tab.path;
+          const isMore = tab.path === "__more__";
+          const active = isMore ? moreActive : location === tab.path;
           return (
             <motion.button
               key={tab.path}
-              onClick={() => navigate(tab.path)}
-              className="relative flex flex-col items-center justify-center gap-1 flex-1 py-3 min-w-0 rounded-xl transition-all duration-200"
+              whileTap={{ scale: 0.94 }}
+              onClick={() => isMore ? setMoreOpen((open) => !open) : goTo(tab.path)}
+              aria-label={isMore ? "More navigation options" : tab.label}
+              aria-expanded={isMore ? moreOpen : undefined}
+              className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[20px] py-2.5 transition-all duration-200"
               style={{ background: active ? tab.softBg : "transparent" }}
             >
               {active && (
@@ -1086,7 +1143,7 @@ function BottomNav() {
                 />
               )}
               <div
-                className="relative flex items-center justify-center w-8 h-7 rounded-lg transition-colors duration-200"
+                className="relative flex h-8 w-9 items-center justify-center rounded-xl transition-colors duration-200"
                 style={{ background: active ? `${tab.color}12` : "transparent" }}
               >
                 <NavIcon id={tab.iconId} color={tab.color} />
@@ -1103,6 +1160,7 @@ function BottomNav() {
             </motion.button>
           );
         })}
+        </div>
       </div>
     </motion.div>
   );
