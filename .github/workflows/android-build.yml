@@ -63,7 +63,7 @@ jobs:
           # 1. Compatibility Fix for Capacitor v6
           pnpm add -D @capacitor/cli@^6.0.0 @capacitor/core@^6.0.0 @capacitor/android@^6.0.0
           
-          # 2. 🔥 EXACT POSITION FIX: dist/public se maal main dist folder me lana
+          # 2. Moving build assets from dist/public to main dist folder
           echo "📦 Moving build assets from dist/public to main dist folder..."
           if [ -d "dist/public" ]; then
             mv dist/public /tmp/public-assets
@@ -91,7 +91,7 @@ jobs:
             cp -r /tmp/app-backup/* android/app/ || echo "No backup to restore"
           elif [ ! -d "android" ]; then
             npx cap add android
-          else
+            else
             echo "Android folder looks good."
           fi
           
@@ -116,15 +116,33 @@ jobs:
             sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" build.gradle
           fi
 
+      - name: Inject Signing Config into Gradle
+        working-directory: artifacts/web-app/android/app
+        run: |
+          cat << 'EOF' >> build.gradle
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("${{ github.workspace }}/keystore-holder/release.keystore")
+                      storePassword "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+                      keyAlias "${{ secrets.ANDROID_KEY_ALIAS }}"
+                      keyPassword "${{ secrets.ANDROID_KEY_PASSWORD }}"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          EOF
+
       - name: Build signed Release APK & AAB
         working-directory: artifacts/web-app/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease \
-            -Pandroid.injected.signing.store.file=${{ github.workspace }}/keystore-holder/release.keystore \
-            -Pandroid.injected.signing.store.password="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
-            -Pandroid.injected.signing.key.alias="${{ secrets.ANDROID_KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.ANDROID_KEY_PASSWORD }}"
+          ./gradlew assembleRelease bundleRelease
 
       - name: Find and rename APK & AAB
         run: |
