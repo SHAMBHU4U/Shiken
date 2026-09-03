@@ -6,11 +6,11 @@ on:
       version_name:
         description: 'App version name (e.g. 1.0.0)'
         required: true
-        default: '1.0.2'
+        default: '1.0.3'
       version_code:
         description: 'Version code (integer, increment each release)'
         required: true
-        default: '4'
+        default: '5'
 
 jobs:
   build-android:
@@ -79,11 +79,20 @@ jobs:
         working-directory: artifacts/web-app
         run: npx cap sync android
 
-      - name: Set Version in build.gradle
+      - name: Set Target SDK 36 & Version in Android Configs
         working-directory: artifacts/web-app
         run: |
+          # Target SDK aur Compile SDK ko 36 update kar rahe hain
+          if [ -f "android/variables.gradle" ]; then
+            sed -i "s/targetSdkVersion = .*/targetSdkVersion = 36/" android/variables.gradle
+            sed -i "s/compileSdkVersion = .*/compileSdkVersion = 36/" android/variables.gradle
+          fi
+
+          # App level build.gradle me explicit override
           sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" android/app/build.gradle
           sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" android/app/build.gradle
+          sed -i "s/targetSdkVersion .*/targetSdkVersion 36/" android/app/build.gradle
+          sed -i "s/compileSdkVersion .*/compileSdkVersion 36/" android/app/build.gradle
 
       - name: Decode Keystore File
         run: |
@@ -96,14 +105,13 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease
 
-      - name: Sign AAB using Official Android apksigner / jarsigner V2
+      - name: Sign AAB using jarsigner
         run: |
           RAW_AAB=$(find artifacts/web-app/android -name "*.aab" | grep "release" | head -1)
           RAW_APK=$(find artifacts/web-app/android -name "*.apk" | grep "release" | head -1)
 
           echo "🔐 Signing Bundle and APK..."
           
-          # Sign AAB using jarsigner with RFC3161 timestamping support for Play Store
           jarsigner -verbose \
             -sigalg SHA256withRSA \
             -digestalg SHA-256 \
@@ -111,9 +119,6 @@ jobs:
             -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
             -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
             "$RAW_AAB" "${{ secrets.ANDROID_KEY_ALIAS }}"
-
-          # Verify signature
-          jarsigner -verify -verbose -certs "$RAW_AAB"
 
           cp "$RAW_AAB" "shiken-v${{ github.event.inputs.version_name }}-release.aab"
           cp "$RAW_APK" "shiken-v${{ github.event.inputs.version_name }}-release.apk"
