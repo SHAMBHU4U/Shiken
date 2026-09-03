@@ -87,39 +87,28 @@ jobs:
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/keystore-holder/release.keystore
 
       - name: Set version & Force Signing in build.gradle
+        working-directory: artifacts/web-app/android/app
         run: |
-          # Absolute path on GitHub Runner
-          FILE_PATH="${{ github.workspace }}/artifacts/web-app/android/app/build.gradle"
-          
-          if [ -f "$FILE_PATH" ]; then
-            sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" "$FILE_PATH"
-            sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" "$FILE_PATH"
+          sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" build.gradle
+          sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" build.gradle
 
-            cat << 'EOF' >> "$FILE_PATH"
-
-android {
-    signingConfigs {
-        release {
-            storeFile file("${{ github.workspace }}/keystore-holder/release.keystore")
-            storePassword "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
-            keyAlias "${{ secrets.ANDROID_KEY_ALIAS }}"
-            keyPassword "${{ secrets.ANDROID_KEY_PASSWORD }}"
-            v1SigningEnabled true
-            v2SigningEnabled true
-        }
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-        }
-    }
-}
-EOF
-            echo "✅ build.gradle updated successfully!"
-          else
-            echo "❌ build.gradle still not found at $FILE_PATH"
-            exit 1
-          fi
+          echo "android {" >> build.gradle
+          echo "    signingConfigs {" >> build.gradle
+          echo "        release {" >> build.gradle
+          echo "            storeFile file('${{ github.workspace }}/keystore-holder/release.keystore')" >> build.gradle
+          echo "            storePassword '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}'" >> build.gradle
+          echo "            keyAlias '${{ secrets.ANDROID_KEY_ALIAS }}'" >> build.gradle
+          echo "            keyPassword '${{ secrets.ANDROID_KEY_PASSWORD }}'" >> build.gradle
+          echo "            v1SigningEnabled true" >> build.gradle
+          echo "            v2SigningEnabled true" >> build.gradle
+          echo "        }" >> build.gradle
+          echo "    }" >> build.gradle
+          echo "    buildTypes {" >> build.gradle
+          echo "        release {" >> build.gradle
+          echo "            signingConfig signingConfigs.release" >> build.gradle
+          echo "        }" >> build.gradle
+          echo "    }" >> build.gradle
+          echo "}" >> build.gradle
 
       - name: Build signed Release APK & AAB
         working-directory: artifacts/web-app/android
