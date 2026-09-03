@@ -10,7 +10,7 @@ on:
       version_code:
         description: 'Version code (integer, increment each release)'
         required: true
-        default: '2'
+        default: '3'
 
 jobs:
   build-android:
@@ -89,31 +89,29 @@ jobs:
       - name: Set version & Force Signing in build.gradle
         working-directory: artifacts/web-app/android/app
         run: |
-          # 1. Update Version Code & Version Name
           sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" build.gradle
           sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" build.gradle
 
-          # 2. Append Explicit Signing Config with V1 & V2 support
-          cat << 'EOF' >> build.gradle
+          cat << EOF >> build.gradle
 
-android {
-    signingConfigs {
-        release {
-            storeFile file("${{ github.workspace }}/keystore-holder/release.keystore")
-            storePassword "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
-            keyAlias "${{ secrets.ANDROID_KEY_ALIAS }}"
-            keyPassword "${{ secrets.ANDROID_KEY_PASSWORD }}"
-            v1SigningEnabled true
-            v2SigningEnabled true
-        }
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-        }
-    }
-}
-EOF
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("${{ github.workspace }}/keystore-holder/release.keystore")
+                      storePassword "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}"
+                      keyAlias "${{ secrets.ANDROID_KEY_ALIAS }}"
+                      keyPassword "${{ secrets.ANDROID_KEY_PASSWORD }}"
+                      v1SigningEnabled true
+                      v2SigningEnabled true
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          EOF
 
       - name: Build signed Release APK & AAB
         working-directory: artifacts/web-app/android
