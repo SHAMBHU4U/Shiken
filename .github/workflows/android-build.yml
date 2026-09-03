@@ -6,11 +6,11 @@ on:
       version_name:
         description: 'App version name (e.g. 1.0.0)'
         required: true
-        default: '1.0.1'
+        default: '1.0.2'
       version_code:
         description: 'Version code (integer, increment each release)'
         required: true
-        default: '3'
+        default: '4'
 
 jobs:
   build-android:
@@ -68,11 +68,7 @@ jobs:
             mv /tmp/public-assets dist
           fi
           
-          # Force clean broken android folder to ensure complete regeneration
-          echo "🧹 Cleaning up any broken android directory..."
           rm -rf android
-          
-          echo "🚀 Initializing Capacitor and adding Android platform..."
           npx cap init Shiken com.shambhuanu.shiken --web-dir=dist
           npx cap add android
           
@@ -83,48 +79,44 @@ jobs:
         working-directory: artifacts/web-app
         run: npx cap sync android
 
-      - name: Decode keystore from secret
+      - name: Set Version in build.gradle
+        working-directory: artifacts/web-app
+        run: |
+          sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" android/app/build.gradle
+          sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" android/app/build.gradle
+
+      - name: Decode Keystore File
         run: |
           mkdir -p ${{ github.workspace }}/keystore-holder
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > ${{ github.workspace }}/keystore-holder/release.keystore
 
-      - name: Set version & Force Signing in build.gradle
-        working-directory: artifacts/web-app
-        run: |
-          echo "✅ Injecting version and signing config into android/app/build.gradle..."
-          sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" android/app/build.gradle
-          sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" android/app/build.gradle
-
-          echo "android {" >> android/app/build.gradle
-          echo "    signingConfigs {" >> android/app/build.gradle
-          echo "        release {" >> android/app/build.gradle
-          echo "            storeFile file('${{ github.workspace }}/keystore-holder/release.keystore')" >> android/app/build.gradle
-          echo "            storePassword '${{ secrets.ANDROID_KEYSTORE_PASSWORD }}'" >> android/app/build.gradle
-          echo "            keyAlias '${{ secrets.ANDROID_KEY_ALIAS }}'" >> android/app/build.gradle
-          echo "            keyPassword '${{ secrets.ANDROID_KEY_PASSWORD }}'" >> android/app/build.gradle
-          echo "            v1SigningEnabled true" >> android/app/build.gradle
-          echo "            v2SigningEnabled true" >> android/app/build.gradle
-          echo "        }" >> android/app/build.gradle
-          echo "    }" >> android/app/build.gradle
-          echo "    buildTypes {" >> android/app/build.gradle
-          echo "        release {" >> android/app/build.gradle
-          echo "            signingConfig signingConfigs.release" >> android/app/build.gradle
-          echo "        }" >> android/app/build.gradle
-          echo "    }" >> android/app/build.gradle
-          echo "}" >> android/app/build.gradle
-
-      - name: Build signed Release APK & AAB
+      - name: Build Unsigned Release AAB & APK
         working-directory: artifacts/web-app/android
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease
 
-      - name: Find and rename APK & AAB
+      - name: Sign AAB using Official Android apksigner / jarsigner V2
         run: |
-          AAB_PATH=$(find artifacts/web-app/android -name "*.aab" | grep "release" | head -1)
-          APK_PATH=$(find artifacts/web-app/android -name "*.apk" | grep "release" | head -1)
-          cp "$AAB_PATH" "shiken-v${{ github.event.inputs.version_name }}-release.aab"
-          cp "$APK_PATH" "shiken-v${{ github.event.inputs.version_name }}-release.apk"
+          RAW_AAB=$(find artifacts/web-app/android -name "*.aab" | grep "release" | head -1)
+          RAW_APK=$(find artifacts/web-app/android -name "*.apk" | grep "release" | head -1)
+
+          echo "🔐 Signing Bundle and APK..."
+          
+          # Sign AAB using jarsigner with RFC3161 timestamping support for Play Store
+          jarsigner -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore ${{ github.workspace }}/keystore-holder/release.keystore \
+            -storepass "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
+            -keypass "${{ secrets.ANDROID_KEY_PASSWORD }}" \
+            "$RAW_AAB" "${{ secrets.ANDROID_KEY_ALIAS }}"
+
+          # Verify signature
+          jarsigner -verify -verbose -certs "$RAW_AAB"
+
+          cp "$RAW_AAB" "shiken-v${{ github.event.inputs.version_name }}-release.aab"
+          cp "$RAW_APK" "shiken-v${{ github.event.inputs.version_name }}-release.apk"
 
       - name: Upload AAB as GitHub Artifact
         uses: actions/upload-artifact@v4
