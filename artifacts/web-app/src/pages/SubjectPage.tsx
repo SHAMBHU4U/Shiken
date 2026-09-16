@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithShikenEngine, generateQuestions, generateComprehension, type FullTranslation } from "@/lib/gemini";
+import { explainWithShikenEngine, generateQuestions, generateComprehension, aiHeaders, type FullTranslation } from "@/lib/gemini";
 import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -1261,7 +1261,7 @@ function ResultScreen({
       } else {
         const resp = await fetch("/api/translate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: aiHeaders(),
           body: JSON.stringify({ type: "toEnglish", hindi: hindiText, subject }),
         });
         const json = await resp.json() as { result?: string };
@@ -1380,7 +1380,7 @@ function ResultScreen({
       let fullAnalysisText = "";
       const resp = await fetch("/api/analyze-test", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: aiHeaders(),
         body: JSON.stringify({ subject, score, total: questions.length, mode, chapter, wrong, classId }),
       });
       const reader = resp.body?.getReader();
@@ -1961,7 +1961,7 @@ export default function SubjectPage() {
       } else {
         const resp = await fetch("/api/translate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: aiHeaders(),
           body: JSON.stringify({ type: "toEnglish", hindi: hindiText, subject }),
         });
         const json = await resp.json() as { result?: string };
@@ -1999,7 +1999,7 @@ export default function SubjectPage() {
       } else {
         const resp = await fetch("/api/translate", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: aiHeaders(),
           body: JSON.stringify({ type: "fullTranslation", english: q.english, options: q.options, subject }),
         });
         const result = await resp.json() as FullTranslation;
@@ -2319,7 +2319,7 @@ export default function SubjectPage() {
           } catch {
             const resp = await fetch("/api/generate-questions", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: aiHeaders(),
               body: JSON.stringify({ subject: subjectLabel, chapter: chapterKey, count: AI_COUNT, classId }),
             });
             const data = await resp.json() as { questions?: unknown[] };
@@ -2436,7 +2436,7 @@ export default function SubjectPage() {
           } catch {
             const resp = await fetch("/api/generate-comprehension", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: aiHeaders(),
               body: JSON.stringify({ count: 7, subject: subj }),
             });
             if (!resp.ok) throw new Error("Server comprehension failed");
@@ -2508,7 +2508,7 @@ export default function SubjectPage() {
             } catch {
               const resp = await fetch("/api/generate-questions", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: aiHeaders(),
                 body: JSON.stringify({ subject: subjectLabel, chapter, count: need, classId }),
               });
               const data = await resp.json() as { questions?: unknown[] };

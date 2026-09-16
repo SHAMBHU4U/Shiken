@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { genai } from "../lib/gemini";
+import { generateCachedText, AIRateLimitError } from "../lib/ai-guard";
 
 const router = Router();
 
@@ -27,7 +27,7 @@ router.post("/generate-comprehension", async (req, res) => {
       "शिक्षा का महत्त्व और राष्ट्र-निर्माण",
       "स्वास्थ्य और स्वच्छता का जीवन में महत्त्व",
     ];
-    const topic = topics[Math.floor(Math.random() * topics.length)];
+    const topic = topics[(count + subject.length) % topics.length];
     prompt = `आप बोर्ड कक्षा 10 हिंदी परीक्षा के विशेषज्ञ हैं।
 विषय "${topic}" पर एक अपठित गद्यांश बनाइए जिसमें EXACTLY ${count} बहुविकल्पीय प्रश्न हों।
 
@@ -48,7 +48,7 @@ Return ONLY this JSON (no markdown, no explanation):
       "सत्यस्य महत्त्वम्", "विद्यायाः महत्त्वम्", "प्रकृतिः एव माता",
       "परिश्रमस्य फलम्", "मातृभूमिः स्वर्गादपि गरीयसी",
     ];
-    const topic = topics[Math.floor(Math.random() * topics.length)];
+    const topic = topics[(count + subject.length) % topics.length];
     prompt = `You are a Board Class 10 Sanskrit exam expert.
 Create ONE unseen Sanskrit गद्यांश (prose passage) on: "${topic}"
 With EXACTLY ${count} MCQ questions based strictly on the passage.
@@ -72,7 +72,7 @@ Return ONLY this JSON (no markdown, no explanation):
       "the importance of education for progress",
       "environmental pollution and its effects",
     ];
-    const topic = topics[Math.floor(Math.random() * topics.length)];
+    const topic = topics[(count + subject.length) % topics.length];
     prompt = `You are a Board Class 10 English exam expert.
 Create ONE unseen comprehension passage on: "${topic}"
 With EXACTLY ${count} MCQ questions strictly based on the passage.
@@ -92,13 +92,13 @@ Return ONLY this JSON (no markdown, no explanation):
   }
 
   try {
-    const response = await genai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { maxOutputTokens: 4096 },
-    });
-
-    const raw = (response.text ?? "").trim();
+    const { text: rawValue } = await generateCachedText(
+      req,
+      prompt,
+      "comprehension",
+      { count, subject },
+    );
+    const raw = rawValue.trim();
     let parsed: Record<string, unknown>;
     try { parsed = JSON.parse(raw); }
     catch { const m = raw.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : {}; }
@@ -127,6 +127,10 @@ Return ONLY this JSON (no markdown, no explanation):
       questions,
     });
   } catch (err) {
+    if (err instanceof AIRateLimitError) {
+      res.status(429).json({ error: err.message });
+      return;
+    }
     req.log.error(err, "Comprehension generation error");
     res.status(500).json({ error: "Comprehension generation failed" });
   }

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { genai } from "../../lib/gemini";
+import { generateCachedText, AIRateLimitError } from "../../lib/ai-guard";
 
 const router = Router();
 
@@ -61,7 +61,7 @@ router.post("/generate-questions", async (req, res) => {
   const boardCtx = getBoardContext(classId, subject);
 
   const effectiveChapter = isHindi && (!parsed.data.chapter || parsed.data.chapter === "?" || parsed.data.chapter === "General")
-    ? HINDI_GRAMMAR_CHAPTERS[Math.floor(Math.random() * HINDI_GRAMMAR_CHAPTERS.length)]
+    ? HINDI_GRAMMAR_CHAPTERS[(count + subject.length) % HINDI_GRAMMAR_CHAPTERS.length]
     : parsed.data.chapter;
 
   // ── Wikipedia free context (non-blocking, best-effort) ───────────────────
@@ -164,16 +164,13 @@ JSON format (return ONLY this, nothing else):
   }
 
   try {
-    const response = await genai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        maxOutputTokens: 4096,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const raw = response.text ?? "[]";
+    const { text: raw } = await generateCachedText(
+      req,
+      prompt,
+      "questions",
+      { subject, chapter: effectiveChapter, count, classId },
+      { responseMimeType: "application/json" },
+    );
     let questions: unknown[];
     try {
       questions = JSON.parse(raw);
@@ -189,6 +186,10 @@ JSON format (return ONLY this, nothing else):
 
     res.json({ questions });
   } catch (err) {
+    if (err instanceof AIRateLimitError) {
+      res.status(429).json({ error: err.message });
+      return;
+    }
     req.log.error(err, "Gemini generate-questions error");
     res.status(500).json({ error: "Question generation failed" });
   }

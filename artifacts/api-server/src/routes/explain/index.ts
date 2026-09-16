@@ -1,32 +1,9 @@
 // @ts-nocheck
 import { Router } from "express";
 import { z } from "zod";
-import { streamGemini } from "../../lib/gemini";
+import { streamCachedText } from "../../lib/ai-guard";
 
 const router = Router();
-
-const DAILY_LIMIT = 30;
-const ipUsage = new Map<string, { date: string; count: number }>();
-
-function getClientIp(req: import("express").Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
-  return req.socket.remoteAddress ?? "unknown";
-}
-
-function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
-  const today = new Date().toISOString().slice(0, 10);
-  const entry = ipUsage.get(ip);
-  if (!entry || entry.date !== today) {
-    ipUsage.set(ip, { date: today, count: 1 });
-    return { allowed: true, remaining: DAILY_LIMIT - 1 };
-  }
-  if (entry.count >= DAILY_LIMIT) {
-    return { allowed: false, remaining: 0 };
-  }
-  entry.count++;
-  return { allowed: true, remaining: DAILY_LIMIT - entry.count };
-}
 
 const ExplainBodySchema = z.object({
   questionEnglish: z.string().min(1),
@@ -40,19 +17,6 @@ const ExplainBodySchema = z.object({
 });
 
 router.post("/explain", async (req, res) => {
-  const ip = getClientIp(req);
-  const { allowed, remaining } = checkRateLimit(ip);
-  if (!allowed) {
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.write(`data: ${JSON.stringify({ error: "आज की limit पूरी हो गई (30/day)। कल फिर आओ 🙏" })}\n\n`);
-    res.end();
-    return;
-  }
-  res.setHeader("X-RateLimit-Remaining", String(remaining));
-
   const parsed = ExplainBodySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -171,7 +135,15 @@ ${rememberLabel}
 • [एक sharp memory trick जो Board exam में काम आएगी]`;
   }
 
-  await streamGemini(res, prompt, "Explanation नहीं मिली। Please try again.", req.log);
+  await streamCachedText(
+    req,
+    res,
+    prompt,
+    "explain",
+    { questionEnglish, questionHindi, options, optionsHindi, correctAnswer, subject, lang, classId },
+    "Explanation नहीं मिली। Please try again.",
+    req.log,
+  );
 });
 
 export default router;

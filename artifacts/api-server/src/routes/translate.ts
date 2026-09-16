@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { genai } from "../lib/gemini";
+import { generateCachedText, AIRateLimitError } from "../lib/ai-guard";
 
 const router = Router();
 
@@ -40,13 +40,14 @@ STRICT RULES:
 Hindi question:
 ${hindi}`;
 
-      const response = await genai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { temperature: 0.2, maxOutputTokens: 256 },
-      });
-
-      res.json({ result: (response.text ?? "").trim() });
+      const { text } = await generateCachedText(
+        req,
+        prompt,
+        "translate-to-english",
+        { hindi, subject: parsed.data.subject },
+        { temperature: 0.2 },
+      );
+      res.json({ result: text.trim() });
 
     } else {
       const { english, options, subject } = parsed.data;
@@ -65,13 +66,15 @@ STRICT RULES:
 - JSON format exactly:
 {"hindi":"translated question here","optionsHindi":["option A Hindi","option B Hindi","option C Hindi","option D Hindi"]}`;
 
-      const response = await genai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { temperature: 0.1, maxOutputTokens: 512, responseMimeType: "application/json" },
-      });
+      const { text } = await generateCachedText(
+        req,
+        prompt,
+        "translate-full",
+        { english, options, subject },
+        { temperature: 0.1, responseMimeType: "application/json" },
+      );
 
-      const raw = (response.text ?? "").trim();
+      const raw = text.trim();
       let result: Record<string, unknown>;
       try { result = JSON.parse(raw); }
       catch { const m = raw.match(/\{[\s\S]*\}/); result = m ? JSON.parse(m[0]) : {}; }
@@ -84,6 +87,10 @@ STRICT RULES:
       });
     }
   } catch (err) {
+    if (err instanceof AIRateLimitError) {
+      res.status(429).json({ error: err.message });
+      return;
+    }
     req.log.error(err, "Translate error");
     res.status(500).json({ error: "Translation failed" });
   }

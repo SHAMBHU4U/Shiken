@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { genai } from "../lib/gemini";
+import { generateCachedText, AIRateLimitError } from "../lib/ai-guard";
 
 const router = Router();
 
@@ -50,19 +50,17 @@ JSON format (return ONLY this):
 ]`;
 
   try {
-    const response = await genai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{
-        role: "user",
-        parts: [
-          { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
-          { text: prompt },
-        ],
-      }],
-      config: { maxOutputTokens: 8192, responseMimeType: "application/json" },
-    });
-
-    const raw = response.text ?? "[]";
+    const { text: raw } = await generateCachedText(
+      req,
+      prompt,
+      "parse-pdf",
+      { pdfBase64, subject, chapter },
+      { responseMimeType: "application/json" },
+      [
+        { inlineData: { mimeType: "application/pdf", data: pdfBase64 } },
+        { text: prompt },
+      ],
+    );
     let questions: unknown[];
     try {
       questions = JSON.parse(raw);
@@ -88,6 +86,10 @@ JSON format (return ONLY this):
 
     res.json({ questions: filtered });
   } catch (err) {
+    if (err instanceof AIRateLimitError) {
+      res.status(429).json({ error: err.message });
+      return;
+    }
     req.log.error(err, "PDF parse error");
     res.status(500).json({ error: "PDF parsing failed" });
   }

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { ref, get, set, remove, update, push, onValue } from "firebase/database";
-import type { GeneratedQuestion } from "@/lib/gemini";
+import { aiHeaders, type GeneratedQuestion } from "@/lib/gemini";
 import { db } from "@/firebase";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
@@ -2031,7 +2031,7 @@ function PDFImportPanel() {
       setStep("parsing");
       const pdfResp = await fetch("/api/parse-pdf", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: aiHeaders(),
         body: JSON.stringify({ pdfBase64: base64, subject: activeSub.label, chapter: chapter.trim() }),
       });
       if (!pdfResp.ok) throw new Error("PDF parsing failed on server.");

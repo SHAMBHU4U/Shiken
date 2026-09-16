@@ -29,7 +29,7 @@ export const genai = new Proxy({} as GoogleGenAI, {
   },
 });
 
-const MODEL = "gemini-2.5-flash";
+export const MODEL = "gemini-2.5-flash";
 
 export function sseHeaders(res: import("express").Response) {
   res.setHeader("Content-Type", "text/event-stream");
@@ -49,7 +49,7 @@ export async function streamGemini(
     const stream = await genai.models.generateContentStream({
       model: MODEL,
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { maxOutputTokens: 8192 },
+      config: { maxOutputTokens: 1000, thinkingConfig: { thinkingBudget: 0 } },
     });
     for await (const chunk of stream) {
       if (chunk.text) res.write(`data: ${JSON.stringify({ content: chunk.text })}\n\n`);

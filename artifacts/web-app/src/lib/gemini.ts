@@ -1,3 +1,5 @@
+import { auth } from "@/firebase";
+
 export interface GeneratedQuestion {
   english:      string;
   hindi:        string;
@@ -20,7 +22,7 @@ export interface FullTranslation {
 async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`/api/${path}`, {
     method:  "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: aiHeaders(),
     body:    JSON.stringify(body),
   });
   if (!res.ok) {
@@ -28,6 +30,12 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
     throw new Error((err as { error?: string }).error ?? res.statusText);
   }
   return res.json() as Promise<T>;
+}
+
+export function aiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (auth.currentUser?.uid) headers["X-User-Id"] = auth.currentUser.uid;
+  return headers;
 }
 
 export async function generateQuestions(
@@ -92,7 +100,7 @@ export async function explainWithShikenEngine(
 ): Promise<string> {
   const res = await fetch("/api/explain", {
     method:  "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: aiHeaders(),
     body:    JSON.stringify(params),
   });
 

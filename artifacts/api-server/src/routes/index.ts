@@ -13,6 +13,7 @@ import generateMockRouter from "./generate-mock";
 import referralRouter from "./referral";
 import withdrawalRouter from "./withdrawal";
 import leaderboardRouter from "./leaderboard";
+import eli16Router from "./eli16";
 
 const router: IRouter = Router();
 
@@ -29,5 +30,6 @@ router.use(generateMockRouter);
 router.use(referralRouter);
 router.use(withdrawalRouter);
 router.use(leaderboardRouter);
+router.use(eli16Router);
 
 export default router;

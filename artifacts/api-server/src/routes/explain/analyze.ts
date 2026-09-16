@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { streamGemini } from "../../lib/gemini";
+import { streamCachedText } from "../../lib/ai-guard";
 
 const router = Router();
 
@@ -72,7 +72,15 @@ Student को Hindi में personal feedback दो। Rules:
 - Tone: strict but caring mentor — जो student की सफलता चाहता हो
 - Total: 8-10 lines। हर line meaningful और impactful हो।`;
 
-  await streamGemini(res, prompt, "Analysis में दिक्कत आई, फिर से try करो।", req.log);
+  await streamCachedText(
+    req,
+    res,
+    prompt,
+    "analyze-test",
+    { subject, score, total, mode, chapter, wrong, classId },
+    "Analysis में दिक्कत आई, फिर से try करो।",
+    req.log,
+  );
 });
 
 export default router;

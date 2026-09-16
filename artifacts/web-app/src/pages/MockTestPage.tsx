@@ -5,6 +5,7 @@ import { db, auth } from "@/firebase";
 import { ref, get, set, push } from "firebase/database";
 import MathText from "@/components/MathText";
 import { useSubscription } from "@/hooks/useSubscription";
+import { aiHeaders } from "@/lib/gemini";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ async function generateFromAPI(
 ): Promise<MockQuestion[]> {
   const res = await fetch("/api/generate-mock-questions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: aiHeaders(),
     body: JSON.stringify({ examType, subject, section, count }),
   });
   if (!res.ok) throw new Error(`API error ${res.status}`);

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { Router } from "express";
-import { genai } from "../lib/gemini";
+import { generateCachedText, AIRateLimitError } from "../lib/ai-guard";
 
 const router = Router();
 
@@ -247,17 +247,15 @@ Return ONLY a valid JSON array. No markdown. No code fences.
 ]`;
     }
 
-    const response = await genai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        maxOutputTokens: 16384,
-        temperature: 0.6,
-        responseMimeType: "application/json",
-      },
-    });
+    const { text: generatedText } = await generateCachedText(
+      req,
+      prompt,
+      "generate-mock-questions",
+      { examType, subject, section, count },
+      { temperature: 0.6, responseMimeType: "application/json" },
+    );
 
-    const rawText = (response.text ?? "").trim();
+    const rawText = generatedText.trim();
     let raw = rawText;
     raw = raw.replace(/^```json\s*/, "").replace(/\s*```$/, "").trim();
 
@@ -318,6 +316,9 @@ Return ONLY a valid JSON array. No markdown. No code fences.
 
     res.json(cleaned);
   } catch (err: unknown) {
+    if (err instanceof AIRateLimitError) {
+      return res.status(429).json({ error: err.message });
+    }
     console.error("generate-mock error:", err);
     res.status(500).json({ error: "Question generation failed", detail: String(err) });
   }
