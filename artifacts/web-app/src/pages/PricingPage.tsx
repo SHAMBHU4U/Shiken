@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { get, ref } from "firebase/database";
 import { useAuth } from "../contexts/AuthContext";
 import { notifySubscriptionUpdated, useSubscription } from "../hooks/useSubscription";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
+import { BPSC_DEFAULT_PLAN, BPSC_PLAN_ID } from "@/lib/bpsc";
 
 const API_BASE = import.meta.env.BASE_URL;
 const RAZORPAY_KEY = "rzp_live_SqePWVSFlT9MSp";
@@ -293,6 +295,7 @@ const PLANS = [
       "6 Months Full Premium Access",
     ],
   },
+  BPSC_DEFAULT_PLAN,
 ];
 
 // Clean filtered subject structures to avoid contamination
@@ -315,7 +318,7 @@ const SUBJECTS_BOARD_12TH = [
   { id: "Social Science",    label: "Social Science / सामाजिक विज्ञान" },
 ];
 
-type Plan = (typeof PLANS)[0];
+type Plan = (typeof PLANS)[number];
 const ADMIN_WA = "918340472013";
 
 function buildAdminWaLink(uid: string, plan: Plan, paymentId: string, subject?: string) {
@@ -713,25 +716,43 @@ function goalToCategory(goal: string | null): "jee" | "neet" | "class10" | "clas
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  jee: "JEE", neet: "NEET", class10: "Class 10th", class12: "Class 12th",
+  jee: "JEE", neet: "NEET", class10: "Class 10th", class12: "Class 12th", competitive: "BPSC Prelims CCE",
 };
 
 export default function PricingPage() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const { isPremium, premiumSubjects } = useSubscription();
   const { goal } = useAuth();
+  const [plans, setPlans] = useState(PLANS);
   const [payPlan, setPayPlan] = useState<Plan | null>(null);
   const [subjectForPlan, setSubjectForPlan] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState<{ plan: Plan; uid: string; paymentId: string; subject?: string } | null>(null);
 
   // If user has a goal set, auto-lock to that category; otherwise let them pick
   const goalCategory = goalToCategory(goal);
-  const [activeTab, setActiveTab] = useState<"jee" | "neet" | "class10" | "class12">(
-    goalCategory ?? "jee"
+  const [activeTab, setActiveTab] = useState<"jee" | "neet" | "class10" | "class12" | "competitive">(
+    new URLSearchParams(location.split("?")[1] ?? "").get("category") === "competitive"
+      ? "competitive"
+      : goalCategory ?? "jee"
   );
   const [showStreamPicker, setShowStreamPicker] = useState(false);
 
-  const filteredPlans = PLANS.filter(plan => plan.category === activeTab);
+  useEffect(() => {
+    let cancelled = false;
+    get(ref(db, `competitiveExams/planConfig/${BPSC_PLAN_ID}`)).then((snapshot) => {
+      if (cancelled || !snapshot.exists()) return;
+      const config = snapshot.val() as { amount?: unknown; days?: unknown };
+      const amount = Number(config.amount);
+      const days = Number(config.days);
+      if (!Number.isInteger(amount) || amount < 1 || !Number.isInteger(days) || days < 1) return;
+      setPlans((current) => current.map((plan) => plan.id === BPSC_PLAN_ID
+        ? { ...plan, amount, days, price: `₹${amount}`, period: `${days} days`, perMonth: `₹${amount}/month` }
+        : plan));
+    }).catch(() => { /* server fallback remains visible */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const filteredPlans = plans.filter(plan => plan.category === activeTab);
 
   async function handlePayClick(plan: Plan) {
     if (plan.singleSubject && !subjectForPlan[plan.id]) return;
@@ -832,8 +853,8 @@ export default function PricingPage() {
                 </button>
               </div>
             )}
-             <div className="grid grid-cols-4 gap-1 p-1 bg-slate-200 border border-slate-300 rounded-xl">
-              {(["jee", "neet", "class10", "class12"] as const).map((tab) => (
+             <div className="grid grid-cols-5 gap-1 p-1 bg-slate-200 border border-slate-300 rounded-xl">
+              {(["jee", "neet", "class10", "class12", "competitive"] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => { setActiveTab(tab); setShowStreamPicker(false); }}
@@ -843,7 +864,7 @@ export default function PricingPage() {
                        : "text-slate-600 hover:text-slate-950"
                   }`}
                 >
-                  {tab === "class10" ? "10th" : tab === "class12" ? "12th" : tab}
+                  {tab === "class10" ? "10th" : tab === "class12" ? "12th" : tab === "competitive" ? "BPSC" : tab}
                 </button>
               ))}
             </div>

@@ -52,7 +52,7 @@ export interface OnboardingPageProps {
 }
 
 type Step = 0 | 1 | 2 | 3;
-type ExamId = "neet" | "jee-main" | "class-10" | "class-12" | "cuet" | "ssc" | "railway" | "banking" | "defence" | "state-govt" | "iit" | "nta" | "crpf";
+type ExamId = "neet" | "jee-main" | "class-10" | "class-12" | "cuet" | "ssc" | "railway" | "banking" | "defence" | "state-govt" | "iit" | "nta" | "crpf" | "bpsc-cce";
 
 const STEPS = [
   { label: "Profile", caption: "A little about you", icon: UserRound },
@@ -206,6 +206,14 @@ const EXAMS: Array<{
     description: "Organise preparation for CRPF recruitment tests.",
     subjects: ["GK", "Reasoning"],
     tint: "gold",
+  },
+  {
+    id: "bpsc-cce",
+    shortLabel: "BPSC",
+    title: "BPSC Prelims CCE",
+    description: "Prepare with bilingual Bihar-focused PYQs, mocks and current affairs.",
+    subjects: ["Bihar GK", "GS", "Aptitude"],
+    tint: "teal",
   },
 ];
 
