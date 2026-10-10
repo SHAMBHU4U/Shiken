@@ -294,8 +294,8 @@ export default function OnboardingPage({
     setErrors(next);
     return Object.keys(next).length === 0;
   };
-
-  const handleNext = async (event: FormEvent<HTMLFormElement>) => {
+  
+    const handleNext = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setActionError("");
 
@@ -314,22 +314,8 @@ export default function OnboardingPage({
       }
       return;
     }
-
- //   if (step === 2) {
-      if (emailVerified) {
-        setStep(3);
-        return;
-      }
-      try {
-        const verified = await onVerify();
-        setVerificationChecked(true);
-        if (verified) setStep(3);
-      } catch {
-        setActionError("We could not check your verification yet. Please try again.");
-      }
-    }
   };
-
+  
   const handleResend = async () => {
     setActionError("");
     setResending(true);
