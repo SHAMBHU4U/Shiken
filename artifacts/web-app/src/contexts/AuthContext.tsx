@@ -405,12 +405,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       createdAt: serverTimestamp(),
       role: "student",
       selectedExams: [],
-      onboardingStep: "verification",
+      onboardingStep: "exam",
       onboardingComplete: false,
-      emailVerified: false,
+      emailVerified: true,
     });
 
-    await sendEmailVerification(newUser);
+    //await sendEmailVerification(newUser);
   };
 
   const verifyEmail = async () => {
