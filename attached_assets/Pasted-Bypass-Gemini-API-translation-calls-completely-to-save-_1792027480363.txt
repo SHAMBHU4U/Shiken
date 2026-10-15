@@ -1,0 +1,27 @@
+Bypass Gemini API translation calls completely to save API costs and update the Admin Panel & Bulk Upload feature to support dual-language (English & Hindi) JSON file uploads along with correct answer mapping.
+​1. Question Schema Update:
+Update the Question model to support nested language objects and correct answer index:
+​correctOptionIndex: Number (0 for A, 1 for B, 2 for C, 3 for D)
+​en: { question: String, options: Array, explanation: String }
+​hi: { question: String, options: Array, explanation: String }
+​2. Admin Panel JSON Upload Parser Update:
+​Update the JSON file bulk parser in the Admin Panel to accept array of objects with en, hi, and correctOptionIndex structure.
+​Also support legacy/flat JSON uploads (e.g., objects with question_en, question_hi, options_en, options_hi, correctOption) and convert them into the nested en / hi schema before saving to Firebase Realtime Database.
+​Add a 'Download Sample JSON File' button in the Admin Panel showing the exact expected bilingual JSON format.
+​If Hindi (hi) content is missing in any JSON object, populate hi with fallback empty strings/default values so the app never crashes.
+​3. Instant UI Toggle & Result View:
+​Update the Language Toggle button in the test view so switching language toggles local state (lang === 'en' ? 'hi' : 'en') and instantly renders question[lang] directly from the database with zero Gemini API calls.
+​In the Result/Explanation tab after test submission, compare userAnswers[index] with correctOptionIndex and render the correct answer and explanation in the selected language (lang)."
+​🚀 Step 3: Migration Script for Legacy Database Questions
+​Prompt for Replit:
+"Write and execute a safe, one-time database migration script for all existing legacy questions in Firebase/Database to align with the new bilingual schema without losing data:
+​Fetch all existing questions from the database.
+​Move existing question, options, and explanation data into the en object.
+​Check if any existing Hindi fields exist (e.g., question_hi or pipe-separated strings English | Hindi); if found, populate the hi object automatically. Otherwise, create a default hi: { question: '', options: [], explanation: '' } fallback object.
+​Ensure correctOptionIndex, questionId, subject, chapter, and all other root properties remain completely intact.
+​Output a console log summary showing the total processed questions."
+​🚀 Step 4: High Contrast & Glare Reduction UI Fix
+​Prompt for Replit:
+"Resolve the visibility and bright glare issues in the Admin Panel and Explanation Tab without breaking existing layout styles:
+​Replace pure white backgrounds (#FFFFFF / bg-white) in the Explanation Tab and Admin Panel with soft, dimmed tones (e.g., bg-slate-100 / bg-gray-100 for light mode, bg-slate-800 for dark mode).
+​Ensure all text, KaTeX mathematical formulas, and Markdown content in these two sections use high-contrast dark text (text-slate-900 in light mode, text-slate-100 in dark mode) for crisp, clear readability."- isme ye bhi sudhar krne ke add karo ki agar koi duplicate question hai to ek ko rakhe aur dusare ko delete kr de. Agar kisi question me kuchh galat hai use sudhar de ya use delete kr de
