@@ -62,7 +62,10 @@ function getRazorpayClient(): Razorpay {
 }
 
 /** Map planId to days, strictly separated category, and base amount */
-function planMeta(planId: string): { days: number; category: "jee" | "neet" | "class10" | "class12" | "other"; amount: number } {
+type PlanCategory = "jee" | "neet" | "class10" | "class12" | "competitive" | "other";
+type PlanMeta = { days: number; category: PlanCategory; amount: number };
+
+function planMeta(planId: string): PlanMeta {
   switch (planId) {
     // ─── JEE PLANS ───────────────────────────────────────
     case "jee_7d":        return { days: 7,   category: "jee",     amount: 51  };
@@ -84,9 +87,31 @@ function planMeta(planId: string): { days: number; category: "jee" | "neet" | "c
     case "c12_6m_single": return { days: 180, category: "class12", amount: 99  };
     case "c12_6m_full":   return { days: 180, category: "class12", amount: 199 };
 
+    // ─── COMPETITIVE EXAMS ───────────────────────────────
+    // These are safe fallbacks. Admin-configured values are loaded by
+    // getServerPlanMeta before an order is created or verified.
+    case "competitive_bpsc_cce_1m": return { days: 30, category: "competitive", amount: 199 };
+
     // ─── DEFAULT ─────────────────────────────────────────
     default:              return { days: 30,  category: "other",   amount: 0   };
   }
+}
+
+async function getServerPlanMeta(planId: string): Promise<PlanMeta> {
+  const fallback = planMeta(planId);
+  if (planId !== "competitive_bpsc_cce_1m") return fallback;
+  try {
+    const snapshot = await adminDb.ref(`competitiveExams/planConfig/${planId}`).get();
+    const configured = snapshot.val() as { amount?: unknown; days?: unknown } | null;
+    const amount = Number(configured?.amount);
+    const days = Number(configured?.days);
+    if (Number.isInteger(amount) && amount >= 1 && amount <= 100000 && Number.isInteger(days) && days >= 1 && days <= 3650) {
+      return { ...fallback, amount, days };
+    }
+  } catch (err) {
+    logger.warn({ err, planId }, "Could not load competitive plan config; using fallback");
+  }
+  return fallback;
 }
 
 const QUALIFYING_PLAN_AMOUNTS = new Set([199, 399]);
@@ -94,7 +119,7 @@ const QUALIFYING_PLAN_AMOUNTS = new Set([199, 399]);
 async function creditReferrer(
   referredBy: string,
   planId: string,
-  category: "jee" | "neet" | "class10" | "class12" | "other",
+  category: PlanCategory,
 ): Promise<void> {
   if (!referredBy) return;
 
@@ -133,7 +158,7 @@ router.post("/razorpay/create-order", async (req, res) => {
 
     // Keep the price server-owned. The browser's amount is only used as a
     // required-shape check; it must not be able to change the plan price.
-    const serverPlan = planMeta(String(planId));
+    const serverPlan = await getServerPlanMeta(String(planId));
     if (serverPlan.amount <= 0) {
       return res.status(400).json({ ok: false, error: "Invalid plan" });
     }
@@ -355,7 +380,7 @@ router.post("/razorpay/verify-payment", async (req, res) => {
       } catch { /* ignore */ }
     }
 
-    const { days: planDays, category, amount: planAmount } = planMeta(String(planId));
+    const { days: planDays, category, amount: planAmount } = await getServerPlanMeta(String(planId));
     if (planAmount <= 0) {
       return res.status(400).json({ ok: false, error: "Invalid plan" });
     }

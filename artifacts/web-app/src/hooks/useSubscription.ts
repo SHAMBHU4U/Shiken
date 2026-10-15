@@ -154,9 +154,15 @@ export function useSubscription() {
     return premiumSubjects.includes(subjectId);
   }
 
+  function isCompetitiveExamPremium(examSlug: string): boolean {
+    if (!isActive || !plan) return false;
+    const normalizedSlug = examSlug.replace(/-/g, "_");
+    return plan.startsWith(`competitive_${normalizedSlug}_`) || plan.startsWith(`competitive_${examSlug}_`);
+  }
+
   return {
     subscription, isPremium, isTopper, isActive, daysLeft,
-    plan, premiumSubjects, isSubjectPremium, subLoading,
+    plan, premiumSubjects, isSubjectPremium, isCompetitiveExamPremium, subLoading,
     expiryDate: effectiveExpiryDate, walletBalance, referralCode, referralCount, referredBy,
   };
 }

@@ -10,6 +10,8 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useSubscription } from "@/hooks/useSubscription";
 import SubjectPage from "@/pages/SubjectPage";
 import AdminPage from "@/pages/AdminPage";
+import BPSCAdminPage from "@/pages/BPSCAdminPage";
+import BPSCPage from "@/pages/BPSCPage";
 import ProgressPage from "@/pages/ProgressPage";
 import ProfilePage from "@/pages/ProfilePage";
 import CounsellingPage from "@/pages/CounsellingPage";
@@ -451,7 +453,10 @@ function AdminGuard() {
     );
   }
 
-  if (user && adminSession) return <AdminPage onSignOut={() => { sessionStorage.removeItem(ADMIN_SESSION); setAdminSession(false); signOut(auth); }} />;
+  if (user && adminSession) {
+    if (window.location.pathname === "/admin/bpsc") return <BPSCAdminPage />;
+    return <AdminPage onSignOut={() => { sessionStorage.removeItem(ADMIN_SESSION); setAdminSession(false); signOut(auth); }} />;
+  }
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
@@ -1265,6 +1270,7 @@ const DASHBOARD_EXAMS = [
   { id: "iit", label: "IIT entrance", shortLabel: "IIT" },
   { id: "nta", label: "NTA exams", shortLabel: "NTA" },
   { id: "crpf", label: "CRPF exams", shortLabel: "CRPF" },
+  { id: "bpsc-cce", label: "BPSC Prelims CCE", shortLabel: "BPSC" },
 ];
 
 const DASHBOARD_EXAM_LABELS = Object.fromEntries(
@@ -1428,6 +1434,11 @@ function EmptyExamDashboard() {
           <button type="button" onClick={() => setSheetOpen(true)} data-testid="button-add-exams" className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-black text-white hover:bg-blue-700">
             {selectedLabels.length ? "Manage exams" : "Add Exams"}
           </button>
+          {selectedExams.includes("bpsc-cce") && (
+            <button type="button" onClick={() => navigate("/bpsc/bpsc-cce")} className="mt-3 flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800">
+              Open BPSC CCE workspace →
+            </button>
+          )}
         </section>
       </div>
       <AnimatePresence>
@@ -1545,6 +1556,12 @@ function Dashboard() {
 
          {(dashboardGoal === "jee" || dashboardGoal === "neet") && (
            <FullMockCard goal={dashboardGoal} />
+        )}
+        {selectedExams.includes("bpsc-cce") && (
+          <motion.button type="button" onClick={() => navigate("/bpsc/bpsc-cce")} className="mb-5 w-full rounded-2xl border border-emerald-200 bg-white p-5 text-left shadow-sm hover:shadow-md">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Competitive exam</p>
+            <div className="mt-1 flex items-center justify-between gap-3"><div><h2 className="text-lg font-black text-slate-900">BPSC Prelims CCE</h2><p className="mt-1 text-xs text-slate-500">Bilingual PYQs, mocks, current affairs and notes.</p></div><span className="rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700">Open →</span></div>
+          </motion.button>
         )}
 
         <div id="subject-cards" className="flex flex-col gap-5">
@@ -1711,6 +1728,7 @@ function AppRoutes() {
              <Route path="/onboarding" component={OnboardingRoute} />
             <Route path="/" component={Dashboard} />
             <Route path="/admin" component={AdminGuard} />
+            <Route path="/admin/bpsc" component={AdminGuard} />
             <Route path="/progress" component={ProgressPage} />
             <Route path="/profile" component={ProfilePage} />
             <Route path="/counselling" component={CounsellingPage} />
@@ -1723,6 +1741,7 @@ function AppRoutes() {
             <Route path="/terms" component={TermsPage} />
             <Route path="/admin-shiken-portal" component={QuestionAdminPage} />
             <Route path="/mock-test/:examType" component={MockTestPage} />
+            <Route path="/bpsc/:examSlug" component={BPSCPage} />
             <Route path="/jee/:subject" component={SubjectPage} />
             <Route path="/neet/:subject" component={SubjectPage} />
             <Route path="/c10/:subject" component={SubjectPage} />

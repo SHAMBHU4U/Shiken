@@ -8,3 +8,4 @@
 - [Bottom navigation color roles](bottom-navigation-color-roles.md) — keep Home, Ranks, Profile, Premium, Counselling, and Contact visibly distinct in the shared nav.
 - [Firebase onboarding profile writes](firebase-onboarding-profile-writes.md) — merge root profile writes because auth callbacks and registration can overlap.
 - [Question schema and legacy imports](question-schema.md) — use question IDs and nested en/hi content; normalize legacy records and leave missing Hindi fields empty.
+- [BPSC module boundaries](bpsc-module-boundaries.md) — keep bilingual BPSC content and server-owned competitive pricing isolated from existing exam modules.

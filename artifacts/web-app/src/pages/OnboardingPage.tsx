@@ -52,7 +52,7 @@ export interface OnboardingPageProps {
 }
 
 type Step = 0 | 1 | 2 | 3;
-type ExamId = "neet" | "jee-main" | "class-10" | "class-12" | "cuet" | "ssc" | "railway" | "banking" | "defence" | "state-govt" | "iit" | "nta" | "crpf";
+type ExamId = "neet" | "jee-main" | "class-10" | "class-12" | "cuet" | "ssc" | "railway" | "banking" | "defence" | "state-govt" | "iit" | "nta" | "crpf" | "bpsc-cce";
 
 const STEPS = [
   { label: "Profile", caption: "A little about you", icon: UserRound },
@@ -134,15 +134,7 @@ const EXAMS: Array<{
     description: "Plan revision around the subjects that matter most.",
     subjects: ["Boards", "Revision"],
     tint: "teal",
-  },
-  {
-    id: "cuet",
-    shortLabel: "CUET",
-    title: "University entrance",
-    description: "Prepare for the General Test and your chosen domains.",
-    subjects: ["Domains", "General Test"],
-    tint: "violet",
-  },
+  }, 
   {
     id: "ssc",
     shortLabel: "SSC",
@@ -160,52 +152,12 @@ const EXAMS: Array<{
     tint: "gold",
   },
   {
-    id: "banking",
-    shortLabel: "BANK",
-    title: "Banking exams",
-    description: "Keep Quant, Reasoning and English practice on track.",
-    subjects: ["Quant", "Reasoning"],
+    id: "bpsc-cce",
+    shortLabel: "BPSC",
+    title: "BPSC Prelims CCE",
+    description: "Prepare with bilingual Bihar-focused PYQs, mocks and current affairs.",
+    subjects: ["Bihar GK", "GS", "Aptitude"],
     tint: "teal",
-  },
-  {
-    id: "defence",
-    shortLabel: "DEF",
-    title: "Defence exams",
-    description: "Prepare for defence entrance and recruitment tests.",
-    subjects: ["GK", "Reasoning"],
-    tint: "coral",
-  },
-  {
-    id: "state-govt",
-    shortLabel: "STATE",
-    title: "State Government",
-    description: "Choose a focused path for state-level competitive exams.",
-    subjects: ["State GK", "Aptitude"],
-    tint: "violet",
-  },
-  {
-    id: "iit",
-    shortLabel: "IIT",
-    title: "IIT entrance",
-    description: "Prepare for IIT-focused engineering entrance targets.",
-    subjects: ["PCM", "Advanced"],
-    tint: "blue",
-  },
-  {
-    id: "nta",
-    shortLabel: "NTA",
-    title: "NTA exams",
-    description: "Build a flexible practice plan for NTA entrance exams.",
-    subjects: ["MCQ practice", "Revision"],
-    tint: "teal",
-  },
-  {
-    id: "crpf",
-    shortLabel: "CRPF",
-    title: "CRPF exams",
-    description: "Organise preparation for CRPF recruitment tests.",
-    subjects: ["GK", "Reasoning"],
-    tint: "gold",
   },
 ];
 
@@ -342,8 +294,8 @@ export default function OnboardingPage({
     setErrors(next);
     return Object.keys(next).length === 0;
   };
-
-  const handleNext = async (event: FormEvent<HTMLFormElement>) => {
+  
+    const handleNext = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setActionError("");
 
@@ -356,28 +308,14 @@ export default function OnboardingPage({
       if (!validatePassword()) return;
       try {
         await onRegister(form);
-        setStep(2);
+        setStep(3);
       } catch {
         setActionError("We could not create your account. Please check your details and try again.");
       }
       return;
     }
-
-    if (step === 2) {
-      if (emailVerified) {
-        setStep(3);
-        return;
-      }
-      try {
-        const verified = await onVerify();
-        setVerificationChecked(true);
-        if (verified) setStep(3);
-      } catch {
-        setActionError("We could not check your verification yet. Please try again.");
-      }
-    }
   };
-
+  
   const handleResend = async () => {
     setActionError("");
     setResending(true);

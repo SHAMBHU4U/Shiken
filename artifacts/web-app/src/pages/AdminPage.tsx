@@ -4248,6 +4248,10 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
             </svg>
             Back to Dashboard
           </button>
+          <button type="button" onClick={() => navigate("/admin/bpsc")}
+            className="mb-5 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-xs font-black text-emerald-300 hover:bg-emerald-400/15">
+            🏛️ Open BPSC CCE Admin
+          </button>
 
           <div className="flex items-start justify-between gap-4">
             <div>
