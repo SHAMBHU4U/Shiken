@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createQuestionId } from "@/lib/questionSchema";
 
 const DB_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 const ADMIN_PASSWORD = "#Shiken@468%";
@@ -30,7 +31,8 @@ interface FormState {
   optionsEn: Record<string, string>;
   optionsHi: Record<string, string>;
   correctAnswer: string;
-  explanation: string;
+  explanationEn: string;
+  explanationHi: string;
 }
 
 const defaultForm = (): FormState => ({
@@ -41,81 +43,33 @@ const defaultForm = (): FormState => ({
   optionsEn: { A: "", B: "", C: "", D: "" },
   optionsHi: { A: "", B: "", C: "", D: "" },
   correctAnswer: "A",
-  explanation: "",
+  explanationEn: "",
+  explanationHi: "",
 });
 
 function buildPayload(form: FormState) {
-  const subj = SUBJECTS.find((s) => s.id === form.subject)!;
-  const schema = subj.schema;
-
-  if (schema === "maths" || schema === "science") {
-    return {
-      question_english: form.questionEn.trim(),
-      question_hindi: form.questionHi.trim() || form.questionEn.trim(),
-      chapter_name: form.chapter.trim() || "General",
-      options: {
-        A: form.optionsEn.A.trim(),
-        B: form.optionsEn.B.trim(),
-        C: form.optionsEn.C.trim(),
-        D: form.optionsEn.D.trim(),
-      },
-      options_hindi: form.optionsHi.A
-        ? { A: form.optionsHi.A.trim(), B: form.optionsHi.B.trim(), C: form.optionsHi.C.trim(), D: form.optionsHi.D.trim() }
-        : undefined,
-      correct_answer: form.correctAnswer,
-      explanation: form.explanation.trim() || undefined,
-      source: "admin-portal",
-      addedAt: Date.now(),
-    };
-  }
-
-  if (schema === "english") {
-    const idx = OPTIONS.indexOf(form.correctAnswer as typeof OPTIONS[number]);
-    return {
-      question: form.questionEn.trim(),
-      question_hi: form.questionHi.trim() || undefined,
-      options: [form.optionsEn.A.trim(), form.optionsEn.B.trim(), form.optionsEn.C.trim(), form.optionsEn.D.trim()],
-      options_hi: form.optionsHi.A
-        ? [form.optionsHi.A.trim(), form.optionsHi.B.trim(), form.optionsHi.C.trim(), form.optionsHi.D.trim()]
-        : undefined,
-      answer: idx,
-      chapter: form.chapter.trim() || "General",
-      explanation: form.explanation.trim() || undefined,
-      source: "admin-portal",
-      addedAt: Date.now(),
-    };
-  }
-
-  if (schema === "hindi") {
-    const letter = form.correctAnswer;
-    const correctText = `(${letter}) ${form.optionsEn[letter].trim()}`;
-    return {
-      question: form.questionHi.trim() || form.questionEn.trim(),
-      options: [
-        `(A) ${form.optionsEn.A.trim()}`,
-        `(B) ${form.optionsEn.B.trim()}`,
-        `(C) ${form.optionsEn.C.trim()}`,
-        `(D) ${form.optionsEn.D.trim()}`,
-      ],
-      answer: correctText,
-      chapter: form.chapter.trim() || "General",
-      explanation: form.explanation.trim() || undefined,
-      source: "admin-portal",
-      addedAt: Date.now(),
-    };
-  }
-
-  // social / sanskrit — bilingual question with /
+  const subject = SUBJECTS.find((s) => s.id === form.subject)!;
   const idx = OPTIONS.indexOf(form.correctAnswer as typeof OPTIONS[number]);
-  const qBilingual = form.questionHi.trim()
-    ? `${form.questionEn.trim()} / ${form.questionHi.trim()}`
-    : form.questionEn.trim();
+  const optionsEn = OPTIONS.map((letter) => form.optionsEn[letter].trim());
+  const optionsHi = OPTIONS.map((letter) => form.optionsHi[letter].trim());
+  const chapter = form.chapter.trim() || "General";
+  const question = form.questionEn.trim();
+
   return {
-    question: qBilingual,
-    options: [form.optionsEn.A.trim(), form.optionsEn.B.trim(), form.optionsEn.C.trim(), form.optionsEn.D.trim()],
-    answer: idx,
-    chapter: form.chapter.trim() || "General",
-    explanation: form.explanation.trim() || undefined,
+    questionId: createQuestionId(subject.id, chapter),
+    subject: subject.label,
+    chapter,
+    correctOptionIndex: idx,
+    en: {
+      question,
+      options: optionsEn,
+      explanation: form.explanationEn.trim(),
+    },
+    hi: {
+      question: form.questionHi.trim(),
+      options: optionsHi,
+      explanation: form.explanationHi.trim(),
+    },
     source: "admin-portal",
     addedAt: Date.now(),
   };
@@ -140,7 +94,7 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--app-bg)" }}>
+    <div className="question-admin-shell min-h-screen flex items-center justify-center px-4" style={{ background: "var(--app-bg)" }}>
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -197,7 +151,7 @@ function QuestionForm() {
   const [form, setForm] = useState<FormState>(defaultForm());
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [showHindi, setShowHindi] = useState(false);
+  const [activeLanguage, setActiveLanguage] = useState<"en" | "hi">("en");
 
   const currentSubject = SUBJECTS.find((s) => s.id === form.subject)!;
 
@@ -270,7 +224,7 @@ function QuestionForm() {
   };
 
   return (
-    <div className="min-h-screen pb-16 px-4 pt-8" style={{ background: "var(--app-bg)" }}>
+    <div className="question-admin-shell min-h-screen pb-16 px-4 pt-8" style={{ background: "var(--app-bg)" }}>
       <div className="max-w-xl mx-auto">
 
         {/* Header */}
@@ -316,45 +270,57 @@ function QuestionForm() {
             </div>
           </div>
 
-          {/* Question */}
+          {/* Bilingual question and explanation */}
           <div className="rounded-2xl p-4 flex flex-col gap-4"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
+            <div className="flex gap-2 rounded-xl p-1" style={{ background: "rgba(148,163,184,0.16)" }}>
+              {(["en", "hi"] as const).map((language) => (
+                <button
+                  key={language}
+                  type="button"
+                  onClick={() => setActiveLanguage(language)}
+                  className="flex-1 rounded-lg px-3 py-2 text-xs font-black transition-all"
+                  style={{
+                    background: activeLanguage === language ? "#ffffff" : "transparent",
+                    color: activeLanguage === language ? "#17263d" : "#52647b",
+                    boxShadow: activeLanguage === language ? "0 2px 8px rgba(51,65,85,0.12)" : "none",
+                  }}
+                >
+                  {language === "en" ? "English" : "हिंदी"}
+                </button>
+              ))}
+            </div>
             <div>
-              <label style={labelStyle}>Question Text (English) *</label>
+              <label style={labelStyle}>Question Text ({activeLanguage === "en" ? "English" : "Hindi"}) {activeLanguage === "en" ? "*" : ""}</label>
               <textarea
-                value={form.questionEn}
-                onChange={(e) => setField("questionEn", e.target.value)}
-                placeholder="Enter the question in English…"
+                value={activeLanguage === "en" ? form.questionEn : form.questionHi}
+                onChange={(e) => setField(activeLanguage === "en" ? "questionEn" : "questionHi", e.target.value)}
+                placeholder={activeLanguage === "en" ? "Enter the question in English…" : "प्रश्न हिंदी में लिखें…"}
                 rows={3}
-                required
+                required={activeLanguage === "en"}
                 style={{ ...inputStyle, resize: "vertical" }}
               />
             </div>
             <div>
-              <label style={labelStyle}>Question Text (Hindi) <span style={{ color: "rgba(255,255,255,0.20)", fontWeight: 400 }}>optional</span></label>
+              <label style={labelStyle}>Explanation ({activeLanguage === "en" ? "English" : "Hindi"}) <span style={{ color: "#718198", fontWeight: 400 }}>optional</span></label>
               <textarea
-                value={form.questionHi}
-                onChange={(e) => setField("questionHi", e.target.value)}
-                placeholder="प्रश्न हिंदी में लिखें (वैकल्पिक)…"
-                rows={2}
+                value={activeLanguage === "en" ? form.explanationEn : form.explanationHi}
+                onChange={(e) => setField(activeLanguage === "en" ? "explanationEn" : "explanationHi", e.target.value)}
+                placeholder={activeLanguage === "en" ? "Explain why this answer is correct…" : "यह उत्तर सही क्यों है, हिंदी में लिखें…"}
+                rows={3}
                 style={{ ...inputStyle, resize: "vertical" }}
               />
             </div>
           </div>
 
-          {/* Options */}
+          {/* Bilingual options */}
           <div className="rounded-2xl p-4 flex flex-col gap-3"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex items-center justify-between mb-1">
-              <span style={{ ...labelStyle, marginBottom: 0 }}>Options</span>
-              <button
-                type="button"
-                onClick={() => setShowHindi((v) => !v)}
-                className="text-xs font-semibold transition-colors"
-                style={{ color: showHindi ? "#a78bfa" : "rgba(255,255,255,0.22)" }}
-              >
-                {showHindi ? "✓ Hindi options on" : "+ Add Hindi options"}
-              </button>
+              <span style={{ ...labelStyle, marginBottom: 0 }}>Options ({activeLanguage === "en" ? "English" : "Hindi"})</span>
+              <span className="text-xs font-semibold" style={{ color: "#52647b" }}>
+                Switch tabs to complete both
+              </span>
             </div>
 
             {OPTIONS.map((letter) => (
@@ -362,32 +328,21 @@ function QuestionForm() {
                 <div className="flex items-center gap-2">
                   <span className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
                     style={{
-                      background: form.correctAnswer === letter ? `${currentSubject.accent}25` : "rgba(255,255,255,0.06)",
-                      color: form.correctAnswer === letter ? currentSubject.accent : "rgba(255,255,255,0.32)",
+                      background: form.correctAnswer === letter ? `${currentSubject.accent}25` : "#dbe4ee",
+                      color: form.correctAnswer === letter ? currentSubject.accent : "#52647b",
                       border: form.correctAnswer === letter ? `1px solid ${currentSubject.accent}50` : "1px solid rgba(0,0,0,0.08)",
                     }}>
                     {letter}
                   </span>
                   <input
                     type="text"
-                    value={form.optionsEn[letter]}
-                    onChange={(e) => setOptionEn(letter, e.target.value)}
-                    placeholder={`Option ${letter}…`}
+                    value={activeLanguage === "en" ? form.optionsEn[letter] : form.optionsHi[letter]}
+                    onChange={(e) => activeLanguage === "en" ? setOptionEn(letter, e.target.value) : setOptionHi(letter, e.target.value)}
+                    placeholder={activeLanguage === "en" ? `Option ${letter}…` : `विकल्प ${letter}…`}
                     required
                     style={{ ...inputStyle, flex: 1 }}
                   />
                 </div>
-                {showHindi && (
-                  <div className="flex items-center gap-2 pl-9">
-                    <input
-                      type="text"
-                      value={form.optionsHi[letter]}
-                      onChange={(e) => setOptionHi(letter, e.target.value)}
-                      placeholder={`Option ${letter} in Hindi…`}
-                      style={{ ...inputStyle, flex: 1, fontSize: "13px" }}
-                    />
-                  </div>
-                )}
               </div>
             ))}
           </div>
@@ -421,19 +376,6 @@ function QuestionForm() {
                 ✓ {form.optionsEn[form.correctAnswer]}
               </p>
             )}
-          </div>
-
-          {/* Explanation */}
-          <div className="rounded-2xl p-4"
-            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}>
-            <label style={labelStyle}>Explanation <span style={{ color: "rgba(255,255,255,0.20)", fontWeight: 400 }}>optional</span></label>
-            <textarea
-              value={form.explanation}
-              onChange={(e) => setField("explanation", e.target.value)}
-              placeholder="Explain why this answer is correct (shown after test)…"
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical" }}
-            />
           </div>
 
           {/* Submit */}

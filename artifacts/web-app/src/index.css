@@ -516,3 +516,111 @@ button, a {
 .quiz-option-secondary {
   color: #64748b !important;  /* slate-500 */
 }
+
+/* ── Focused readability pass: result explanations and admin tools ───────── */
+/*
+ * These scopes intentionally do not change the rest of the app. The result
+ * screen and admin tools use many translucent white utility classes from the
+ * original dark palette; on the current light canvas those surfaces flatten
+ * together and low-opacity copy becomes difficult to read.
+ */
+.result-screen,
+.admin-shell,
+.question-admin-shell {
+  --focused-canvas: #e7edf4;
+  --focused-surface: #f1f5f9;
+  --focused-surface-strong: #dbe4ee;
+  --focused-ink: #17263d;
+  --focused-muted: #52647b;
+  --focused-faint: #718198;
+  background: var(--focused-canvas) !important;
+  color: var(--focused-ink);
+}
+
+.result-screen [class~="text-white"],
+.admin-shell [class~="text-white"],
+.question-admin-shell [class~="text-white"] {
+  color: var(--focused-ink) !important;
+}
+
+.result-screen [class~="text-white\/85"],
+.result-screen [class~="text-white\/80"],
+.result-screen [class~="text-white\/70"],
+.admin-shell [class~="text-white\/80"],
+.admin-shell [class~="text-white\/70"],
+.question-admin-shell [class~="text-white\/80"],
+.question-admin-shell [class~="text-white\/70"] {
+  color: #334155 !important;
+}
+
+.result-screen [class~="text-white\/50"],
+.result-screen [class~="text-white\/45"],
+.result-screen [class~="text-white\/40"],
+.result-screen [class~="text-white\/35"],
+.result-screen [class~="text-white\/30"],
+.admin-shell [class~="text-white\/50"],
+.admin-shell [class~="text-white\/45"],
+.admin-shell [class~="text-white\/40"],
+.admin-shell [class~="text-white\/35"],
+.admin-shell [class~="text-white\/30"],
+.question-admin-shell [class~="text-white\/50"],
+.question-admin-shell [class~="text-white\/45"],
+.question-admin-shell [class~="text-white\/40"],
+.question-admin-shell [class~="text-white\/35"],
+.question-admin-shell [class~="text-white\/30"] {
+  color: var(--focused-muted) !important;
+}
+
+.result-screen [class~="text-white\/25"],
+.result-screen [class~="text-white\/20"],
+.result-screen [class~="text-white\/15"],
+.result-screen [class~="text-white\/10"],
+.admin-shell [class~="text-white\/25"],
+.admin-shell [class~="text-white\/20"],
+.admin-shell [class~="text-white\/15"],
+.admin-shell [class~="text-white\/10"],
+.question-admin-shell [class~="text-white\/25"],
+.question-admin-shell [class~="text-white\/20"],
+.question-admin-shell [class~="text-white\/15"],
+.question-admin-shell [class~="text-white\/10"] {
+  color: var(--focused-faint) !important;
+}
+
+.result-screen [class~="bg-white\/10"],
+.result-screen [class~="bg-white\/5"],
+.admin-shell [class~="bg-white\/10"],
+.admin-shell [class~="bg-white\/5"],
+.question-admin-shell [class~="bg-white\/10"],
+.question-admin-shell [class~="bg-white\/5"] {
+  background-color: var(--focused-surface-strong) !important;
+}
+
+.result-screen [class~="border-white\/10"],
+.result-screen [class~="border-white\/8"],
+.result-screen [class~="border-white\/5"],
+.admin-shell [class~="border-white\/10"],
+.admin-shell [class~="border-white\/8"],
+.admin-shell [class~="border-white\/5"],
+.question-admin-shell [class~="border-white\/10"],
+.question-admin-shell [class~="border-white\/8"],
+.question-admin-shell [class~="border-white\/5"] {
+  border-color: #c4d0de !important;
+}
+
+.admin-shell [style*="var(--app-surface)"],
+.question-admin-shell [style*="var(--app-surface)"] {
+  background: var(--focused-surface) !important;
+}
+
+.question-admin-shell input,
+.question-admin-shell textarea,
+.question-admin-shell select {
+  background: #f4f7fa !important;
+  color: var(--focused-ink) !important;
+  border-color: #bcc9d8 !important;
+}
+
+.question-admin-shell input::placeholder,
+.question-admin-shell textarea::placeholder {
+  color: #718198 !important;
+}

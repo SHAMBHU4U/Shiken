@@ -7,3 +7,4 @@
 - [Login dashboard color roles](login-dashboard-color-roles.md) — use muted tinted surfaces, dark copy, and distinct blue/indigo/violet/cyan/amber roles for auth controls.
 - [Bottom navigation color roles](bottom-navigation-color-roles.md) — keep Home, Ranks, Profile, Premium, Counselling, and Contact visibly distinct in the shared nav.
 - [Firebase onboarding profile writes](firebase-onboarding-profile-writes.md) — merge root profile writes because auth callbacks and registration can overlap.
+- [Question schema and legacy imports](question-schema.md) — use question IDs and nested en/hi content; normalize legacy records and leave missing Hindi fields empty.

@@ -4,7 +4,8 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
-import { explainWithShikenEngine, generateQuestions, generateComprehension, aiHeaders, type FullTranslation } from "@/lib/gemini";
+import { explainWithShikenEngine, generateQuestions, generateComprehension, aiHeaders } from "@/lib/gemini";
+import { createQuestionId, normalizeQuestionRecord } from "@/lib/questionSchema";
 import { getCachedQuestions, mergeQuestionsToCache } from "@/lib/aiCache";
 import { useParams, useLocation } from "wouter";
 import MathText from "@/components/MathText";
@@ -211,7 +212,19 @@ const entranceSubjectMeta: Record<string, Record<string, { label: string; labelH
   },
 };
 
+type QuestionLanguage = "en" | "hi";
+
+interface QuestionContent {
+  question: string;
+  options: string[];
+  explanation?: string;
+}
+
 interface Question {
+  questionId?: string;
+  subject?: string;
+  en?: QuestionContent;
+  hi?: QuestionContent;
   english: string;
   hindi: string;
   options: string[];
@@ -219,6 +232,14 @@ interface Question {
   answerIndex: number;
   chapter: string;
   explanation?: string;
+}
+
+function getQuestionContent(q: Question, lang: QuestionLanguage): QuestionContent {
+  const stored = q[lang];
+  if (stored && (stored.question || stored.options.some((option) => option.trim()) || stored.explanation)) return stored;
+  return lang === "en"
+    ? { question: q.english, options: q.options, explanation: q.explanation }
+    : { question: q.hindi || q.english, options: q.optionsHindi?.some((option) => option.trim()) ? q.optionsHindi : q.options, explanation: q.explanation };
 }
 
 // ─── Progress persistence ──────────────────────────────────────────────────────
@@ -415,7 +436,7 @@ function pick<T>(arr: T[], n: number): T[] {
 
 // Resolves the correct answer index across all Firebase schemas
 function resolveAnswerIndex(q: Record<string, unknown>, opts: string[]): number {
-  const raw = q.correct_answer ?? q.correctAnswer ?? q.answer;
+  const raw = q.correctOptionIndex ?? q.correct_option_index ?? q.answerIndex ?? q.correct_answer ?? q.correctAnswer ?? q.answer;
 
   // Numeric index (e.g. English, Social Science: answer=0,1,2,3)
   if (typeof raw === "number") return Math.max(0, Math.min(raw, opts.length - 1));
@@ -477,7 +498,7 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     if (typeof v !== "object" || v === null) return false;
     const q = v as Record<string, unknown>;
     // Hindi questions often use question_hindi instead of hindi
-    const hasText = !!(q.english || q.question || q.question_english || q.hindi);
+    const hasText = !!(q.en || q.hi || q.english || q.question || q.question_english || q.hindi);
     const isHindiQuestion = subject === "hindi" && !!(q.question_hindi || q.question_hi);
     return hasText || isHindiQuestion;
   };
@@ -508,12 +529,28 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
   // depth (chapter → topic → question, or flat lists) without duplicating.
   collectRecursive(dataObj);
 
-  return pairs.map(([q, chapterHint]) => {
+  return pairs.map(([q, chapterHint], questionIndex) => {
     // ── Options ──────────────────────────────────────────────────────────────
-    let opts: string[] = [];
-    if (Array.isArray(q.options)) {
-      opts = (q.options as unknown[]).map(String);
-    } else if (q.options && typeof q.options === "object") {
+    const normalizeOptions = (raw: unknown): string[] => {
+      if (Array.isArray(raw)) return raw.map(String);
+      if (raw && typeof raw === "object") {
+        const optObj = raw as Record<string, string>;
+        return subject === "hindi"
+          ? Object.values(optObj).map(String)
+          : Object.keys(optObj).sort().map((k) => String(optObj[k]));
+      }
+      return [];
+    };
+
+    const legacyOptions = normalizeOptions(q.options);
+    const enData = q.en && typeof q.en === "object" ? q.en as Record<string, unknown> : {};
+    const hiData = q.hi && typeof q.hi === "object" ? q.hi as Record<string, unknown> : {};
+    let opts = normalizeOptions(enData.options);
+    if (opts.length === 0) opts = legacyOptions;
+    let hiOpts = normalizeOptions(hiData.options);
+    if (hiOpts.length === 0) hiOpts = normalizeOptions(q.optionsHindi);
+    if (hiOpts.length === 0) hiOpts = opts.map(() => "");
+    if (opts.length === 0 && q.options && typeof q.options === "object") {
       const optObj = q.options as Record<string, string>;
       // Hindi: options are stored as objects with numeric keys (0,1,2) — use Object.values
       // Other subjects: may use letter keys (A,B,C,D) — preserve alphabetical order
@@ -528,13 +565,14 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     // Strip leading "(A)/(B)/(C)/(D)" prefixes from options (Hindi schema)
     // so the quiz UI's own A/B/C/D labels aren't duplicated
     opts = opts.map((o) => o.replace(/^\([A-Da-d]\)\s*/, "").trim());
+    hiOpts = hiOpts.map((o) => o.replace(/^\([A-Da-d]\)\s*/, "").trim());
 
     // ── Question text ─────────────────────────────────────────────────────────
     // english: question_english > question > english
     // hindi:   question_hindi   > question_hi > hindi
     // New format: q.question is bilingual "Hindi / English" split by " / "
-    let english = String(q.question_english ?? q.english ?? "");
-    let hindi   = String(q.question_hindi   ?? q.question_hi ?? q.hindi ?? "");
+    let english = String(enData.question ?? q.question_english ?? q.english ?? "");
+    let hindi   = String(hiData.question ?? q.question_hindi ?? q.question_hi ?? q.hindi ?? "");
     if (!english && !hindi && q.question) {
       const combined = String(q.question);
       const slashIdx = combined.indexOf(" / ");
@@ -559,10 +597,25 @@ function parseQuestions(data: unknown, subject = "", classId = "10"): Question[]
     // ── Chapter ───────────────────────────────────────────────────────────────
     const rawChapter = String(q.chapter ?? q.chapter_name ?? chapterHint ?? "General");
     const chapter = normalizeChapter(subject, classId, rawChapter);
+    const questionId = String(q.questionId ?? "").trim()
+      || createQuestionId(subject, chapter, `${questionIndex}|${english}|${hindi}`);
+    const rawSubject = String(q.subject ?? subject);
 
-    const explanation = q.explanation ? String(q.explanation) : undefined;
+    const enExplanation = enData.explanation ?? q.explanation;
+    const hiExplanation = hiData.explanation ?? q.explanation_hi ?? "";
+    const explanation = enExplanation ? String(enExplanation) : hiExplanation ? String(hiExplanation) : undefined;
+    const enContent: QuestionContent = {
+      question: english,
+      options: opts,
+      ...(enExplanation ? { explanation: String(enExplanation) } : {}),
+    };
+    const hiContent: QuestionContent = {
+      question: hindi,
+      options: hiOpts,
+      ...(hiExplanation ? { explanation: String(hiExplanation) } : {}),
+    };
 
-    return { english, hindi, options: opts, answerIndex, chapter, explanation };
+    return { questionId, subject: rawSubject, en: enContent, hi: hiContent, english, hindi, options: opts, optionsHindi: hiOpts, answerIndex, chapter, explanation };
   }).filter((q) => (q.english || q.hindi) && q.options.length >= 2);
 }
 
@@ -1230,51 +1283,14 @@ function ResultScreen({
   // Auto-explaining all wrong answers on load was removed to prevent unnecessary API calls.
 
   // Per-question explanation state
-  const [explainTexts,   setExplainTexts]   = useState<Record<number, string>>({});
-  const [explainLoading, setExplainLoading] = useState<Record<number, boolean>>({});
+  const [explainTexts,   setExplainTexts]   = useState<Record<string, string>>({});
+  const [explainLoading, setExplainLoading] = useState<Record<string, boolean>>({});
   const [explainOpen,    setExplainOpen]    = useState<Record<number, boolean>>({});
 
   // Explanation language toggle
   const [explainLang, setExplainLang] = useState<"en" | "hi">("hi");
   function cycleExplainLang() { setExplainLang((l) => l === "hi" ? "en" : "hi"); }
   const explainLangLabel = explainLang === "hi" ? "हिंदी" : "English";
-
-  // Per-question translation state (for questions stored only in Hindi)
-  const [translateTexts,   setTranslateTexts]   = useState<Record<number, string>>({});
-  const [translateLoading, setTranslateLoading] = useState<Record<number, boolean>>({});
-  const [fullTranslations,   setFullTranslations]   = useState<Record<number, FullTranslation>>({});
-  const [fullTranslating,    setFullTranslating]    = useState<Record<number, boolean>>({});
-  const fullTranslationCache = useRef<Record<string, FullTranslation>>({});
-
-  function translateCacheKey(hindiText: string): string {
-    return btoa(unescape(encodeURIComponent(hindiText.slice(0, 80)))).replace(/[/+=]/g, "_") + "_en";
-  }
-
-  async function fetchTranslation(i: number, hindiText: string) {
-    if (translateLoading[i] || translateTexts[i]) return;
-    setTranslateLoading((l) => ({ ...l, [i]: true }));
-    try {
-      const cacheKey = translateCacheKey(hindiText);
-      const cached = await get(ref(db, `translations/${subject}/${cacheKey}`));
-      if (cached.exists()) {
-        setTranslateTexts((t) => ({ ...t, [i]: cached.val() as string }));
-      } else {
-        const resp = await fetch("/api/translate", {
-          method: "POST",
-          headers: aiHeaders(),
-          body: JSON.stringify({ type: "toEnglish", hindi: hindiText, subject }),
-        });
-        const json = await resp.json() as { result?: string };
-        const text = json.result ?? hindiText;
-        setTranslateTexts((t) => ({ ...t, [i]: text }));
-        set(ref(db, `translations/${subject}/${cacheKey}`), text).catch(() => {});
-      }
-    } catch {
-      setTranslateTexts((t) => ({ ...t, [i]: "Translation failed. Try again." }));
-    } finally {
-      setTranslateLoading((l) => { const n = { ...l }; delete n[i]; return n; });
-    }
-  }
 
   // Stable Firebase key from question text + lang (safe for Firebase paths)
   function explainCacheKey(questionEnglish: string, lang: string): string {
@@ -1283,19 +1299,21 @@ function ResultScreen({
 
   async function fetchExplain(i: number, q: Question, lang: "both" | "en" | "hi" = "both") {
     if (!isPremium) { onUpgrade(); return; }
-    if (explainLoading[i]) return;
-    setExplainOpen((o) => ({ ...o, [i]: true }));
-    if (explainTexts[i]) return; // already fetched in session
-    setExplainLoading((l) => ({ ...l, [i]: true }));
-    setExplainTexts((t) => ({ ...t, [i]: "" }));
-
     const effectiveLang: "en" | "hi" = lang === "en" ? "en" : "hi";
+    const stateKey = `${i}-${effectiveLang}`;
+    if (explainLoading[stateKey]) return;
+    setExplainOpen((o) => ({ ...o, [i]: true }));
+    if (explainTexts[stateKey]) return; // already fetched in session
+    setExplainLoading((l) => ({ ...l, [stateKey]: true }));
+    setExplainTexts((t) => ({ ...t, [stateKey]: "" }));
 
     try {
       // ── Use DB-stored explanation if available (no API call needed) ───────
-      if (q.explanation) {
-        setExplainTexts((t) => ({ ...t, [i]: q.explanation! }));
-        setExplainLoading((l) => { const n = { ...l }; delete n[i]; return n; });
+      const storedExplanation = q[effectiveLang]?.explanation?.trim()
+        || (effectiveLang === "en" ? q.explanation?.trim() : "");
+      if (storedExplanation) {
+        setExplainTexts((t) => ({ ...t, [stateKey]: storedExplanation }));
+        setExplainLoading((l) => { const n = { ...l }; delete n[stateKey]; return n; });
         return;
       }
 
@@ -1304,8 +1322,8 @@ function ResultScreen({
       const cached = await get(ref(db, `explanations/${subject}/${cacheKey}`));
       if (cached.exists()) {
         const text = cached.val() as string;
-        setExplainTexts((t) => ({ ...t, [i]: text }));
-        setExplainLoading((l) => { const n = { ...l }; delete n[i]; return n; });
+        setExplainTexts((t) => ({ ...t, [stateKey]: text }));
+        setExplainLoading((l) => { const n = { ...l }; delete n[stateKey]; return n; });
         return;
       }
 
@@ -1325,7 +1343,7 @@ function ResultScreen({
           lang:            effectiveLang,
           classId,
         },
-        (chunk) => setExplainTexts((t) => ({ ...t, [i]: (t[i] ?? "") + chunk })),
+        (chunk) => setExplainTexts((t) => ({ ...t, [stateKey]: (t[stateKey] ?? "") + chunk })),
       );
 
       if (fullText.length > 10) {
@@ -1333,9 +1351,9 @@ function ResultScreen({
         set(ref(db, `explanations/${subject}/${cacheKey}`), fullText).catch(() => {});
       }
     } catch {
-      setExplainTexts((t) => ({ ...t, [i]: "Explanation नहीं मिली 🙏" }));
+      setExplainTexts((t) => ({ ...t, [stateKey]: "Explanation नहीं मिली 🙏" }));
     } finally {
-      setExplainLoading((l) => { const n = { ...l }; delete n[i]; return n; });
+      setExplainLoading((l) => { const n = { ...l }; delete n[stateKey]; return n; });
     }
   }
 
@@ -1432,7 +1450,7 @@ function ResultScreen({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-      className="min-h-screen w-full px-4 py-8" style={{ background: "var(--app-bg)" }}
+      className="result-screen min-h-screen w-full px-4 py-8" style={{ background: "var(--app-bg)" }}
     >
       <div className="max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center mb-6">
@@ -1692,8 +1710,9 @@ function ResultScreen({
             const isRight     = userAnswer === q.answerIndex;
             const isSkipped   = userAnswer === -1;
             const isExOpen    = explainOpen[i] ?? false;
-            const isExLoading = explainLoading[i] === true;
-            const exText      = explainTexts[i] ?? "";
+            const explainKey  = `${i}-${explainLang}`;
+            const isExLoading = explainLoading[explainKey] === true;
+            const exText      = explainTexts[explainKey] ?? "";
             return (
               <motion.div
                 key={i}
@@ -1713,31 +1732,9 @@ function ResultScreen({
                     {isRight ? "✓" : isSkipped ? "–" : "✗"}
                   </span>
                   <div className="flex-1 min-w-0">
-                    {!q.english && q.hindi ? (
-                      <>
-                        {translateTexts[i] && (
-                          <p className="text-white/85 text-sm font-semibold leading-snug mb-0.5">
-                            {i + 1}. <MathText text={translateTexts[i]} />
-                          </p>
-                        )}
-                        <p className={`leading-snug font-medium ${translateTexts[i] ? "text-white/35 text-xs" : "text-white/80 text-sm"}`}>
-                          {!translateTexts[i] && <>{i + 1}. </>}<MathText text={q.hindi} />
-                        </p>
-                        {!translateTexts[i] && (
-                          <button
-                            onClick={() => { void fetchTranslation(i, q.hindi); }}
-                            disabled={!!translateLoading[i]}
-                            className="mt-1.5 text-xs flex items-center gap-1 px-2.5 py-0.5 rounded-full border transition-all"
-                            style={{ background: `${accent}0f`, borderColor: `${accent}35`, color: `${accent}bb` }}>
-                            {translateLoading[i] ? "🔄 Translating..." : "🔤 Translate to English"}
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <p className="text-white/80 text-sm font-medium leading-snug">
-                        {i + 1}. <MathText text={q.english || q.hindi} />
-                      </p>
-                    )}
+                    <p className="text-white/80 text-sm font-medium leading-snug">
+                      {i + 1}. <MathText text={q.english || q.hindi} />
+                    </p>
                   </div>
                   <motion.button
                     onClick={() => bmkToggle(q)}
@@ -1761,16 +1758,16 @@ function ResultScreen({
                     </motion.svg>
                   </motion.button>
                 </div>
-                {q.english && (q.hindi || fullTranslations[i]?.hindi) && (
+                {q.english && q.hindi && (
                   <p className="text-white/35 text-xs mb-2 pl-1">
-                    <MathText text={q.hindi || fullTranslations[i].hindi} />
+                    <MathText text={q.hindi} />
                   </p>
                 )}
                 <div className="flex flex-col gap-1 pl-1 mb-3">
                   {q.options.map((opt, oi) => {
                     const isCorrect  = oi === q.answerIndex;
                     const isUser     = oi === userAnswer;
-                    const optHindi   = q.optionsHindi?.[oi] ?? fullTranslations[i]?.optionsHindi?.[oi];
+                    const optHindi   = q.optionsHindi?.[oi];
                     const showHindiFirst = Boolean(optHindi);
                     return (
                       <div key={oi} className="flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg"
@@ -1802,8 +1799,14 @@ function ResultScreen({
                     style={{ background: "rgba(99,102,241,0.05)", borderColor: "rgba(99,102,241,0.16)" }}>
                     <button
                       onClick={() => {
-                        if (!isExOpen && !exText) { void fetchExplain(i, q, explainLang); }
-                        else { setExplainOpen((o) => ({ ...o, [i]: !isExOpen })); }
+                        if (!isExOpen) {
+                          if (!exText) { void fetchExplain(i, q, explainLang); }
+                          else setExplainOpen((o) => ({ ...o, [i]: true }));
+                        } else if (!exText && !isExLoading) {
+                          void fetchExplain(i, q, explainLang);
+                        } else {
+                          setExplainOpen((o) => ({ ...o, [i]: false }));
+                        }
                       }}
                       className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold"
                       style={{ color: isExLoading ? "#a5b4fc" : "#818cf8" }}
@@ -1919,10 +1922,10 @@ export default function SubjectPage() {
   // Question palette
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Language toggle: "both" | "en" | "hi"
-  const [langMode, setLangMode] = useState<"both" | "en" | "hi">("both");
-  function cycleLang() { setLangMode((m) => m === "both" ? "en" : m === "en" ? "hi" : "both"); }
-  const langLabel = langMode === "both" ? "A / अ" : langMode === "en" ? "A" : "अ";
+  // Language toggle reads the selected language directly from each question.
+  const [lang, setLang] = useState<QuestionLanguage>("en");
+  function cycleLang() { setLang((current) => current === "en" ? "hi" : "en"); }
+  const langLabel = lang === "en" ? "English" : "हिंदी";
 
   // Bookmarks
   const [bookmarks, setBookmarks] = useState<Question[]>(() => loadBookmarks(subject));
@@ -1944,97 +1947,8 @@ export default function SubjectPage() {
   const [passageText,        setPassageText]        = useState("");
   const [showPassageInQuiz,  setShowPassageInQuiz]  = useState(false);
 
-  // Quiz per-question translation state (for questions stored only in Hindi)
-  const [quizTranslateTexts,   setQuizTranslateTexts]   = useState<Record<number, string>>({});
-  const [quizTranslateLoading, setQuizTranslateLoading] = useState<Record<number, boolean>>({});
-  const [fullTranslations, setFullTranslations] = useState<Record<number, FullTranslation>>({});
-  const [fullTranslating, setFullTranslating] = useState<Record<number, boolean>>({});
-  const fullTranslationCache = useRef<Record<string, FullTranslation>>({});
-  async function fetchQuizTranslation(i: number, hindiText: string) {
-    if (quizTranslateLoading[i] || quizTranslateTexts[i]) return;
-    setQuizTranslateLoading((l) => ({ ...l, [i]: true }));
-    try {
-      const cacheKey = btoa(unescape(encodeURIComponent(hindiText.slice(0, 80)))).replace(/[/+=]/g, "_") + "_en";
-      const cached = await get(ref(db, `translations/${subject}/${cacheKey}`));
-      if (cached.exists()) {
-        setQuizTranslateTexts((t) => ({ ...t, [i]: cached.val() as string }));
-      } else {
-        const resp = await fetch("/api/translate", {
-          method: "POST",
-          headers: aiHeaders(),
-          body: JSON.stringify({ type: "toEnglish", hindi: hindiText, subject }),
-        });
-        const json = await resp.json() as { result?: string };
-        const text = json.result ?? hindiText;
-        setQuizTranslateTexts((t) => ({ ...t, [i]: text }));
-        set(ref(db, `translations/${subject}/${cacheKey}`), text).catch(() => {});
-      }
-    } catch {
-      setQuizTranslateTexts((t) => ({ ...t, [i]: "Translation failed." }));
-    } finally {
-      setQuizTranslateLoading((l) => { const n = { ...l }; delete n[i]; return n; });
-    }
-  }
-
-  function fullTransCacheKey(englishQ: string): string {
-    return btoa(unescape(encodeURIComponent(englishQ.slice(0, 80)))).replace(/[/+=]/g, "_") + "_full_hi";
-  }
-
-  async function fetchFullTranslation(i: number, q: { english: string; options: string[] }) {
-    const cacheKey = fullTransCacheKey(q.english);
-    const chapterKey = `${selectedChapter || ""}::${cacheKey}`;
-    const cachedMemory = fullTranslationCache.current[chapterKey];
-    if (fullTranslating[i] || fullTranslations[i]) return;
-    if (cachedMemory) {
-      setFullTranslations((t) => ({ ...t, [i]: cachedMemory }));
-      return;
-    }
-    setFullTranslating((l) => ({ ...l, [i]: true }));
-    try {
-      const cached = await get(ref(db, `translations/${subject}/${cacheKey}`));
-      if (cached.exists()) {
-        const value = cached.val() as FullTranslation;
-        fullTranslationCache.current[chapterKey] = value;
-        setFullTranslations((t) => ({ ...t, [i]: value }));
-      } else {
-        const resp = await fetch("/api/translate", {
-          method: "POST",
-          headers: aiHeaders(),
-          body: JSON.stringify({ type: "fullTranslation", english: q.english, options: q.options, subject }),
-        });
-        const result = await resp.json() as FullTranslation;
-        fullTranslationCache.current[chapterKey] = result;
-        setFullTranslations((t) => ({ ...t, [i]: result }));
-        set(ref(db, `translations/${subject}/${cacheKey}`), result).catch(() => {});
-      }
-    } catch {
-      // silently fail — fallback to English
-    } finally {
-      setFullTranslating((l) => { const n = { ...l }; delete n[i]; return n; });
-    }
-  }
-
-
   const mountedRef = useRef(true);
   useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
-
-  // ── Auto-trigger full Hindi translation when in Hindi or Both mode ──────────
-  useEffect(() => {
-    if (screen !== "quiz" || langMode === "en") return;
-    const q = questions[currentIndex];
-    if (!q || !q.english) return;
-    const needsTranslation = !q.hindi || !q.optionsHindi || q.optionsHindi.length === 0;
-    if (needsTranslation && !fullTranslations[currentIndex] && !fullTranslating[currentIndex]) {
-      void fetchFullTranslation(currentIndex, { english: q.english, options: q.options });
-      // Prefetch next 2 questions silently
-      for (let j = 1; j <= 2; j++) {
-        const next = questions[currentIndex + j];
-        if (next?.english && (!next.hindi || !next.optionsHindi?.length)) {
-          void fetchFullTranslation(currentIndex + j, { english: next.english, options: next.options });
-        }
-      }
-    }
-  }, [langMode, currentIndex, screen]);
 
   // ── Timer countdown (setTimeout pattern: re-fires each second) ────────────────
   useEffect(() => {
@@ -2255,12 +2169,22 @@ export default function SubjectPage() {
       );
       for (const q of newOnes) {
         const chSlug = toChapterSlug(q.chapter || "Shiken Generated");
+        const chapter = q.chapter || "Shiken Generated";
         await push(ref(db, `${dbPath}/${chSlug}`), {
-          english: q.english,
-          hindi: q.hindi || "",
-          options: q.options,
-          correctAnswer: q.answerIndex,
-          chapter: q.chapter || "Shiken Generated",
+          questionId: q.questionId || createQuestionId(subject, chapter),
+          subject: meta.label,
+          chapter,
+          correctOptionIndex: q.answerIndex,
+          en: {
+            question: q.english,
+            options: q.options,
+            explanation: q.en?.explanation ?? q.explanation ?? "",
+          },
+          hi: {
+            question: q.hindi || "",
+            options: q.optionsHindi ?? [],
+            explanation: q.hi?.explanation ?? "",
+          },
         });
       }
     } catch { /* non-critical — DB save failed, quiz continues */ }
@@ -2410,22 +2334,33 @@ export default function SubjectPage() {
     try {
       // 1. Try Firebase passage bank first
       const snap = await get(ref(db, fbPath));
-      const data = snap.val() as Record<string, { title: string; passage: string; questions: Array<{ english?: string; hindi?: string; options: string[]; optionsHindi?: string[]; correctAnswer: number; chapter: string }> }> | null;
+      const data = snap.val() as Record<string, { title: string; passage: string; questions: unknown[] }> | null;
 
       if (data) {
-        const passages = Object.values(data);
-        const picked   = passages[Math.floor(Math.random() * passages.length)];
+        const passages = Object.entries(data);
+        const pickedIndex = Math.floor(Math.random() * passages.length);
+        const [passageId, picked] = passages[pickedIndex];
         setPassageTitle(picked.title);
         setPassageText(picked.passage);
         const qs = picked.questions
-          .map((q) => ({
-            english:      String(q.english ?? ""),
-            hindi:        String(q.hindi   ?? ""),
-            options:      (q.options       ?? []).slice(0, 4).map(String),
-            optionsHindi: (q.optionsHindi  ?? q.options ?? []).slice(0, 4).map(String),
-            answerIndex:  q.correctAnswer ?? 0,
-            chapter:      "Comprehension",
-          }))
+          .map((q, questionIndex) => {
+            const normalized = normalizeQuestionRecord(q, {
+              subject: meta?.label ?? subject,
+              chapter: "Comprehension",
+              identitySeed: `${fbPath}/${passageId}/${questionIndex}`,
+            });
+            return {
+              ...normalized,
+              questionId: normalized.questionId,
+              english: normalized.en.question,
+              hindi: normalized.hi.question,
+              options: normalized.en.options.slice(0, 4),
+              optionsHindi: normalized.hi.options.slice(0, 4),
+              answerIndex: normalized.correctOptionIndex,
+              chapter: "Comprehension",
+              explanation: normalized.en.explanation,
+            };
+          })
           .filter((q) => (q.english || q.hindi) && q.options.length >= 2);
         setQuestions(qs);
       } else {
@@ -2445,12 +2380,28 @@ export default function SubjectPage() {
         })();
         setPassageTitle(result.title);
         setPassageText(result.passage);
-        setQuestions(result.questions.map((q) => ({ ...q, chapter: "Comprehension" })));
+        const canonicalQuestions = result.questions.map((q, index) => ({
+          questionId: createQuestionId(subj, "Comprehension"),
+          subject: meta?.label ?? subj,
+          chapter: "Comprehension",
+          correctOptionIndex: q.answerIndex,
+          en: { question: q.english, options: q.options, explanation: "" },
+          hi: { question: q.hindi || "", options: q.optionsHindi ?? q.options.map(() => ""), explanation: "" },
+          english: q.english,
+          hindi: q.hindi || "",
+          options: q.options,
+          optionsHindi: q.optionsHindi ?? [],
+          answerIndex: q.answerIndex,
+          explanation: undefined,
+        }));
+        setQuestions(canonicalQuestions);
         // Cache to Firebase for future students
         push(ref(db, fbPath), {
           title:     result.title,
           passage:   result.passage,
-          questions: result.questions.map((q) => ({ ...q, correctAnswer: q.answerIndex })),
+          questions: canonicalQuestions.map(({ questionId, subject, chapter, correctOptionIndex, en, hi }) => ({
+            questionId, subject, chapter, correctOptionIndex, en, hi,
+          })),
         }).catch(() => {});
       }
     } catch {
@@ -3318,73 +3269,16 @@ export default function SubjectPage() {
                       }
                     </motion.svg>
                   </motion.button>
-                  {langMode !== "hi" && (
-                    <div className="mb-1 pr-8">
-                      {!q.english && q.hindi ? (
-                        <>
-                          {quizTranslateTexts[currentIndex] && (
-                            <p className="text-white font-semibold text-base leading-relaxed mb-0.5">
-                              {currentIndex + 1}. <MathText text={quizTranslateTexts[currentIndex]} />
-                            </p>
-                          )}
-                          <p className={`font-semibold leading-relaxed ${quizTranslateTexts[currentIndex] ? "text-white/40 text-sm" : "text-white text-base"}`}>
-                            {!quizTranslateTexts[currentIndex] && <>{currentIndex + 1}. </>}
-                            <MathText text={q.hindi} />
-                          </p>
-                          {!quizTranslateTexts[currentIndex] && (
-                            <motion.button
-                              whileTap={{ scale: 0.95 }}
-                              onClick={() => { void fetchQuizTranslation(currentIndex, q.hindi); }}
-                              disabled={!!quizTranslateLoading[currentIndex]}
-                              className="mt-2 text-xs flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all"
-                               style={{ background: "#e0f2fe", borderColor: "#7dd3fc", color: "#0369a1" }}>
-                              {quizTranslateLoading[currentIndex] ? "🔄 Translating..." : "🔤 Translate to English"}
-                            </motion.button>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-white font-semibold text-base leading-relaxed">
-                          {currentIndex + 1}. <MathText text={q.english || q.hindi} />
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {langMode === "hi" && (() => {
-                    const ft = fullTranslations[currentIndex];
-                    const isLoading = fullTranslating[currentIndex];
-                    const hindiQ = q.hindi || ft?.hindi;
+                  {(() => {
+                    const content = getQuestionContent(q, lang);
                     return (
                       <div className="mb-1 pr-8">
-                        {isLoading && !hindiQ ? (
-                          <div className="flex items-center gap-2">
-                            <motion.span animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                              className="inline-block w-3.5 h-3.5 rounded-full border-2 border-transparent shrink-0"
-                              style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}40` }} />
-                            <span className="text-white/30 text-sm">हिंदी में अनुवाद हो रहा है…</span>
-                          </div>
-                        ) : (
-                          <p className="text-white font-semibold text-base leading-relaxed">
-                            {currentIndex + 1}. <MathText text={hindiQ || q.english} />
-                          </p>
-                        )}
-                        {!isLoading && !q.hindi && ft?.hindi && (
-                          <p className="text-white/30 text-xs mt-0.5 leading-snug">
-                            <MathText text={q.english} />
-                          </p>
-                        )}
+                        <p className="text-white font-semibold text-base leading-relaxed">
+                          {currentIndex + 1}. <MathText text={content.question} />
+                        </p>
                       </div>
                     );
                   })()}
-                  {langMode === "both" && q.english && q.hindi && (
-                    <p className="text-white/50 text-sm leading-relaxed pr-8">
-                      <MathText text={q.hindi} />
-                    </p>
-                  )}
-                  {langMode === "both" && q.english && !q.hindi && fullTranslations[currentIndex]?.hindi && (
-                    <p className="text-white/50 text-sm leading-relaxed pr-8">
-                      <MathText text={fullTranslations[currentIndex].hindi} />
-                    </p>
-                  )}
                 </div>
 
                 {/* Language toggle — below question, above options */}
@@ -3393,36 +3287,21 @@ export default function SubjectPage() {
                     onClick={cycleLang}
                     whileTap={{ scale: 0.93 }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
-                     style={{
-                       background: langMode !== "both" ? "#cffafe" : "#e0f2fe",
-                       borderColor: langMode !== "both" ? "#22d3ee" : "#7dd3fc",
+                    style={{
+                       background: lang === "hi" ? "#cffafe" : "#e0f2fe",
+                       borderColor: lang === "hi" ? "#22d3ee" : "#7dd3fc",
                        color: "#0e7490",
                      }}
-                    title="Toggle language: Both / English / Hindi"
+                    title="Toggle between the saved English and Hindi question"
                   >
                     🌐 {langLabel}
                   </motion.button>
-                  {fullTranslating[currentIndex] && (
-                    <div className="flex items-center gap-1.5">
-                      <motion.span
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="inline-block w-3 h-3 rounded-full border-2 border-transparent"
-                        style={{ borderTopColor: meta.accent, borderRightColor: `${meta.accent}40` }}
-                      />
-                      <span className="text-white/30 text-xs">हिंदी अनुवाद हो रहा है…</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Options */}
                 <div className="flex flex-col gap-3">
-                  {q.options.map((opt, oi) => {
+                  {getQuestionContent(q, lang).options.map((opt, oi) => {
                     const isSelected = selectedOption === oi;
-                    const ft = fullTranslations[currentIndex];
-                    const isTranslating = fullTranslating[currentIndex];
-                    const optHindi   = q.optionsHindi?.[oi] ?? ft?.optionsHindi?.[oi];
-                    const displayOpt = langMode === "hi" && optHindi ? optHindi : opt;
                     return (
                       <motion.button
                         key={oi}
@@ -3439,33 +3318,9 @@ export default function SubjectPage() {
                           {String.fromCharCode(65 + oi)}
                         </span>
                         <span className="flex flex-col gap-0.5 min-w-0">
-                          {langMode === "hi" ? (
-                            <>
-                              {isTranslating && !optHindi ? (
-                                 <span className="block h-4 rounded w-4/5" style={{ background: "var(--app-border)" }} />
-                              ) : (
-                               <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-answer-selected" : ""}`}>
-                                  <MathText text={displayOpt} />
-                                </span>
-                              )}
-                              {optHindi && !isTranslating && (
-                                <span className="quiz-option-secondary text-xs leading-snug">
-                                  <MathText text={opt} />
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-answer-selected" : ""}`}>
-                                <MathText text={opt} />
-                              </span>
-                              {optHindi && (
-                                <span className="quiz-option-secondary text-xs leading-snug">
-                                  <MathText text={optHindi} />
-                                </span>
-                              )}
-                            </>
-                          )}
+                          <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-answer-selected" : ""}`}>
+                            <MathText text={opt} />
+                          </span>
                         </span>
                       </motion.button>
                     );
@@ -3574,7 +3429,7 @@ export default function SubjectPage() {
                     <motion.button
                       onClick={cycleLang}
                       whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.93 }}
-                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: "1px solid #67e8f9", background: langMode !== "both" ? "#cffafe" : "#dbeafe", color: "#0e7490", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+                      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 8, border: "1px solid #67e8f9", background: lang === "hi" ? "#cffafe" : "#dbeafe", color: "#0e7490", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
                       title="Toggle language"
                     >
                       🌐 {langLabel}

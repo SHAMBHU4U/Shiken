@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { ref, get, set, remove, update, push, onValue } from "firebase/database";
 import { aiHeaders, type GeneratedQuestion } from "@/lib/gemini";
+import { createQuestionId, normalizeQuestionRecord, normalizeQuestionStatement, type NormalizedQuestion } from "@/lib/questionSchema";
 import { db } from "@/firebase";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
@@ -638,6 +639,7 @@ interface SubjectInfo {
 
 interface AIQuestion {
   key: string;
+  questionId: string;
   english: string;
   hindi: string;
   options: string[];
@@ -658,7 +660,7 @@ async function fetchCount(dbPath: string): Promise<SubjectInfo> {
     const isQuestion = (v: unknown): boolean => {
       if (typeof v !== "object" || v === null) return false;
       const q = v as Record<string, unknown>;
-      return !!(q.english || q.question || q.question_english);
+      return !!(q.en || q.hi || q.english || q.question || q.question_english);
     };
     const vals = Object.values(data as Record<string, unknown>);
     let count = 0;
@@ -701,7 +703,7 @@ async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
   const isQuestionLike = (v: unknown): boolean => {
     if (typeof v !== "object" || v === null) return false;
     const q = v as Record<string, unknown>;
-    return !!(q.english || q.question || q.question_english);
+    return !!(q.en || q.hi || q.english || q.question || q.question_english || q.question_hindi || q.question_hi);
   };
 
   const results: AIQuestion[] = [];
@@ -710,18 +712,16 @@ async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
   if (isQuestionLike(firstVal)) {
     for (const [key, raw] of Object.entries(data)) {
       const q = raw as Record<string, unknown>;
+      const normalized = normalizeQuestionRecord(q, { subject: dbPath, identitySeed: `${dbPath}/${key}` });
       const chapter = String(q.chapter ?? q.chapter_name ?? "");
       if (!isAIChapter(chapter, "")) continue;
-      let opts: string[] = [];
-      if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
-      const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
-      const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
       results.push({
         key,
-        english: String(q.english ?? q.question_english ?? q.question ?? ""),
-        hindi: String(q.hindi ?? q.question_hindi ?? ""),
-        options: opts,
-        correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
+        questionId: normalized.questionId,
+        english: normalized.en.question,
+        hindi: normalized.hi.question,
+        options: normalized.en.options,
+        correctAnswer: normalized.correctOptionIndex,
         chapter,
       });
     }
@@ -732,16 +732,18 @@ async function fetchAIQuestions(dbPath: string): Promise<AIQuestion[]> {
         const q = raw as Record<string, unknown>;
         const chapter = String(q.chapter ?? q.chapter_name ?? chapterSlug.replace(/_/g, " ") ?? "");
         if (!isAIChapter(chapter, chapterSlug)) continue;
-        let opts: string[] = [];
-        if (Array.isArray(q.options)) opts = (q.options as unknown[]).map(String);
-        const ansRaw = q.correctAnswer ?? q.correct_answer ?? q.answer;
-        const answerIndex = typeof ansRaw === "number" ? ansRaw : (Number(ansRaw) || 0);
+        const normalized = normalizeQuestionRecord(q, {
+          subject: dbPath,
+          chapter,
+          identitySeed: `${dbPath}/${chapterSlug}/${pushId}`,
+        });
         results.push({
           key: `${chapterSlug}/${pushId}`,
-          english: String(q.english ?? q.question_english ?? q.question ?? ""),
-          hindi: String(q.hindi ?? q.question_hindi ?? ""),
-          options: opts,
-          correctAnswer: Math.max(0, Math.min(answerIndex, opts.length - 1)),
+          questionId: normalized.questionId,
+          english: normalized.en.question,
+          hindi: normalized.hi.question,
+          options: normalized.en.options,
+          correctAnswer: normalized.correctOptionIndex,
           chapter: chapter || "Shiken Generated",
         });
       }
@@ -860,6 +862,7 @@ function AIQuestionCard({
       className="rounded-xl border px-4 py-4"
       style={{ background: `${subject.accent}08`, borderColor: `${subject.accent}25` }}
     >
+      <p className="text-white/25 text-[10px] font-mono mb-2 break-all">ID: {question.questionId}</p>
       <p className="text-white font-medium text-sm leading-relaxed mb-1">{question.english}</p>
       {question.hindi && <p className="text-white/35 text-xs mb-3 leading-snug">{question.hindi}</p>}
 
@@ -1597,44 +1600,124 @@ function CollectionPanel({ collection }: { collection: AdminCollection }) {
 // ─── Questions Bank Panel ─────────────────────────────────────────────────────
 
 interface BankQuestion {
+  questionId: string;
+  sourceKind: "cache" | "subject";
+  storagePath: string;
   subjectKey: string;
   chapterKey: string;
   indexInArray: number;
+  subject: string;
   english: string;
   hindi: string;
   options: string[];
   optionsHindi: string[];
+  explanation: string;
+  explanationHindi: string;
   answerIndex: number;
 }
 
+type RawBankContent = {
+  question?: unknown;
+  options?: unknown;
+  explanation?: unknown;
+};
+
 type RawBankQ = {
+  questionId?: string;
+  subject?: string;
+  chapter?: string;
+  correctOptionIndex?: number;
+  answerIndex?: number;
+  en?: RawBankContent;
+  hi?: RawBankContent;
   english?: string;
   hindi?: string;
   options?: unknown[];
   optionsHindi?: unknown[];
-  answerIndex?: number;
 };
 
 async function fetchAllBankQuestions(): Promise<BankQuestion[]> {
-  const snap = await get(ref(db, "aiQuestionsCache"));
-  const data = snap.exists() ? snap.val() as Record<string, Record<string, { questions?: RawBankQ[] }>> : null;
-  if (!data) return [];
   const result: BankQuestion[] = [];
-  for (const [subjectKey, chapters] of Object.entries(data)) {
-    for (const [chapterKey, val] of Object.entries(chapters ?? {})) {
-      const qs = Array.isArray(val.questions) ? val.questions : [];
-      qs.forEach((q, i) => {
-        if (!q.english) return;
+  const cacheSnap = await get(ref(db, "aiQuestionsCache"));
+  const cache = cacheSnap.exists()
+    ? cacheSnap.val() as Record<string, Record<string, { questions?: RawBankQ[] }>>
+    : {};
+  for (const [subjectKey, chapters] of Object.entries(cache)) {
+    for (const [chapterKey, value] of Object.entries(chapters ?? {})) {
+      const qs = Array.isArray(value.questions) ? value.questions : [];
+      qs.forEach((q, indexInArray) => {
+        const normalized = normalizeQuestionRecord(q, {
+          subject: subjectKey,
+          chapter: chapterKey,
+          identitySeed: `aiQuestionsCache/${subjectKey}/${chapterKey}/${indexInArray}`,
+        });
+        if (!normalized.en.question && !normalized.hi.question) return;
         result.push({
-          subjectKey, chapterKey, indexInArray: i,
-          english: String(q.english ?? ""),
-          hindi: String(q.hindi ?? ""),
-          options: Array.isArray(q.options) ? q.options.map(String) : [],
-          optionsHindi: Array.isArray(q.optionsHindi) ? q.optionsHindi.map(String) : [],
-          answerIndex: typeof q.answerIndex === "number" ? q.answerIndex : 0,
+          sourceKind: "cache",
+          storagePath: `aiQuestionsCache/${subjectKey}/${chapterKey}/questions`,
+          questionId: normalized.questionId,
+          subjectKey, chapterKey, indexInArray,
+          subject: normalized.subject || subjectKey,
+          english: normalized.en.question,
+          hindi: normalized.hi.question,
+          options: normalized.en.options,
+          optionsHindi: normalized.hi.options,
+          explanation: normalized.en.explanation,
+          explanationHindi: normalized.hi.explanation,
+          answerIndex: normalized.correctOptionIndex,
         });
       });
     }
+  }
+
+  const bankSources = [
+    ...ALL_ADMIN_SUBJECTS.map(({ id, label, dbPath }) => ({ id, label, dbPath })),
+    { id: "jee_full_mock", label: "JEE Full Mock", dbPath: "jee_full_mock" },
+    { id: "neet_full_mock", label: "NEET Full Mock", dbPath: "neet_full_mock" },
+  ];
+  const subjectSnapshots = await Promise.all(bankSources.map(async (subject) => ({
+    subject,
+    snapshot: await get(ref(db, subject.dbPath)),
+  })));
+  for (const { subject, snapshot } of subjectSnapshots) {
+    if (!snapshot.exists()) continue;
+    const walk = (node: unknown, pathParts: string[], chapterHint: string) => {
+      if (!node || typeof node !== "object" || Array.isArray(node)) return;
+      const record = node as Record<string, unknown>;
+      const isQuestion = !!(record.en || record.hi || record.english || record.hindi || record.question
+        || record.question_english || record.question_hindi || record.question_hi);
+      if (isQuestion) {
+        const chapterKey = String(record.chapter ?? record.chapter_name ?? chapterHint ?? "General");
+        const storagePath = pathParts.join("/");
+        const normalized = normalizeQuestionRecord(record, {
+          subject: subject.label,
+          chapter: chapterKey,
+          identitySeed: storagePath,
+        });
+        if (!normalized.en.question && !normalized.hi.question) return;
+        result.push({
+          sourceKind: "subject",
+          storagePath,
+          questionId: normalized.questionId,
+          subjectKey: subject.id,
+          chapterKey,
+          indexInArray: -1,
+          subject: normalized.subject || subject.label,
+          english: normalized.en.question,
+          hindi: normalized.hi.question,
+          options: normalized.en.options,
+          optionsHindi: normalized.hi.options,
+          explanation: normalized.en.explanation,
+          explanationHindi: normalized.hi.explanation,
+          answerIndex: normalized.correctOptionIndex,
+        });
+        return;
+      }
+      for (const [key, child] of Object.entries(record)) {
+        walk(child, [...pathParts, key], chapterHint || key);
+      }
+    };
+    walk(snapshot.val(), subject.dbPath.split("/"), "");
   }
   return result;
 }
@@ -1650,6 +1733,7 @@ function EditQuestionModal({
   onSave: (updated: BankQuestion) => void; onCancel: () => void;
 }) {
   const [draft, setDraft] = useState<BankQuestion>({ ...q, options: [...q.options], optionsHindi: [...q.optionsHindi] });
+  const [activeLanguage, setActiveLanguage] = useState<"en" | "hi">("en");
   const inp = (extra?: object) => ({
     background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
     borderRadius: 8, color: "#fff" as const, fontSize: 12, padding: "7px 10px", outline: "none",
@@ -1664,19 +1748,46 @@ function EditQuestionModal({
         <button onClick={onCancel} className="text-white/30 hover:text-white/60 text-sm transition-colors">✕</button>
       </div>
       <div className="flex flex-col gap-3">
-        <div>
-          <p className="text-white/35 text-xs mb-1">English</p>
-          <textarea value={draft.english} onChange={(e) => setDraft((d) => ({ ...d, english: e.target.value }))}
-            rows={3} style={{ ...inp({ resize: "vertical" as const, width: "100%" }) }} />
+        <p className="text-white/35 text-[10px] font-mono break-all">ID: {draft.questionId}</p>
+        <div className="flex gap-2 rounded-lg p-1" style={{ background: "rgba(148,163,184,0.16)" }}>
+          {(["en", "hi"] as const).map((language) => (
+            <button
+              key={language}
+              type="button"
+              onClick={() => setActiveLanguage(language)}
+              className="flex-1 rounded-md px-3 py-1.5 text-xs font-bold"
+              style={{
+                background: activeLanguage === language ? "#fff" : "transparent",
+                color: activeLanguage === language ? "#17263d" : "#52647b",
+              }}
+            >
+              {language === "en" ? "English" : "हिंदी"}
+            </button>
+          ))}
         </div>
         <div>
-          <p className="text-white/35 text-xs mb-1">Hindi</p>
-          <textarea value={draft.hindi} onChange={(e) => setDraft((d) => ({ ...d, hindi: e.target.value }))}
-            rows={2} style={{ ...inp({ resize: "vertical" as const, width: "100%" }) }} />
+          <p className="text-white/35 text-xs mb-1">{activeLanguage === "en" ? "English" : "Hindi"}</p>
+          <textarea
+            value={activeLanguage === "en" ? draft.english : draft.hindi}
+            onChange={(e) => setDraft((d) => activeLanguage === "en" ? ({ ...d, english: e.target.value }) : ({ ...d, hindi: e.target.value }))}
+            rows={3}
+            style={{ ...inp({ resize: "vertical" as const, width: "100%" }) }}
+          />
         </div>
         <div>
-          <p className="text-white/35 text-xs mb-2">Options — click circle to set correct answer</p>
-          {draft.options.map((opt, i) => (
+          <p className="text-white/35 text-xs mb-1">{activeLanguage === "en" ? "English explanation" : "Hindi explanation"}</p>
+          <textarea
+            value={activeLanguage === "en" ? draft.explanation : draft.explanationHindi}
+            onChange={(e) => setDraft((d) => activeLanguage === "en"
+              ? ({ ...d, explanation: e.target.value })
+              : ({ ...d, explanationHindi: e.target.value }))}
+            rows={2}
+            style={{ ...inp({ resize: "vertical" as const, width: "100%" }) }}
+          />
+        </div>
+        <div>
+          <p className="text-white/35 text-xs mb-2">Options ({activeLanguage === "en" ? "English" : "Hindi"}) — click circle to set correct answer</p>
+          {(activeLanguage === "en" ? draft.options : draft.optionsHindi).map((opt, i) => (
             <div key={i} className="flex items-center gap-2 mb-2">
               <button onClick={() => setDraft((d) => ({ ...d, answerIndex: i }))}
                 className="w-5 h-5 rounded-full shrink-0 border-2 flex items-center justify-center transition-all"
@@ -1685,8 +1796,13 @@ function EditQuestionModal({
               </button>
               <span className="text-white/30 text-xs w-4 shrink-0 font-bold">{String.fromCharCode(65 + i)}</span>
               <input value={opt} onChange={(e) => {
-                const opts = [...draft.options]; opts[i] = e.target.value;
-                setDraft((d) => ({ ...d, options: opts }));
+                if (activeLanguage === "en") {
+                  const opts = [...draft.options]; opts[i] = e.target.value;
+                  setDraft((d) => ({ ...d, options: opts }));
+                } else {
+                  const opts = [...draft.optionsHindi]; opts[i] = e.target.value;
+                  setDraft((d) => ({ ...d, optionsHindi: opts }));
+                }
               }} style={{ ...inp({ flex: 1 }) }} />
             </div>
           ))}
@@ -1719,6 +1835,8 @@ function BankQuestionCard({
       className="rounded-xl border px-4 py-4"
       style={{ background: `${accent}07`, borderColor: `${accent}22` }}>
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono break-all"
+          style={{ background: "rgba(148,163,184,0.12)", color: "#94a3b8" }}>ID: {q.questionId}</span>
         <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
           style={{ background: `${accent}20`, color: accent }}>{prettifySlug(q.subjectKey)}</span>
         <span className="text-xs px-2 py-0.5 rounded-full"
@@ -1791,7 +1909,11 @@ function QuestionsBankPanel() {
     if (chapterFilter !== "all" && q.chapterKey !== chapterFilter) return false;
     if (search) {
       const s = search.toLowerCase();
-      if (!q.english.toLowerCase().includes(s) && !q.hindi.toLowerCase().includes(s)) return false;
+      const searchable = [
+        q.questionId, q.subject, q.subjectKey, q.chapterKey, q.english, q.hindi,
+        ...q.options, ...q.optionsHindi,
+      ].join(" ").toLowerCase();
+      if (!searchable.includes(s)) return false;
     }
     return true;
   });
@@ -1803,13 +1925,21 @@ function QuestionsBankPanel() {
   async function handleDelete(q: BankQuestion, flatIdx: number) {
     setDeletingFlatIdx(flatIdx);
     try {
-      const snap = await get(ref(db, `aiQuestionsCache/${q.subjectKey}/${q.chapterKey}/questions`));
-      const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
-      const updated = arr.filter((_, i) => i !== q.indexInArray);
-      await saveBankChapter(q.subjectKey, q.chapterKey, updated);
+      let deleteIndex = q.indexInArray;
+      if (q.sourceKind === "subject") {
+        await remove(ref(db, q.storagePath));
+      } else {
+        const snap = await get(ref(db, q.storagePath));
+        const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
+        const targetIndex = arr.findIndex((record) => record.questionId === q.questionId);
+        deleteIndex = targetIndex >= 0 ? targetIndex : q.indexInArray;
+        const updated = arr.filter((_, i) => i !== deleteIndex);
+        await saveBankChapter(q.subjectKey, q.chapterKey, updated);
+      }
       setQuestions((prev) =>
         prev.filter((_, i) => i !== flatIdx)
-          .map((p) => p.subjectKey === q.subjectKey && p.chapterKey === q.chapterKey && p.indexInArray > q.indexInArray
+          .map((p) => q.sourceKind === "cache" && p.sourceKind === "cache"
+            && p.subjectKey === q.subjectKey && p.chapterKey === q.chapterKey && p.indexInArray > deleteIndex
             ? { ...p, indexInArray: p.indexInArray - 1 } : p)
       );
     } catch { /* ignore */ }
@@ -1819,15 +1949,27 @@ function QuestionsBankPanel() {
   async function handleSaveEdit(updated: BankQuestion, flatIdx: number) {
     setSaving(true);
     try {
-      const snap = await get(ref(db, `aiQuestionsCache/${updated.subjectKey}/${updated.chapterKey}/questions`));
-      const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
-      arr[updated.indexInArray] = {
-        english: updated.english, hindi: updated.hindi,
-        options: updated.options, optionsHindi: updated.optionsHindi,
-        answerIndex: updated.answerIndex,
+      const canonical = {
+        questionId: updated.questionId || createQuestionId(updated.subjectKey, updated.chapterKey),
+        subject: updated.subject || updated.subjectKey,
+        chapter: updated.chapterKey,
+        correctOptionIndex: updated.answerIndex,
+        en: { question: updated.english, options: updated.options, explanation: updated.explanation },
+        hi: { question: updated.hindi, options: updated.optionsHindi, explanation: updated.explanationHindi },
       };
-      await saveBankChapter(updated.subjectKey, updated.chapterKey, arr);
-      setQuestions((prev) => prev.map((q, i) => i === flatIdx ? { ...updated } : q));
+      if (updated.sourceKind === "subject") {
+        const snap = await get(ref(db, updated.storagePath));
+        const existing = snap.exists() ? snap.val() as Record<string, unknown> : {};
+        await set(ref(db, updated.storagePath), { ...existing, ...canonical });
+      } else {
+        const snap = await get(ref(db, updated.storagePath));
+        const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
+        const targetIndex = arr.findIndex((record) => record.questionId === updated.questionId);
+        const saveIndex = targetIndex >= 0 ? targetIndex : updated.indexInArray;
+        arr[saveIndex] = { ...arr[saveIndex], ...canonical };
+        await saveBankChapter(updated.subjectKey, updated.chapterKey, arr);
+      }
+      setQuestions((prev) => prev.map((q, i) => i === flatIdx ? { ...updated, ...canonical } : q));
       setEditingFlatIdx(null);
     } catch { /* ignore */ }
     finally { setSaving(false); }
@@ -1859,7 +2001,7 @@ function QuestionsBankPanel() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
-          { label: "Total Cached",  value: questions.length, color: "#8b5cf6" },
+          { label: "Total Questions",  value: questions.length, color: "#8b5cf6" },
           { label: "After Filters", value: filtered.length,  color: "#06b6d4" },
           { label: "Subjects",      value: subjects.length,  color: "#10b981" },
         ].map((s) => (
@@ -1884,7 +2026,7 @@ function QuestionsBankPanel() {
             {chapters.map((c) => <option key={c} value={c}>{prettifySlug(c)}</option>)}
           </select>
         </div>
-        <input type="text" placeholder="🔍 Search questions…" value={search}
+        <input type="text" placeholder="🔍 Search by question ID, subject, chapter, or keyword…" value={search}
           onChange={(e) => setSearch(e.target.value)}
           style={{
             background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
@@ -1926,7 +2068,7 @@ function QuestionsBankPanel() {
                   );
                 }
                 return (
-                  <BankQuestionCard key={`${q.subjectKey}-${q.chapterKey}-${q.indexInArray}`}
+                  <BankQuestionCard key={`${q.sourceKind}-${q.subjectKey}-${q.chapterKey}-${q.questionId}`}
                     q={q} flatLabel={`#${pageStart + pi + 1}`} accent={accent}
                     deleting={deletingFlatIdx === flatIdx}
                     onDelete={() => handleDelete(q, flatIdx)}
@@ -2052,13 +2194,18 @@ function PDFImportPanel() {
     for (const q of questions) {
       const chSlug = toChapterSlug(chapter.trim() || "General");
       try {
+        const chapterName = chapter.trim() || "General";
         await push(ref(db, `${path}/${chSlug}`), {
-          english:      q.english,
-          hindi:        q.hindi,
-          options:      q.options,
-          optionsHindi: q.optionsHindi,
-          correctAnswer: q.answerIndex,
-          chapter:      chapter.trim(),
+          questionId: createQuestionId(activeSub.id, chapterName),
+          subject: activeSub.label,
+          chapter: chapterName,
+          correctOptionIndex: q.answerIndex,
+          en: { question: q.english, options: q.options, explanation: "" },
+          hi: {
+            question: q.hindi ?? "",
+            options: q.optionsHindi?.length ? q.optionsHindi : q.options.map(() => ""),
+            explanation: "",
+          },
         });
         saved++;
         setSavedCount(saved);
@@ -2319,6 +2466,87 @@ const CLASS_UPLOAD_META = {
   entrance: { label: "JEE / NEET", accent: "#f59e0b" },
 } as const;
 
+type UploadQuestion = NormalizedQuestion & { numericalValue?: string };
+
+function deduplicateQuestionBatch<T extends Pick<NormalizedQuestion, "questionId" | "en" | "hi">>(
+  questions: T[],
+): { questions: T[]; duplicateCount: number } {
+  const ids = new Set<string>();
+  const statements = new Set<string>();
+  const unique: T[] = [];
+  let duplicateCount = 0;
+  for (const question of questions) {
+    const id = question.questionId.trim().toLowerCase();
+    const texts = [question.en.question, question.hi.question]
+      .map(normalizeQuestionStatement)
+      .filter(Boolean);
+    if ((id && ids.has(id)) || texts.some((statement) => statements.has(statement))) {
+      duplicateCount++;
+      continue;
+    }
+    if (id) ids.add(id);
+    texts.forEach((statement) => statements.add(statement));
+    unique.push(question);
+  }
+  return { questions: unique, duplicateCount };
+}
+
+function downloadQuestionTemplate(filename: string, subject = "Mathematics", chapter = "Algebra") {
+  const template = [{
+    questionId: "q_math_algebra_001_example",
+    subject,
+    chapter,
+    correctOptionIndex: 0,
+    en: {
+      question: "What is the value of x?",
+      options: ["Option A", "Option B", "Option C", "Option D"],
+      explanation: "Step-by-step explanation...",
+    },
+    hi: {
+      question: "x का मान क्या है?",
+      options: ["विकल्प A", "विकल्प B", "विकल्प C", "विकल्प D"],
+      explanation: "स्पष्टीकरण...",
+    },
+  }];
+  const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+async function fetchQuestionDedupIndex(dbPath: string, fallbackSubject: string) {
+  const ids = new Set<string>();
+  const statements = new Set<string>();
+  const snapshot = await get(ref(db, dbPath));
+  const walk = (node: unknown, pathParts: string[], chapterHint: string) => {
+    if (!node || typeof node !== "object" || Array.isArray(node)) return;
+    const record = node as Record<string, unknown>;
+    const isQuestion = !!(record.en || record.hi || record.english || record.hindi || record.question
+      || record.question_english || record.question_hindi || record.question_hi);
+    if (isQuestion) {
+      const normalized = normalizeQuestionRecord(record, {
+        subject: fallbackSubject,
+        chapter: String(record.chapter ?? record.chapter_name ?? chapterHint ?? "General"),
+        identitySeed: pathParts.join("/"),
+      });
+      ids.add(normalized.questionId.toLowerCase());
+      [normalized.en.question, normalized.hi.question]
+        .map(normalizeQuestionStatement)
+        .filter(Boolean)
+        .forEach((statement) => statements.add(statement));
+      return;
+    }
+    for (const [key, child] of Object.entries(record)) {
+      walk(child, [...pathParts, key], chapterHint || key);
+    }
+  };
+  if (snapshot.exists()) walk(snapshot.val(), dbPath.split("/"), "");
+  return { ids, statements };
+}
+
 function UploadPanel() {
   const [classId, setClassId] = useState<"c10" | "c12" | "entrance">("c10");
   const [subjectId, setSubjectId] = useState("maths");
@@ -2364,59 +2592,82 @@ function UploadPanel() {
   }
 
   async function uploadQuestions(
-    questions: Array<{
-      english: string;
-      hindi: string;
-      options: string[];
-      answerIndex: number;
-      chapter: string;
-      numericalValue?: string;
-      explanation?: string;
-    }>
+    questions: UploadQuestion[],
+    parserDuplicateCount = 0,
   ) {
     setSaving(true);
     setStatus({ type: "idle", msg: "" });
     const dbPath = subject.path;
     const testId = buildTestId();
     let successCount = 0;
-    for (const q of questions) {
-      const payload: Record<string, unknown> = {
-        question_english: q.english,
-        question_hindi:   q.hindi,
-        chapter_name: q.chapter || "General",
-      };
-      if (q.explanation) payload.explanation = q.explanation;
-      if (isEntrance) {
-        payload.exam = examTag;
-        payload.test_type = testType;
-        payload.test_id = testId;
-        if (testType === "full") {
-          if (year.trim()) payload.year = year.trim();
-          if (mockSet.trim()) payload.mock_set = Number(mockSet.trim());
+    let duplicateCount = parserDuplicateCount;
+    let failedCount = 0;
+    const batch = deduplicateQuestionBatch(questions);
+    duplicateCount += batch.duplicateCount;
+    const groups = new Map<string, UploadQuestion[]>();
+    for (const q of batch.questions) {
+      const key = toChapterSlug(q.chapter || "General");
+      groups.set(key, [...(groups.get(key) ?? []), q]);
+    }
+
+    let existingIds = new Set<string>();
+    let existingStatements = new Set<string>();
+    try {
+      const existing = await fetchQuestionDedupIndex(dbPath, subject.label);
+      existingIds = existing.ids;
+      existingStatements = existing.statements;
+    } catch {
+      failedCount += batch.questions.length;
+      groups.clear();
+    }
+
+    for (const [chSlug, group] of groups) {
+      for (const q of group) {
+        const duplicateId = existingIds.has(q.questionId.toLowerCase());
+        const statements = [q.en.question, q.hi.question].map(normalizeQuestionStatement).filter(Boolean);
+        const duplicateText = statements.some((statement) => existingStatements.has(statement));
+        if (duplicateId || duplicateText) {
+          duplicateCount++;
+          continue;
+        }
+
+        const payload: Record<string, unknown> = {
+          questionId: q.questionId,
+          subject: q.subject || subject.label,
+          chapter: q.chapter || "General",
+          correctOptionIndex: q.correctOptionIndex,
+          en: q.en,
+          hi: q.hi,
+        };
+        if (isEntrance) {
+          payload.exam = examTag;
+          payload.test_type = testType;
+          payload.test_id = testId;
+          if (testType === "full") {
+            if (year.trim()) payload.year = year.trim();
+            if (mockSet.trim()) payload.mock_set = Number(mockSet.trim());
+          }
         }
         if (q.numericalValue !== undefined) {
           payload.is_numerical = true;
           payload.numerical_answer = q.numericalValue;
-        } else {
-          payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
-          payload.correct_answer = ["A","B","C","D"][q.answerIndex] ?? "A";
         }
-      } else {
-        payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
-        payload.correct_answer = ["A","B","C","D"][q.answerIndex] ?? "A";
+        try {
+          await push(ref(db, `${dbPath}/${chSlug}`), payload);
+          successCount++;
+          existingIds.add(q.questionId.toLowerCase());
+          statements.forEach((statement) => existingStatements.add(statement));
+        } catch {
+          failedCount++;
+        }
       }
-      const chSlug = toChapterSlug(q.chapter || "General");
-      try {
-        await push(ref(db, `${dbPath}/${chSlug}`), payload);
-        successCount++;
-      } catch { /* skip failed */ }
     }
     setSaving(false);
-    if (successCount === questions.length) {
-      setStatus({ type: "ok", msg: `✅ ${successCount} question${successCount !== 1 ? "s" : ""} uploaded to "${subject.path}"${testId ? ` (tag: ${testId})` : ""}!` });
-    } else {
-      setStatus({ type: "err", msg: `⚠️ ${successCount}/${questions.length} uploaded. Check your Firebase rules.` });
-    }
+    const result = `${successCount} uploaded, ${duplicateCount} duplicate${duplicateCount === 1 ? "" : "s"} skipped${failedCount ? `, ${failedCount} failed` : ""}`;
+    setStatus({
+      type: failedCount ? "err" : "ok",
+      msg: `${failedCount ? "⚠️" : "✅"} ${result} to "${subject.path}"${testId ? ` (tag: ${testId})` : ""}${failedCount ? ". Check your Firebase rules." : "."}`,
+    });
   }
 
   async function handleSingleUpload() {
@@ -2429,30 +2680,27 @@ function UploadPanel() {
       setStatus({ type: "err", msg: "Please provide the numerical answer value." });
       return;
     }
-    await uploadQuestions([{
-      english: qEn.trim(),
-      hindi: qHi.trim(),
-      options: opts.map(o => o.trim()),
-      answerIndex: correct,
+    const normalized = normalizeQuestionRecord({
+      questionId: createQuestionId(subject.label, chapter.trim()),
+      subject: subject.label,
       chapter: chapter.trim(),
+      correctOptionIndex: correct,
+      en: {
+        question: qEn.trim(),
+        options: isNumerical ? [] : opts.map((option) => option.trim()),
+        explanation: qExplanation.trim(),
+      },
+      hi: { question: qHi.trim(), options: isNumerical ? [] : opts.map(() => ""), explanation: "" },
+    }, { subject: subject.label, chapter: chapter.trim() });
+    await uploadQuestions([{
+      ...normalized,
       numericalValue: isNumerical ? numericalAnswer.trim() : undefined,
-      explanation: qExplanation.trim() || undefined,
     }]);
     setQEn(""); setQHi(""); setOpts(["","","",""]); setCorrect(0); setNumericalAnswer(""); setQExplanation("");
   }
 
   async function handleBulkUpload() {
-    let parsed: Array<{
-      english: string;
-      hindi?: string;
-      options?: string[];
-      answerIndex?: number;
-      correct_answer?: string;
-      chapter?: string;
-      numerical_answer?: string;
-      is_numerical?: boolean;
-      explanation?: string;
-    }>;
+    let parsed: unknown[];
     try {
       parsed = JSON.parse(bulkJson);
       if (!Array.isArray(parsed)) throw new Error("Not an array");
@@ -2460,28 +2708,30 @@ function UploadPanel() {
       setStatus({ type: "err", msg: "Invalid JSON. Must be an array of question objects." });
       return;
     }
-    const qs = parsed.map(q => {
+    const qs = parsed.map((raw, index): UploadQuestion | null => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+      const q = raw as Record<string, unknown>;
+      const chapterName = String(q.chapter ?? q.chapter_name ?? "General");
+      const subjectName = String(q.subject ?? subject.label);
       const isNum = isEntrance && (q.is_numerical === true || q.numerical_answer !== undefined);
+      const normalized = normalizeQuestionRecord(q, {
+        subject: subjectName,
+        chapter: chapterName,
+      });
+      if (!String(q.questionId ?? "").trim()) normalized.questionId = createQuestionId(subjectName, chapterName);
+      if (!normalized.en.question) return null;
+      if (isNum ? q.numerical_answer == null : normalized.en.options.length !== 4) return null;
       return {
-        english:    String(q.english ?? ""),
-        hindi:      String(q.hindi ?? ""),
-        options:    isNum ? [] : (Array.isArray(q.options) ? q.options : []).map(String).slice(0, 4),
-        answerIndex: typeof q.answerIndex === "number" ? q.answerIndex
-          : (typeof q.correct_answer === "string" ? "ABCD".indexOf(q.correct_answer.toUpperCase()) : 0),
-        chapter:    String(q.chapter ?? "General"),
+        ...normalized,
         numericalValue: isNum ? String(q.numerical_answer ?? "") : undefined,
-        explanation: q.explanation ? String(q.explanation) : undefined,
       };
-    }).filter(q => {
-      if (!q.english) return false;
-      if (q.numericalValue !== undefined) return true;
-      return q.options.length === 4;
-    });
+    }).filter((q): q is UploadQuestion => q !== null);
     if (qs.length === 0) {
-      setStatus({ type: "err", msg: "No valid questions found. Each must have english text and either 4 options or numerical_answer." });
+      setStatus({ type: "err", msg: "No valid questions found. Use the bilingual question structure with 4 English options, or numerical_answer for a supported numerical question." });
       return;
     }
-    await uploadQuestions(qs);
+    const deduplicated = deduplicateQuestionBatch(qs);
+    await uploadQuestions(deduplicated.questions, deduplicated.duplicateCount);
     setBulkJson("");
   }
 
@@ -2651,12 +2901,9 @@ function UploadPanel() {
       {mode === "bulk" && (
         <div className="flex flex-col gap-3">
           <p className="text-white/40 text-xs leading-relaxed">
-            Paste a JSON array. Each item:
+            Paste a JSON array using the bilingual structure. Legacy flat records are also accepted and normalized. Missing Hindi fields become empty strings; duplicate IDs or question statements are skipped.
             <span className="text-white/60 font-mono text-xs block mt-1">
-              {"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter","explanation"{"}"}
-            </span>
-            <span className="text-white/40 text-xs block mt-0.5">
-              <code className="text-white/50">explanation</code> is optional — leave it out or set <code className="text-white/50">""</code> to use Gemini AI instead.
+              {"{"}"questionId","subject","chapter","correctOptionIndex","en": {"{"}"question","options","explanation"{"}"},"hi": {"{"}"question","options","explanation"{"}"}{"}"}
             </span>
             {isEntrance && (
               <span className="text-white/50 font-mono text-xs block mt-1">
@@ -2664,10 +2911,18 @@ function UploadPanel() {
               </span>
             )}
           </p>
+          <button
+            type="button"
+            onClick={() => downloadQuestionTemplate("bilingual-question-template.json", subject.label, chapter || "Algebra")}
+            className="self-start px-3 py-2 rounded-lg text-xs font-bold border"
+            style={{ background: `${accent}14`, borderColor: `${accent}40`, color: accent }}
+          >
+            ⬇ Download bilingual JSON template
+          </button>
           <textarea value={bulkJson} onChange={e => setBulkJson(e.target.value)} rows={10}
             placeholder={isEntrance
-              ? `[\n  {\n    "english": "If $\\\\vec{a} = 2\\\\hat{i} + 3\\\\hat{j}$, find $|\\\\vec{a}|$",\n    "hindi": "...",\n    "options": ["3","4","5","13"],\n    "answerIndex": 2,\n    "chapter": "Vectors",\n    "explanation": "Using magnitude formula...",\n    "is_numerical": false\n  },\n  {\n    "english": "Find the value of $\\\\pi$ to 2 decimals",\n    "numerical_answer": "3.14",\n    "is_numerical": true,\n    "chapter": "Numbers",\n    "explanation": ""\n  }\n]`
-              : `[\n  {\n    "english": "What is 2+2?",\n    "hindi": "2+2 क्या है?",\n    "options": ["3","4","5","6"],\n    "answerIndex": 1,\n    "chapter": "Numbers",\n    "explanation": "Adding 2 and 2 gives 4."\n  }\n]`
+              ? `[\n  {\n    "questionId": "q_physics_vectors_example",\n    "subject": "${subject.label}",\n    "chapter": "Vectors",\n    "correctOptionIndex": 2,\n    "en": { "question": "Find the magnitude.", "options": ["3","4","5","13"], "explanation": "Use the magnitude formula." },\n    "hi": { "question": "परिमाण ज्ञात करें।", "options": ["3","4","5","13"], "explanation": "परिमाण सूत्र का प्रयोग करें।" }\n  }\n]`
+              : `[\n  {\n    "questionId": "q_math_algebra_example",\n    "subject": "${subject.label}",\n    "chapter": "Algebra",\n    "correctOptionIndex": 0,\n    "en": { "question": "What is the value of x?", "options": ["Option A","Option B","Option C","Option D"], "explanation": "Step-by-step explanation..." },\n    "hi": { "question": "x का मान क्या है?", "options": ["विकल्प A","विकल्प B","विकल्प C","विकल्प D"], "explanation": "स्पष्टीकरण..." }\n  }\n]`
             }
             className="w-full px-3 py-2 rounded-xl text-xs text-white/80 font-mono bg-white/5 border border-white/10 outline-none resize-none" />
           <motion.button onClick={handleBulkUpload} disabled={saving} whileTap={{ scale: 0.97 }}
@@ -2701,18 +2956,6 @@ const FULL_MOCK_META = {
   neet: { label: "NEET", accent: "#10b981", dbPath: "neet_full_mock" },
 } as const;
 
-interface FullMockQuestion {
-  english: string;
-  hindi?: string;
-  options?: string[];
-  answerIndex?: number;
-  correct_answer?: string;
-  chapter?: string;
-  numerical_answer?: string;
-  is_numerical?: boolean;
-  subject?: string; // e.g. "physics", "chemistry", "maths"
-}
-
 function FullMockUploadPanel() {
   const [exam, setExam] = useState<"jee" | "neet">("jee");
   const [testName, setTestName] = useState("");
@@ -2723,7 +2966,7 @@ function FullMockUploadPanel() {
   const meta = FULL_MOCK_META[exam];
 
   async function handleUpload() {
-    let parsed: FullMockQuestion[];
+    let parsed: unknown[];
     try {
       parsed = JSON.parse(bulkJson);
       if (!Array.isArray(parsed)) throw new Error("Not an array");
@@ -2734,64 +2977,89 @@ function FullMockUploadPanel() {
 
     const test_id = testName.trim() || `${exam}_full_${Date.now()}`;
 
-    const qs = parsed.map((q) => {
+    const qs = parsed.map((raw, index): UploadQuestion | null => {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+      const q = raw as Record<string, unknown>;
+      const chapterName = String(q.chapter ?? q.chapter_name ?? "General");
       const isNum = q.is_numerical === true || q.numerical_answer !== undefined;
-      const opts = isNum ? [] : (Array.isArray(q.options) ? q.options : []).map(String).slice(0, 4);
-      const answerIdx = typeof q.answerIndex === "number"
-        ? q.answerIndex
-        : (typeof q.correct_answer === "string" ? "ABCD".indexOf(q.correct_answer.toUpperCase()) : 0);
+      const normalized = normalizeQuestionRecord(q, {
+        subject: String(q.subject ?? meta.label),
+        chapter: chapterName,
+      });
+      if (!String(q.questionId ?? "").trim()) normalized.questionId = createQuestionId(String(q.subject ?? meta.label), chapterName);
+      if (!normalized.en.question) return null;
+      if (isNum ? q.numerical_answer == null : normalized.en.options.length !== 4) return null;
       return {
-        english: String(q.english ?? ""),
-        hindi: String(q.hindi ?? ""),
-        options: opts,
-        answerIndex: answerIdx,
-        chapter: String(q.chapter ?? "General"),
-        subject: String(q.subject ?? ""),
+        ...normalized,
         numericalValue: isNum ? String(q.numerical_answer ?? "") : undefined,
       };
-    }).filter((q) => {
-      if (!q.english) return false;
-      if (q.numericalValue !== undefined) return true;
-      return q.options.length === 4;
-    });
+    }).filter((q): q is UploadQuestion => q !== null);
+    const deduplicated = deduplicateQuestionBatch(qs);
+    const accepted = deduplicated.questions;
 
-    if (qs.length === 0) {
-      setStatus({ type: "err", msg: "No valid questions found. Each must have english text and either 4 options or numerical_answer." });
+    if (accepted.length === 0) {
+      setStatus({ type: "err", msg: "No valid unique questions found. Use the bilingual structure with 4 English options, or numerical_answer for a numerical question." });
       return;
     }
 
     setSaving(true);
     setStatus({ type: "idle", msg: "" });
     let successCount = 0;
-    for (const q of qs) {
-      const payload: Record<string, unknown> = {
-        question_english: q.english,
-        question_hindi: q.hindi,
-        chapter_name: q.chapter,
-        exam,
-        test_type: "full",
-        test_id,
-      };
-      if (q.subject) payload.subject = q.subject;
-      if (q.numericalValue !== undefined) {
-        payload.is_numerical = true;
-        payload.numerical_answer = q.numericalValue;
-      } else {
-        payload.options = { A: q.options[0], B: q.options[1], C: q.options[2], D: q.options[3] };
-        payload.correct_answer = ["A", "B", "C", "D"][q.answerIndex] ?? "A";
+    let duplicateCount = deduplicated.duplicateCount;
+    let failedCount = 0;
+    const groups = new Map<string, UploadQuestion[]>();
+    for (const q of accepted) {
+      const key = toChapterSlug(q.chapter || "General");
+      groups.set(key, [...(groups.get(key) ?? []), q]);
+    }
+    let ids = new Set<string>();
+    let statements = new Set<string>();
+    try {
+      const existing = await fetchQuestionDedupIndex(meta.dbPath, meta.label);
+      ids = existing.ids;
+      statements = existing.statements;
+    } catch {
+      failedCount += accepted.length;
+      groups.clear();
+    }
+    for (const [chSlug, group] of groups) {
+      for (const q of group) {
+        const textKeys = [q.en.question, q.hi.question].map(normalizeQuestionStatement).filter(Boolean);
+        if (ids.has(q.questionId.toLowerCase()) || textKeys.some((key) => statements.has(key))) {
+          duplicateCount++;
+          continue;
+        }
+        const payload: Record<string, unknown> = {
+          questionId: q.questionId,
+          subject: q.subject || meta.label,
+          chapter: q.chapter || "General",
+          correctOptionIndex: q.correctOptionIndex,
+          en: q.en,
+          hi: q.hi,
+          exam,
+          test_type: "full",
+          test_id,
+        };
+        if (q.numericalValue !== undefined) {
+          payload.is_numerical = true;
+          payload.numerical_answer = q.numericalValue;
+        }
+        try {
+          await push(ref(db, `${meta.dbPath}/${chSlug}`), payload);
+          successCount++;
+          ids.add(q.questionId.toLowerCase());
+          textKeys.forEach((key) => statements.add(key));
+        } catch {
+          failedCount++;
+        }
       }
-      const chSlug = toChapterSlug(q.chapter || "General");
-      try {
-        await push(ref(db, `${meta.dbPath}/${chSlug}`), payload);
-        successCount++;
-      } catch { /* skip failed */ }
     }
     setSaving(false);
-    if (successCount === qs.length) {
-      setStatus({ type: "ok", msg: `✅ ${successCount} questions uploaded to ${meta.label} Full Mock (${test_id})!` });
+    if (!failedCount) {
+      setStatus({ type: "ok", msg: `✅ ${successCount} uploaded, ${duplicateCount} duplicates skipped for ${meta.label} Full Mock (${test_id}).` });
       setBulkJson("");
     } else {
-      setStatus({ type: "err", msg: `\u26a0\ufe0f ${successCount}/${qs.length} uploaded. Check Firebase rules.` });
+      setStatus({ type: "err", msg: `⚠️ ${successCount} uploaded, ${duplicateCount} duplicates skipped, ${failedCount} failed. Check Firebase rules.` });
     }
   }
 
@@ -2831,9 +3099,9 @@ function FullMockUploadPanel() {
 
       <div className="flex flex-col gap-3">
         <p className="text-white/40 text-xs leading-relaxed">
-          Paste a JSON array of full mock questions.
+          Paste a JSON array of full mock questions. New bilingual records and legacy flat records are accepted; duplicate IDs and repeated question statements are skipped.
           <span className="text-white/60 font-mono text-xs block mt-1">
-            {"{"}"english","hindi","options":[A,B,C,D],"answerIndex":0,"chapter","subject"{"}"}
+            {"{"}"questionId","subject","chapter","correctOptionIndex","en": {"{"}"question","options","explanation"{"}"},"hi": {"{"}"question","options","explanation"{"}"}{"}"}
           </span>
           <span className="text-white/50 font-mono text-xs block mt-1">
             For numerical: add {"{"}"is_numerical":true,"numerical_answer":"3.14"{"}"}
@@ -2842,11 +3110,19 @@ function FullMockUploadPanel() {
             Optional: {"{"}"subject":"physics"{"}"} to tag the subject per question.
           </span>
         </p>
+        <button
+          type="button"
+          onClick={() => downloadQuestionTemplate(`${exam}-bilingual-question-template.json`, meta.label, "General")}
+          className="self-start px-3 py-2 rounded-lg text-xs font-bold border"
+          style={{ background: `${meta.accent}14`, borderColor: `${meta.accent}40`, color: meta.accent }}
+        >
+          ⬇ Download bilingual JSON template
+        </button>
         <textarea
           value={bulkJson}
           onChange={(e) => setBulkJson(e.target.value)}
           rows={12}
-          placeholder={`[\n  {\n    "english": "If $\\\\vec{a} = 2\\\\hat{i} + 3\\\\hat{j}$, find $|\\\\vec{a}|$",\n    "hindi": "...",\n    "options": ["3","4","5","13"],\n    "answerIndex": 2,\n    "chapter": "Vectors",\n    "subject": "maths"\n  },\n  {\n    "english": "Find the value of $\\\\pi$ to 2 decimals",\n    "numerical_answer": "3.14",\n    "is_numerical": true,\n    "chapter": "Numbers",\n    "subject": "maths"\n  }\n]`}
+          placeholder={`[\n  {\n    "questionId": "q_physics_vectors_example",\n    "subject": "Physics",\n    "chapter": "Vectors",\n    "correctOptionIndex": 2,\n    "en": { "question": "Find the magnitude.", "options": ["3","4","5","13"], "explanation": "Use the magnitude formula." },\n    "hi": { "question": "परिमाण ज्ञात करें।", "options": ["3","4","5","13"], "explanation": "परिमाण सूत्र का प्रयोग करें।" }\n  }\n]`}
           className="w-full px-3 py-2 rounded-xl text-xs text-white/80 font-mono bg-white/5 border border-white/10 outline-none resize-none"
         />
         <motion.button
@@ -3172,7 +3448,7 @@ function MigrationPanel() {
         const isQuestionLike = (v: unknown): boolean => {
           if (typeof v !== "object" || v === null) return false;
           const q = v as Record<string, unknown>;
-          return !!(q.english || q.question || q.question_english);
+          return !!(q.en || q.hi || q.english || q.hindi || q.question || q.question_english || q.question_hindi || q.question_hi);
         };
 
         const vals = Object.values(data);
@@ -3202,7 +3478,12 @@ function MigrationPanel() {
           for (const q of questions) {
             const { __oldKey, ...payload } = q;
             try {
-              await push(ref(db, `${subj.dbPath}/${chSlug}`), payload);
+              const normalized = normalizeQuestionRecord(payload, {
+                subject: subj.label,
+                chapter: String(payload.chapter ?? payload.chapter_name ?? "General"),
+                identitySeed: `${subj.dbPath}/${String(__oldKey)}`,
+              });
+              await push(ref(db, `${subj.dbPath}/${chSlug}`), { ...payload, ...normalized });
               await remove(ref(db, `${subj.dbPath}/${String(__oldKey)}`));
               migrated++;
             } catch {
@@ -3946,7 +4227,7 @@ export default function AdminPage({ onSignOut }: { onSignOut?: () => void }) {
   const emptyCount    = ALL_ADMIN_SUBJECTS.filter((s) => subjectData[s.id]?.status === "empty").length;
 
   return (
-    <div className="min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
+    <div className="admin-shell min-h-screen w-full relative overflow-hidden" style={{ background: "var(--app-bg)" }}>
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl opacity-10"
           style={{ background: "radial-gradient(circle, #8b5cf6, transparent)" }} />
