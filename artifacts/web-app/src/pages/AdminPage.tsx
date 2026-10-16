@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import { ref, get, set, remove, update, push, onValue } from "firebase/database";
 import { aiHeaders, type GeneratedQuestion } from "@/lib/gemini";
 import { createQuestionId, normalizeQuestionRecord, normalizeQuestionStatement, type NormalizedQuestion } from "@/lib/questionSchema";
-import { db } from "@/firebase";
+import { auth, db } from "@/firebase";
 
 const APP_URL = import.meta.env.VITE_APP_URL ?? window.location.origin;
 
@@ -1602,10 +1602,8 @@ function CollectionPanel({ collection }: { collection: AdminCollection }) {
 interface BankQuestion {
   questionId: string;
   sourceKind: "cache" | "subject";
-  storagePath: string;
   subjectKey: string;
   chapterKey: string;
-  indexInArray: number;
   subject: string;
   english: string;
   hindi: string;
@@ -1616,114 +1614,47 @@ interface BankQuestion {
   answerIndex: number;
 }
 
-type RawBankContent = {
-  question?: unknown;
-  options?: unknown;
-  explanation?: unknown;
+type AdminQuestionApiRecord = NormalizedQuestion & {
+  sourceKind: "cache" | "subject";
+  subjectKey: string;
+  chapterKey: string;
 };
 
-type RawBankQ = {
-  questionId?: string;
-  subject?: string;
-  chapter?: string;
-  correctOptionIndex?: number;
-  answerIndex?: number;
-  en?: RawBankContent;
-  hi?: RawBankContent;
-  english?: string;
-  hindi?: string;
-  options?: unknown[];
-  optionsHindi?: unknown[];
-};
-
-async function fetchAllBankQuestions(): Promise<BankQuestion[]> {
-  const result: BankQuestion[] = [];
-  const cacheSnap = await get(ref(db, "aiQuestionsCache"));
-  const cache = cacheSnap.exists()
-    ? cacheSnap.val() as Record<string, Record<string, { questions?: RawBankQ[] }>>
-    : {};
-  for (const [subjectKey, chapters] of Object.entries(cache)) {
-    for (const [chapterKey, value] of Object.entries(chapters ?? {})) {
-      const qs = Array.isArray(value.questions) ? value.questions : [];
-      qs.forEach((q, indexInArray) => {
-        const normalized = normalizeQuestionRecord(q, {
-          subject: subjectKey,
-          chapter: chapterKey,
-          identitySeed: `aiQuestionsCache/${subjectKey}/${chapterKey}/${indexInArray}`,
-        });
-        if (!normalized.en.question && !normalized.hi.question) return;
-        result.push({
-          sourceKind: "cache",
-          storagePath: `aiQuestionsCache/${subjectKey}/${chapterKey}/questions`,
-          questionId: normalized.questionId,
-          subjectKey, chapterKey, indexInArray,
-          subject: normalized.subject || subjectKey,
-          english: normalized.en.question,
-          hindi: normalized.hi.question,
-          options: normalized.en.options,
-          optionsHindi: normalized.hi.options,
-          explanation: normalized.en.explanation,
-          explanationHindi: normalized.hi.explanation,
-          answerIndex: normalized.correctOptionIndex,
-        });
-      });
-    }
+async function adminQuestionRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Sign in to manage questions.");
+  const token = await user.getIdToken();
+  const response = await fetch(`/api/admin/questions${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...options.headers,
+    },
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof result.error === "string" ? result.error : `Question request failed (${response.status}).`);
   }
-
-  const bankSources = [
-    ...ALL_ADMIN_SUBJECTS.map(({ id, label, dbPath }) => ({ id, label, dbPath })),
-    { id: "jee_full_mock", label: "JEE Full Mock", dbPath: "jee_full_mock" },
-    { id: "neet_full_mock", label: "NEET Full Mock", dbPath: "neet_full_mock" },
-  ];
-  const subjectSnapshots = await Promise.all(bankSources.map(async (subject) => ({
-    subject,
-    snapshot: await get(ref(db, subject.dbPath)),
-  })));
-  for (const { subject, snapshot } of subjectSnapshots) {
-    if (!snapshot.exists()) continue;
-    const walk = (node: unknown, pathParts: string[], chapterHint: string) => {
-      if (!node || typeof node !== "object" || Array.isArray(node)) return;
-      const record = node as Record<string, unknown>;
-      const isQuestion = !!(record.en || record.hi || record.english || record.hindi || record.question
-        || record.question_english || record.question_hindi || record.question_hi);
-      if (isQuestion) {
-        const chapterKey = String(record.chapter ?? record.chapter_name ?? chapterHint ?? "General");
-        const storagePath = pathParts.join("/");
-        const normalized = normalizeQuestionRecord(record, {
-          subject: subject.label,
-          chapter: chapterKey,
-          identitySeed: storagePath,
-        });
-        if (!normalized.en.question && !normalized.hi.question) return;
-        result.push({
-          sourceKind: "subject",
-          storagePath,
-          questionId: normalized.questionId,
-          subjectKey: subject.id,
-          chapterKey,
-          indexInArray: -1,
-          subject: normalized.subject || subject.label,
-          english: normalized.en.question,
-          hindi: normalized.hi.question,
-          options: normalized.en.options,
-          optionsHindi: normalized.hi.options,
-          explanation: normalized.en.explanation,
-          explanationHindi: normalized.hi.explanation,
-          answerIndex: normalized.correctOptionIndex,
-        });
-        return;
-      }
-      for (const [key, child] of Object.entries(record)) {
-        walk(child, [...pathParts, key], chapterHint || key);
-      }
-    };
-    walk(snapshot.val(), subject.dbPath.split("/"), "");
-  }
-  return result;
+  return result as T;
 }
 
-async function saveBankChapter(subjectKey: string, chapterKey: string, questions: RawBankQ[]): Promise<void> {
-  await set(ref(db, `aiQuestionsCache/${subjectKey}/${chapterKey}/questions`), questions);
+async function fetchAllBankQuestions(): Promise<BankQuestion[]> {
+  const result = await adminQuestionRequest<{ questions: AdminQuestionApiRecord[] }>("", { method: "GET" });
+  return result.questions.map((record) => ({
+    questionId: record.questionId,
+    sourceKind: record.sourceKind,
+    subjectKey: record.subjectKey,
+    chapterKey: record.chapterKey,
+    subject: record.subject,
+    english: record.en.question,
+    hindi: record.hi.question,
+    options: record.en.options,
+    optionsHindi: record.hi.options,
+    explanation: record.en.explanation,
+    explanationHindi: record.hi.explanation,
+    answerIndex: record.correctOptionIndex,
+  }));
 }
 
 function EditQuestionModal({
@@ -1735,20 +1666,21 @@ function EditQuestionModal({
   const [draft, setDraft] = useState<BankQuestion>({ ...q, options: [...q.options], optionsHindi: [...q.optionsHindi] });
   const [activeLanguage, setActiveLanguage] = useState<"en" | "hi">("en");
   const inp = (extra?: object) => ({
-    background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
-    borderRadius: 8, color: "#fff" as const, fontSize: 12, padding: "7px 10px", outline: "none",
+    background: "#f1f5f9", border: "1px solid #cbd5e1",
+    borderRadius: 8, color: "#0f172a" as const, fontSize: 12, padding: "7px 10px", outline: "none",
     ...extra,
   });
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-      className="rounded-xl border px-4 py-4"
-      style={{ background: "rgba(14,14,26,0.98)", borderColor: `${accent}45` }}>
+      className="rounded-xl border px-4 py-4 bg-slate-800 text-slate-100"
+      style={{ background: "#1e293b", borderColor: "#475569" }}>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-white font-bold text-xs">Edit Question</p>
-        <button onClick={onCancel} className="text-white/30 hover:text-white/60 text-sm transition-colors">✕</button>
+        <p className="text-slate-100 font-bold text-xs">Edit Question</p>
+        <button type="button" onClick={onCancel} aria-label="Close editor" data-testid={`button-close-question-editor-${q.questionId}`}
+          className="text-slate-300 hover:text-white text-sm transition-colors">✕</button>
       </div>
       <div className="flex flex-col gap-3">
-        <p className="text-white/35 text-[10px] font-mono break-all">ID: {draft.questionId}</p>
+        <p className="text-slate-300 text-[10px] font-mono break-all">ID: {draft.questionId}</p>
         <div className="flex gap-2 rounded-lg p-1" style={{ background: "rgba(148,163,184,0.16)" }}>
           {(["en", "hi"] as const).map((language) => (
             <button
@@ -1757,8 +1689,8 @@ function EditQuestionModal({
               onClick={() => setActiveLanguage(language)}
               className="flex-1 rounded-md px-3 py-1.5 text-xs font-bold"
               style={{
-                background: activeLanguage === language ? "#fff" : "transparent",
-                color: activeLanguage === language ? "#17263d" : "#52647b",
+                background: activeLanguage === language ? "#f1f5f9" : "transparent",
+                color: activeLanguage === language ? "#0f172a" : "#cbd5e1",
               }}
             >
               {language === "en" ? "English" : "हिंदी"}
@@ -1766,8 +1698,10 @@ function EditQuestionModal({
           ))}
         </div>
         <div>
-          <p className="text-white/35 text-xs mb-1">{activeLanguage === "en" ? "English" : "Hindi"}</p>
+          <p className="text-slate-300 text-xs mb-1">{activeLanguage === "en" ? "English" : "Hindi"}</p>
           <textarea
+            aria-label={`${activeLanguage === "en" ? "English" : "Hindi"} question`}
+            data-testid={`textarea-question-${activeLanguage}-${q.questionId}`}
             value={activeLanguage === "en" ? draft.english : draft.hindi}
             onChange={(e) => setDraft((d) => activeLanguage === "en" ? ({ ...d, english: e.target.value }) : ({ ...d, hindi: e.target.value }))}
             rows={3}
@@ -1775,8 +1709,10 @@ function EditQuestionModal({
           />
         </div>
         <div>
-          <p className="text-white/35 text-xs mb-1">{activeLanguage === "en" ? "English explanation" : "Hindi explanation"}</p>
+          <p className="text-slate-300 text-xs mb-1">{activeLanguage === "en" ? "English explanation" : "Hindi explanation"}</p>
           <textarea
+            aria-label={`${activeLanguage === "en" ? "English" : "Hindi"} explanation`}
+            data-testid={`textarea-explanation-${activeLanguage}-${q.questionId}`}
             value={activeLanguage === "en" ? draft.explanation : draft.explanationHindi}
             onChange={(e) => setDraft((d) => activeLanguage === "en"
               ? ({ ...d, explanation: e.target.value })
@@ -1786,15 +1722,17 @@ function EditQuestionModal({
           />
         </div>
         <div>
-          <p className="text-white/35 text-xs mb-2">Options ({activeLanguage === "en" ? "English" : "Hindi"}) — click circle to set correct answer</p>
+          <p className="text-slate-300 text-xs mb-2">Options ({activeLanguage === "en" ? "English" : "Hindi"}) — click circle to set correct answer</p>
           {(activeLanguage === "en" ? draft.options : draft.optionsHindi).map((opt, i) => (
             <div key={i} className="flex items-center gap-2 mb-2">
-              <button onClick={() => setDraft((d) => ({ ...d, answerIndex: i }))}
+              <button type="button" aria-label={`Mark option ${String.fromCharCode(65 + i)} correct`}
+                data-testid={`button-correct-option-${i}-${q.questionId}`}
+                onClick={() => setDraft((d) => ({ ...d, answerIndex: i }))}
                 className="w-5 h-5 rounded-full shrink-0 border-2 flex items-center justify-center transition-all"
-                style={{ borderColor: i === draft.answerIndex ? accent : "rgba(255,255,255,0.18)", background: i === draft.answerIndex ? `${accent}30` : "transparent" }}>
+                style={{ borderColor: i === draft.answerIndex ? accent : "#94a3b8", background: i === draft.answerIndex ? `${accent}30` : "transparent" }}>
                 {i === draft.answerIndex && <span className="w-2.5 h-2.5 rounded-full" style={{ background: accent }} />}
               </button>
-              <span className="text-white/30 text-xs w-4 shrink-0 font-bold">{String.fromCharCode(65 + i)}</span>
+              <span className="text-slate-300 text-xs w-4 shrink-0 font-bold">{String.fromCharCode(65 + i)}</span>
               <input value={opt} onChange={(e) => {
                 if (activeLanguage === "en") {
                   const opts = [...draft.options]; opts[i] = e.target.value;
@@ -1803,20 +1741,20 @@ function EditQuestionModal({
                   const opts = [...draft.optionsHindi]; opts[i] = e.target.value;
                   setDraft((d) => ({ ...d, optionsHindi: opts }));
                 }
-              }} style={{ ...inp({ flex: 1 }) }} />
+              }} aria-label={`Option ${String.fromCharCode(65 + i)} (${activeLanguage})`}
+                data-testid={`input-option-${activeLanguage}-${i}-${q.questionId}`} style={{ ...inp({ flex: 1 }) }} />
             </div>
           ))}
         </div>
       </div>
       <div className="flex gap-2 mt-4">
-        <motion.button onClick={() => onSave(draft)} disabled={saving} whileTap={{ scale: 0.97 }}
-          className="flex-1 py-2.5 rounded-lg text-xs font-black"
-          style={{ background: `${accent}25`, color: accent, border: `1px solid ${accent}50` }}>
+        <motion.button type="button" onClick={() => onSave(draft)} disabled={saving} whileTap={{ scale: 0.97 }}
+          data-testid={`button-save-question-${q.questionId}`}
+          className="flex-1 py-2.5 rounded-lg text-xs font-black bg-slate-100 text-slate-900 hover:bg-white disabled:opacity-60">
           {saving ? "Saving…" : "✓ Save Changes"}
         </motion.button>
-        <motion.button onClick={onCancel} disabled={saving} whileTap={{ scale: 0.97 }}
-          className="px-4 py-2.5 rounded-lg text-xs font-semibold"
-          style={{ background: "var(--app-surface)", color: "var(--app-text-ghost)", border: "1px solid rgba(255,255,255,0.10)" }}>
+        <motion.button type="button" onClick={onCancel} disabled={saving} whileTap={{ scale: 0.97 }}
+          className="px-4 py-2.5 rounded-lg text-xs font-semibold bg-slate-700 text-slate-100 hover:bg-slate-600 disabled:opacity-60">
           Cancel
         </motion.button>
       </div>
@@ -1825,36 +1763,34 @@ function EditQuestionModal({
 }
 
 function BankQuestionCard({
-  q, flatLabel, accent, onDelete, onEdit, deleting,
+  q, flatLabel, onDelete, onEdit, deleting,
 }: {
-  q: BankQuestion; flatLabel: string; accent: string;
+  q: BankQuestion; flatLabel: string;
   onDelete: () => void; onEdit: () => void; deleting: boolean;
 }) {
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.96 }}
-      className="rounded-xl border px-4 py-4"
-      style={{ background: `${accent}07`, borderColor: `${accent}22` }}>
+      className="rounded-xl border border-slate-300 px-4 py-4 bg-slate-100 text-slate-900"
+      data-testid={`card-question-${q.questionId}`}>
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono break-all"
-          style={{ background: "rgba(148,163,184,0.12)", color: "#94a3b8" }}>ID: {q.questionId}</span>
-        <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-          style={{ background: `${accent}20`, color: accent }}>{prettifySlug(q.subjectKey)}</span>
-        <span className="text-xs px-2 py-0.5 rounded-full"
-          style={{ background: "var(--app-surface)", color: "var(--app-text-ghost)" }}>{prettifySlug(q.chapterKey)}</span>
-        <span className="text-white/20 text-xs ml-auto">{flatLabel}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono break-all bg-slate-800 text-slate-100"
+          data-testid={`text-question-id-${q.questionId}`}>ID: {q.questionId}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-slate-200 text-slate-800">{prettifySlug(q.subjectKey)}</span>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">{prettifySlug(q.chapterKey)}</span>
+        <span className="text-slate-500 text-xs ml-auto">{flatLabel}</span>
       </div>
-      <p className="text-white text-sm font-medium leading-relaxed mb-1">{q.english}</p>
-      {q.hindi && <p className="text-white/35 text-xs mb-3 leading-snug">{q.hindi}</p>}
+      <p className="text-slate-900 text-sm font-medium leading-relaxed mb-1">{q.english}</p>
+      {q.hindi && <p className="text-slate-700 text-xs mb-3 leading-snug">{q.hindi}</p>}
       <div className="flex flex-col gap-1 mb-3">
         {q.options.map((opt, i) => (
           <div key={i} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs"
             style={{
-              background: i === q.answerIndex ? `${accent}22` : "var(--app-surface)",
-              border: `1px solid ${i === q.answerIndex ? accent + "50" : "var(--app-surface)"}`,
-              color: i === q.answerIndex ? accent : "rgba(255,255,255,0.40)",
+              background: i === q.answerIndex ? "#dbeafe" : "#e2e8f0",
+              border: `1px solid ${i === q.answerIndex ? "#93c5fd" : "#cbd5e1"}`,
+              color: i === q.answerIndex ? "#1e40af" : "#334155",
               fontWeight: i === q.answerIndex ? 700 : 400,
             }}>
-            <span className="shrink-0 font-bold w-4" style={{ color: i === q.answerIndex ? accent : "rgba(255,255,255,0.20)" }}>
+            <span className="shrink-0 font-bold w-4" style={{ color: i === q.answerIndex ? "#1e40af" : "#64748b" }}>
               {String.fromCharCode(65 + i)}
             </span>
             <span className="flex-1 truncate">{opt}</span>
@@ -1863,14 +1799,14 @@ function BankQuestionCard({
         ))}
       </div>
       <div className="flex gap-2">
-        <motion.button onClick={onEdit} whileTap={{ scale: 0.97 }}
-          className="flex-1 py-2 rounded-lg text-xs font-bold"
-          style={{ background: "var(--app-surface)", color: "var(--app-text-muted)", border: "1px solid rgba(255,255,255,0.10)" }}>
+        <motion.button type="button" onClick={onEdit} whileTap={{ scale: 0.97 }}
+          data-testid={`button-edit-question-${q.questionId}`}
+          className="flex-1 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-100 hover:bg-slate-700">
           ✎ Edit
         </motion.button>
-        <motion.button onClick={onDelete} disabled={deleting} whileTap={{ scale: 0.97 }}
-          className="flex-1 py-2 rounded-lg text-xs font-bold"
-          style={{ background: "rgba(239,68,68,0.08)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+        <motion.button type="button" onClick={onDelete} disabled={deleting} whileTap={{ scale: 0.97 }}
+          data-testid={`button-delete-question-${q.questionId}`}
+          className="flex-1 py-2 rounded-lg text-xs font-bold bg-red-100 text-red-900 hover:bg-red-200 disabled:opacity-60">
           {deleting ? "Deleting…" : "✕ Delete"}
         </motion.button>
       </div>
@@ -1885,10 +1821,11 @@ function QuestionsBankPanel() {
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [chapterFilter, setChapterFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const [editingFlatIdx, setEditingFlatIdx] = useState<number | null>(null);
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deletingFlatIdx, setDeletingFlatIdx] = useState<number | null>(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const PAGE_SIZE = 15;
 
   const load = useCallback(async () => {
@@ -1911,6 +1848,7 @@ function QuestionsBankPanel() {
       const s = search.toLowerCase();
       const searchable = [
         q.questionId, q.subject, q.subjectKey, q.chapterKey, q.english, q.hindi,
+        q.explanation, q.explanationHindi,
         ...q.options, ...q.optionsHindi,
       ].join(" ").toLowerCase();
       if (!searchable.includes(s)) return false;
@@ -1922,62 +1860,52 @@ function QuestionsBankPanel() {
   const pageStart = page * PAGE_SIZE;
   const paged = filtered.slice(pageStart, pageStart + PAGE_SIZE);
 
-  async function handleDelete(q: BankQuestion, flatIdx: number) {
-    setDeletingFlatIdx(flatIdx);
+  async function handleDelete(q: BankQuestion) {
+    if (!window.confirm(`Permanently delete question ${q.questionId}? This cannot be undone.`)) return;
+    setDeletingQuestionId(q.questionId);
+    setNotice(null);
     try {
-      let deleteIndex = q.indexInArray;
-      if (q.sourceKind === "subject") {
-        await remove(ref(db, q.storagePath));
-      } else {
-        const snap = await get(ref(db, q.storagePath));
-        const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
-        const targetIndex = arr.findIndex((record) => record.questionId === q.questionId);
-        deleteIndex = targetIndex >= 0 ? targetIndex : q.indexInArray;
-        const updated = arr.filter((_, i) => i !== deleteIndex);
-        await saveBankChapter(q.subjectKey, q.chapterKey, updated);
-      }
-      setQuestions((prev) =>
-        prev.filter((_, i) => i !== flatIdx)
-          .map((p) => q.sourceKind === "cache" && p.sourceKind === "cache"
-            && p.subjectKey === q.subjectKey && p.chapterKey === q.chapterKey && p.indexInArray > deleteIndex
-            ? { ...p, indexInArray: p.indexInArray - 1 } : p)
-      );
-    } catch { /* ignore */ }
-    finally { setDeletingFlatIdx(null); }
+      await adminQuestionRequest<{ ok: true }>(`/${encodeURIComponent(q.questionId)}`, { method: "DELETE" });
+      setQuestions((previous) => previous.filter((question) => question.questionId !== q.questionId));
+      setNotice({ type: "success", text: `Deleted question ${q.questionId}.` });
+      setEditingQuestionId(null);
+    } catch (cause) {
+      setNotice({ type: "error", text: cause instanceof Error ? cause.message : "Could not delete this question." });
+    } finally {
+      setDeletingQuestionId(null);
+    }
   }
 
-  async function handleSaveEdit(updated: BankQuestion, flatIdx: number) {
+  async function handleSaveEdit(updated: BankQuestion) {
     setSaving(true);
+    setNotice(null);
     try {
-      const canonical = {
-        questionId: updated.questionId || createQuestionId(updated.subjectKey, updated.chapterKey),
+      const canonical: NormalizedQuestion = {
+        questionId: updated.questionId,
         subject: updated.subject || updated.subjectKey,
         chapter: updated.chapterKey,
         correctOptionIndex: updated.answerIndex,
         en: { question: updated.english, options: updated.options, explanation: updated.explanation },
         hi: { question: updated.hindi, options: updated.optionsHindi, explanation: updated.explanationHindi },
       };
-      if (updated.sourceKind === "subject") {
-        const snap = await get(ref(db, updated.storagePath));
-        const existing = snap.exists() ? snap.val() as Record<string, unknown> : {};
-        await set(ref(db, updated.storagePath), { ...existing, ...canonical });
-      } else {
-        const snap = await get(ref(db, updated.storagePath));
-        const arr = (snap.exists() ? snap.val() : []) as RawBankQ[];
-        const targetIndex = arr.findIndex((record) => record.questionId === updated.questionId);
-        const saveIndex = targetIndex >= 0 ? targetIndex : updated.indexInArray;
-        arr[saveIndex] = { ...arr[saveIndex], ...canonical };
-        await saveBankChapter(updated.subjectKey, updated.chapterKey, arr);
-      }
-      setQuestions((prev) => prev.map((q, i) => i === flatIdx ? { ...updated, ...canonical } : q));
-      setEditingFlatIdx(null);
-    } catch { /* ignore */ }
+      await adminQuestionRequest<{ ok: true; question: NormalizedQuestion }>(
+        `/${encodeURIComponent(updated.questionId)}`,
+        { method: "PUT", body: JSON.stringify(canonical) },
+      );
+      setQuestions((previous) => previous.map((question) => question.questionId === updated.questionId
+        ? { ...updated, ...canonical, subject: canonical.subject }
+        : question));
+      setEditingQuestionId(null);
+      setNotice({ type: "success", text: `Saved question ${updated.questionId}.` });
+    } catch (cause) {
+      setNotice({ type: "error", text: cause instanceof Error ? cause.message : "Could not save this question." });
+    }
     finally { setSaving(false); }
   }
 
   const selStyle = {
-    background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
-    borderRadius: 8, color: "var(--app-text-muted)" as const, fontSize: 12,
+    background: "#e2e8f0", border: "1px solid #cbd5e1",
+    borderRadius: 8, color: "#0f172a" as const, fontSize: 12,
     padding: "7px 10px", outline: "none", cursor: "pointer" as const,
   };
 
@@ -1986,28 +1914,29 @@ function QuestionsBankPanel() {
       <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         className="w-8 h-8 rounded-full border-2 border-transparent"
         style={{ borderTopColor: "#8b5cf6", borderRightColor: "#8b5cf620" }} />
-      <p className="text-white/30 text-sm">Loading questions bank…</p>
+      <p className="text-slate-600 text-sm">Loading questions bank…</p>
     </div>
   );
   if (error) return (
-    <div className="text-center py-16">
-      <p className="text-red-400 text-sm mb-3">Failed: {error}</p>
-      <button onClick={load} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/50 text-xs">Retry</button>
+    <div className="text-center py-16" role="alert" data-testid="status-question-bank-error">
+      <p className="text-red-800 text-sm mb-3">Failed: {error}</p>
+      <button type="button" onClick={load} data-testid="button-retry-question-bank"
+        className="px-4 py-2 rounded-lg bg-slate-800 text-slate-100 text-xs">Retry</button>
     </div>
   );
 
   return (
-    <div>
+    <div className="question-bank-panel">
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         {[
-          { label: "Total Questions",  value: questions.length, color: "#8b5cf6" },
-          { label: "After Filters", value: filtered.length,  color: "#06b6d4" },
-          { label: "Subjects",      value: subjects.length,  color: "#10b981" },
+          { label: "Total Questions", value: questions.length },
+          { label: "After Filters", value: filtered.length },
+          { label: "Subjects", value: subjects.length },
         ].map((s) => (
-          <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-            <p className="text-xs text-white/30 mb-1 leading-tight">{s.label}</p>
-            <p className="text-lg font-black" style={{ color: s.color }}>{s.value}</p>
+          <div key={s.label} className="bg-slate-100 border border-slate-300 rounded-xl p-3 text-center">
+            <p className="text-xs text-slate-600 mb-1 leading-tight">{s.label}</p>
+            <p className="text-lg font-black text-slate-900">{s.value}</p>
           </div>
         ))}
       </div>
@@ -2016,63 +1945,73 @@ function QuestionsBankPanel() {
       <div className="flex flex-col gap-2 mb-4">
         <div className="flex gap-2">
           <select value={subjectFilter} onChange={(e) => { setSubjectFilter(e.target.value); setChapterFilter("all"); }}
+            aria-label="Filter questions by subject" data-testid="select-question-subject-filter"
             style={{ ...selStyle, flex: 1 }}>
             <option value="all">All Subjects</option>
             {subjects.map((s) => <option key={s} value={s}>{prettifySlug(s)}</option>)}
           </select>
           <select value={chapterFilter} onChange={(e) => setChapterFilter(e.target.value)}
+            aria-label="Filter questions by chapter" data-testid="select-question-chapter-filter"
             style={{ ...selStyle, flex: 1 }}>
             <option value="all">All Chapters</option>
             {chapters.map((c) => <option key={c} value={c}>{prettifySlug(c)}</option>)}
           </select>
         </div>
-        <input type="text" placeholder="🔍 Search by question ID, subject, chapter, or keyword…" value={search}
+        <input type="search" placeholder="Search by question ID, subject, chapter, or keyword…" value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label="Search questions by ID, subject, or keyword"
+          data-testid="input-question-search"
           style={{
-            background: "var(--app-surface)", border: "1px solid rgba(255,255,255,0.10)",
-            borderRadius: 8, color: "#fff", fontSize: 12, padding: "8px 12px", outline: "none", width: "100%",
+            background: "#f1f5f9", border: "1px solid #cbd5e1",
+            borderRadius: 8, color: "#0f172a", fontSize: 12, padding: "8px 12px", outline: "none", width: "100%",
           }} />
       </div>
 
+      {notice && (
+        <p role={notice.type === "error" ? "alert" : "status"}
+          data-testid={`status-question-action-${notice.type}`}
+          className={`mb-3 rounded-lg px-3 py-2 text-xs font-medium ${
+            notice.type === "error" ? "bg-red-100 text-red-900" : "bg-emerald-100 text-emerald-900"
+          }`}>
+          {notice.text}
+        </p>
+      )}
+
       {filtered.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="text-center py-16 bg-slate-100 rounded-xl" data-testid="status-question-bank-empty">
           <p className="text-4xl mb-3">🔍</p>
-          <p className="text-white/40 text-sm font-medium">No questions found</p>
-          <p className="text-white/20 text-xs mt-1">Try adjusting the filters above</p>
+          <p className="text-slate-700 text-sm font-medium">No questions found</p>
+          <p className="text-slate-500 text-xs mt-1">Try adjusting the filters above</p>
         </div>
       ) : (
         <>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-white/35 text-xs">
+            <p className="text-slate-600 text-xs" data-testid="text-question-result-count">
               {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filtered.length)} of {filtered.length} questions
             </p>
-            <button onClick={load} className="text-white/25 hover:text-white/50 text-xs transition-colors">↻ Reload</button>
+            <button type="button" onClick={load} data-testid="button-reload-question-bank"
+              className="text-slate-700 hover:text-slate-950 text-xs transition-colors">↻ Reload</button>
           </div>
 
           <AnimatePresence mode="popLayout">
             <div className="flex flex-col gap-3">
               {paged.map((q, pi) => {
-                const flatIdx = questions.indexOf(q);
-                const sm = ALL_SUBJECTS.find(
-                  (s) => s.id === q.subjectKey
-                    || s.label.toLowerCase() === q.subjectKey
-                    || s.label.toLowerCase().replace(/ /g, "_") === q.subjectKey
-                );
+                const sm = ALL_ADMIN_SUBJECTS.find((s) => s.id === q.subjectKey);
                 const accent = sm?.accent ?? "#8b5cf6";
 
-                if (editingFlatIdx === flatIdx) {
+                if (editingQuestionId === q.questionId) {
                   return (
-                    <EditQuestionModal key={`edit-${flatIdx}`} q={q} accent={accent} saving={saving}
-                      onSave={(updated) => handleSaveEdit(updated, flatIdx)}
-                      onCancel={() => setEditingFlatIdx(null)} />
+                    <EditQuestionModal key={`edit-${q.questionId}`} q={q} accent={accent} saving={saving}
+                      onSave={handleSaveEdit}
+                      onCancel={() => setEditingQuestionId(null)} />
                   );
                 }
                 return (
                   <BankQuestionCard key={`${q.sourceKind}-${q.subjectKey}-${q.chapterKey}-${q.questionId}`}
-                    q={q} flatLabel={`#${pageStart + pi + 1}`} accent={accent}
-                    deleting={deletingFlatIdx === flatIdx}
-                    onDelete={() => handleDelete(q, flatIdx)}
-                    onEdit={() => setEditingFlatIdx(flatIdx)} />
+                    q={q} flatLabel={`#${pageStart + pi + 1}`}
+                    deleting={deletingQuestionId === q.questionId}
+                    onDelete={() => handleDelete(q)}
+                    onEdit={() => setEditingQuestionId(q.questionId)} />
                 );
               })}
             </div>
@@ -2080,15 +2019,15 @@ function QuestionsBankPanel() {
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2 mt-5">
-              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+              <button type="button" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={{ background: "var(--app-surface)", color: page === 0 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                style={{ background: "#e2e8f0", color: page === 0 ? "#94a3b8" : "#0f172a", border: "1px solid #cbd5e1" }}>
                 ← Prev
               </button>
-              <span className="text-white/30 text-xs">Page {page + 1} / {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
+              <span className="text-slate-600 text-xs">Page {page + 1} / {totalPages}</span>
+              <button type="button" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page === totalPages - 1}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                style={{ background: "var(--app-surface)", color: page === totalPages - 1 ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.50)", border: "1px solid rgba(255,255,255,0.10)" }}>
+                style={{ background: "#e2e8f0", color: page === totalPages - 1 ? "#94a3b8" : "#0f172a", border: "1px solid #cbd5e1" }}>
                 Next →
               </button>
             </div>

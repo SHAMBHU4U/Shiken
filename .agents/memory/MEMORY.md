@@ -10,3 +10,4 @@
 - [Question schema and legacy imports](question-schema.md) — use question IDs and nested en/hi content; normalize legacy records and leave missing Hindi fields empty.
 - [BPSC module boundaries](bpsc-module-boundaries.md) — keep bilingual BPSC content and server-owned competitive pricing isolated from existing exam modules.
 - [GitHub CLI authentication](github-cli-auth.md) — Replit's connected Git account may not authenticate shell `git push`; configure GitHub CLI for HTTPS pushes.
+- [Admin question management access](admin-question-access.md) — question-bank backend trusts a verified Firebase user only when `users/{uid}/isAdmin` is true.

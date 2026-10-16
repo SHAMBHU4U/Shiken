@@ -14,6 +14,7 @@ import referralRouter from "./referral";
 import withdrawalRouter from "./withdrawal";
 import leaderboardRouter from "./leaderboard";
 import eli16Router from "./eli16";
+import adminQuestionsRouter from "./admin-questions";
 
 const router: IRouter = Router();
 
@@ -31,5 +32,6 @@ router.use(referralRouter);
 router.use(withdrawalRouter);
 router.use(leaderboardRouter);
 router.use(eli16Router);
+router.use(adminQuestionsRouter);
 
 export default router;

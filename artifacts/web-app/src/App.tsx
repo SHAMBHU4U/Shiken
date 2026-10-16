@@ -4,6 +4,7 @@ import { Check, X } from "lucide-react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence, type User } from "firebase/auth";
+import { get, ref } from "firebase/database";
 import { auth, db } from "@/firebase";
 import { SubjectIcon } from "@/components/SubjectIcon";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -400,6 +401,7 @@ const ADMIN_SESSION = "shiken_admin_session";
 function AdminGuard() {
   const [user, setUser] = useState<User | null | "loading">("loading");
   const [adminSession, setAdminSession] = useState(() => sessionStorage.getItem(ADMIN_SESSION) === "1");
+  const [adminAuthorized, setAdminAuthorized] = useState<boolean | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -408,9 +410,36 @@ function AdminGuard() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
-    return unsub;
+    let active = true;
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      if (!u) {
+        setAdminAuthorized(false);
+        return;
+      }
+      setAdminAuthorized(null);
+      get(ref(db, `users/${u.uid}/isAdmin`))
+        .then((snapshot) => {
+          if (active && auth.currentUser?.uid === u.uid) {
+            setAdminAuthorized(snapshot.val() === true);
+          }
+        })
+        .catch(() => {
+          if (active && auth.currentUser?.uid === u.uid) setAdminAuthorized(false);
+        });
+    });
+    return () => {
+      active = false;
+      unsub();
+    };
   }, []);
+
+  useEffect(() => {
+    if (!user || !adminSession || adminAuthorized !== false) return;
+    sessionStorage.removeItem(ADMIN_SESSION);
+    setAdminSession(false);
+    setError("This account is not authorized for admin access.");
+  }, [user, adminSession, adminAuthorized]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -418,8 +447,18 @@ function AdminGuard() {
     setSubmitting(true);
     try {
       await setPersistence(auth, browserLocalPersistence);
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const adminFlag = await get(ref(db, `users/${credential.user.uid}/isAdmin`));
+      if (adminFlag.val() !== true) {
+        sessionStorage.removeItem(ADMIN_SESSION);
+        setAdminSession(false);
+        setAdminAuthorized(false);
+        setError("This account is not authorized for admin access.");
+        await signOut(auth);
+        return;
+      }
       sessionStorage.setItem(ADMIN_SESSION, "1");
+      setAdminAuthorized(true);
       setAdminSession(true);
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? "";
@@ -440,7 +479,7 @@ function AdminGuard() {
     }
   }
 
-  if (user === "loading") {
+  if (user === "loading" || (user && adminSession && adminAuthorized === null)) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
         <motion.div
@@ -453,7 +492,7 @@ function AdminGuard() {
     );
   }
 
-  if (user && adminSession) {
+  if (user && adminSession && adminAuthorized === true) {
     if (window.location.pathname === "/admin/bpsc") return <BPSCAdminPage />;
     return <AdminPage onSignOut={() => { sessionStorage.removeItem(ADMIN_SESSION); setAdminSession(false); signOut(auth); }} />;
   }
