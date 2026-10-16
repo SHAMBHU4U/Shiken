@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { db, auth } from "../firebase";
 import { ref, push, get, set } from "firebase/database";
@@ -1455,14 +1454,14 @@ function ResultScreen({
       <div className="max-w-lg mx-auto">
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-center mb-6">
           <div className="mb-2 flex justify-center"><SubjectIcon id={subject} color={accent} size="lg" /></div>
-          <h2 className="text-2xl font-bold text-white mb-0 leading-tight">{label} — Results</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-0 leading-tight">{label} — Results</h2>
           {subjectMeta[subject]?.labelHindi && (
             <p className="text-sm font-semibold mb-0.5" style={{ color: accent }}>{subjectMeta[subject].labelHindi}</p>
           )}
-          <p className="text-white/40 text-xs mb-1">
+          <p className="text-slate-600 text-xs mb-1">
             {mode === "full" ? "Full Length Test" : `Chapter: ${chapter}`}
           </p>
-          <p className="text-white/40 text-sm">{msg}</p>
+          <p className="text-slate-700 text-sm font-medium">{msg}</p>
           {isDemo && (
             <span className="mt-2 text-xs px-3 py-1 rounded-full inline-block" style={{ background: `${accent}20`, color: accent }}>
               Demo questions — add yours to Firebase
@@ -1475,10 +1474,10 @@ function ResultScreen({
           )}
           {isPremium && (
             <div className="flex items-center justify-center gap-2 mt-3">
-              <span className="text-white/25 text-xs">Explanation language:</span>
+              <span className="text-slate-600 text-xs">Explanation language:</span>
               <motion.button onClick={cycleExplainLang} whileTap={{ scale: 0.93 }}
                 className="px-3 py-1 rounded-full text-xs font-semibold border transition-all"
-                style={{ background: `${accent}12`, borderColor: `${accent}35`, color: `${accent}cc` }}>
+                style={{ background: "#e0f2fe", borderColor: "#7dd3fc", color: "#075985" }}>
                 {explainLangLabel}
               </motion.button>
             </div>
@@ -1488,15 +1487,15 @@ function ResultScreen({
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
           className="rounded-2xl p-6 mb-5 text-center border"
-          style={{ background: `linear-gradient(135deg, ${accent}22, ${accent}08)`, borderColor: `${accent}40`, boxShadow: `0 0 40px ${accent}20` }}
+          style={{ background: "#ffffff", borderColor: "#cbd5e1", boxShadow: "0 8px 26px rgba(15,23,42,0.08)" }}
         >
-          <p className="text-7xl font-black mb-1" style={{ background: `linear-gradient(135deg, #fff, ${accent})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <p className="text-7xl font-black mb-1 text-slate-900">
             {score}/{questions.length}
           </p>
-          <p className="text-white/50 text-sm">{pct}% correct</p>
-          <div className="mt-4 h-2 rounded-full bg-white/10 overflow-hidden">
+          <p className="text-slate-700 text-sm font-medium">{pct}% correct</p>
+          <div className="mt-4 h-2 rounded-full bg-slate-200 overflow-hidden">
             <motion.div className="h-full rounded-full" initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
-              style={{ background: `linear-gradient(90deg, ${accent}, #fff)` }} />
+              style={{ background: `linear-gradient(90deg, ${accent}, ${accent}bb)` }} />
           </div>
         </motion.div>
 
@@ -1505,9 +1504,9 @@ function ResultScreen({
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
             className="rounded-2xl border p-4 mb-4"
-            style={{ background: "var(--app-surface)", borderColor: "var(--app-surface)" }}
+            style={{ background: "#ffffff", borderColor: "#cbd5e1", boxShadow: "0 4px 18px rgba(15,23,42,0.05)" }}
           >
-            <p className="text-white/40 text-xs font-semibold uppercase tracking-widest mb-3">📊 Progress Snapshot</p>
+            <p className="text-slate-700 text-xs font-bold uppercase tracking-widest mb-3">📊 Progress Snapshot</p>
             <div className="grid grid-cols-3 gap-2 mb-3">
               {[
                 { label: "This Test", value: `${pct}%`, color: pct >= 80 ? "#10b981" : pct >= 60 ? "#f59e0b" : "#ef4444" },
@@ -1518,9 +1517,9 @@ function ResultScreen({
                 },
                 { label: "Best", value: `${Math.max(...history.map(r => r.pct))}%`, color: "#10b981" },
               ].map((s) => (
-                <div key={s.label} className="text-center rounded-xl p-2.5" style={{ background: "var(--app-surface)" }}>
+                <div key={s.label} className="text-center rounded-xl p-2.5" style={{ background: "#f1f5f9" }}>
                   <p className="font-black text-base" style={{ color: s.color }}>{s.value}</p>
-                  <p className="text-white/25 text-xs mt-0.5">{s.label}</p>
+                  <p className="text-slate-600 text-xs mt-0.5 font-medium">{s.label}</p>
                 </div>
               ))}
             </div>
@@ -1528,11 +1527,11 @@ function ResultScreen({
               const trend = history[history.length - 1].pct - history[history.length - 2].pct;
               return (
                 <div className="flex items-center justify-center gap-1.5 pt-3"
-                  style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  style={{ borderTop: "1px solid #e2e8f0" }}>
                   <span className="text-sm">{trend > 0 ? "📈" : trend < 0 ? "📉" : "➡️"}</span>
                   <span className="text-xs font-bold" style={{ color: trend > 0 ? "#10b981" : trend < 0 ? "#ef4444" : "var(--app-text-ghost)" }}>
                     {trend > 0 ? `+${trend}%` : trend === 0 ? "Same as last test" : `${trend}%`}
-                    <span className="font-normal text-white/30"> vs last test</span>
+                    <span className="font-normal text-slate-600"> vs last test</span>
                   </span>
                 </div>
               );
@@ -1548,9 +1547,9 @@ function ResultScreen({
             transition={{ delay: 0.28 }}
             className="rounded-2xl p-4 mb-4"
             style={{
-              background: "linear-gradient(135deg, rgba(251,191,36,0.12), rgba(245,158,11,0.06))",
-              border: "1px solid rgba(251,191,36,0.3)",
-              boxShadow: "0 0 28px rgba(251,191,36,0.08)",
+              background: "linear-gradient(135deg, #fffbeb, #fef3c7)",
+              border: "1px solid #fcd34d",
+              boxShadow: "0 4px 18px rgba(180,83,9,0.08)",
             }}
           >
             <div className="flex items-start gap-3">
@@ -1560,12 +1559,12 @@ function ResultScreen({
                 className="text-2xl shrink-0"
               >💡</motion.span>
               <div className="flex-1 min-w-0">
-                <p className="text-amber-300 font-black text-xs uppercase tracking-widest mb-1">Kya aap jante hain?</p>
-                <p className="text-white text-sm font-semibold leading-relaxed mb-3">
+                <p className="text-amber-800 font-black text-xs uppercase tracking-widest mb-1">Kya aap jante hain?</p>
+                <p className="text-slate-900 text-sm font-semibold leading-relaxed mb-3">
                   ₹199/- mein aap board exams tak{" "}
-                  <span style={{ color: "#fbbf24" }}>unlimited Shiken Engine tests</span> aur{" "}
-                  <span style={{ color: "#fbbf24" }}>direct mentorship</span> pa sakte hain!
-                  <span className="text-white/50 font-normal"> (Sirf ₹33 mahina)</span>
+                  <span className="text-amber-900 font-bold">unlimited Shiken Engine tests</span> aur{" "}
+                  <span className="text-amber-900 font-bold">direct mentorship</span> pa sakte hain!
+                  <span className="text-slate-600 font-normal"> (Sirf ₹33 mahina)</span>
                 </p>
                 <motion.a
                   href={`${import.meta.env.BASE_URL}pricing`.replace("//", "/")}
@@ -1585,10 +1584,10 @@ function ResultScreen({
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="rounded-2xl border p-4 mb-4"
-            style={{ background: `linear-gradient(135deg, ${accent}10, rgba(255,255,255,0.03))`, borderColor: `${accent}25` }}
+            style={{ background: "#ffffff", borderColor: "#cbd5e1", boxShadow: "0 4px 18px rgba(15,23,42,0.05)" }}
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="text-white/70 text-xs font-semibold">📈 Your Progress ({history.length} tests)</p>
+              <p className="text-slate-800 text-xs font-bold">📈 Your Progress ({history.length} tests)</p>
               <div className="flex gap-3">
                 {(() => {
                   const best = Math.max(...history.map((r) => r.pct));
@@ -1599,18 +1598,18 @@ function ResultScreen({
                   return (
                     <>
                       <div className="text-right">
-                        <p className="text-white text-xs font-bold">{best}%</p>
-                        <p className="text-white/30 text-[10px]">Best</p>
+                          <p className="text-slate-900 text-xs font-bold">{best}%</p>
+                          <p className="text-slate-600 text-[10px]">Best</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-white text-xs font-bold">{avg}%</p>
-                        <p className="text-white/30 text-[10px]">Avg</p>
+                          <p className="text-slate-900 text-xs font-bold">{avg}%</p>
+                          <p className="text-slate-600 text-[10px]">Avg</p>
                       </div>
                       <div className="text-right">
-                        <p className={`text-xs font-bold ${trend > 0 ? "text-emerald-400" : trend < 0 ? "text-red-400" : "text-white/40"}`}>
+                        <p className={`text-xs font-bold ${trend > 0 ? "text-emerald-700" : trend < 0 ? "text-red-700" : "text-slate-600"}`}>
                           {trend > 0 ? `+${trend}` : trend === 0 ? "–" : trend}%
                         </p>
-                        <p className="text-white/30 text-[10px]">vs prev</p>
+                        <p className="text-slate-600 text-[10px]">vs prev</p>
                       </div>
                     </>
                   );
@@ -1619,8 +1618,8 @@ function ResultScreen({
             </div>
             <ProgressChart records={history} accent={accent} />
             <div className="flex justify-between mt-1 px-1">
-              <span className="text-white/20 text-[10px]">Older tests</span>
-              <span className="text-white/20 text-[10px]">This test →</span>
+              <span className="text-slate-600 text-[10px]">Older tests</span>
+              <span className="text-slate-600 text-[10px]">This test →</span>
             </div>
           </motion.div>
         )}
@@ -1656,10 +1655,10 @@ function ResultScreen({
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
             className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl border text-sm font-bold"
             style={{
-              background: analysisOpen ? "linear-gradient(135deg,#6366f128,#8b5cf628)" : "rgba(99,102,241,0.12)",
-              borderColor: analysisOpen ? "#6366f155" : "rgba(99,102,241,0.3)",
-              color: "#a5b4fc",
-              boxShadow: analysisOpen ? "0 0 30px rgba(99,102,241,0.2)" : "none",
+              background: analysisOpen ? "#e0e7ff" : "#eef2ff",
+              borderColor: "#c7d2fe",
+              color: "#3730a3",
+              boxShadow: analysisOpen ? "0 4px 16px rgba(67,56,202,0.12)" : "none",
             }}
           >
             {analysisLoading ? "विश्लेषण हो रहा है..." : analysisOpen ? "विश्लेषण बंद करो ↑" : "Test का विश्लेषण करो ↓"}
@@ -1675,12 +1674,12 @@ function ResultScreen({
                 className="overflow-hidden"
               >
                 <div className="mt-3 rounded-2xl border p-5"
-                  style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.06))", borderColor: "rgba(99,102,241,0.22)", boxShadow: "0 4px 40px rgba(99,102,241,0.12)" }}>
+                  style={{ background: "#ffffff", borderColor: "#c7d2fe", boxShadow: "0 4px 18px rgba(67,56,202,0.08)" }}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm font-bold text-indigo-300">Performance Analysis</span>
+                    <span className="text-sm font-bold text-indigo-900">Performance Analysis</span>
                   </div>
                   {analysisText ? (
-                    <div className="text-sm leading-relaxed text-white/85 whitespace-pre-wrap">
+                    <div className="text-sm leading-relaxed text-slate-800 whitespace-pre-wrap">
                       {analysisText}
                       {analysisLoading && (
                         <motion.span animate={{ opacity: [1, 0, 1] }} transition={{ repeat: Infinity, duration: 0.8 }}
@@ -1695,7 +1694,7 @@ function ResultScreen({
                             className="w-2 h-2 rounded-full bg-indigo-400" />
                         ))}
                       </div>
-                      <span className="text-xs text-white/40">तुम्हारे results analyse कर रहा हूँ...</span>
+                       <span className="text-xs text-slate-600">तुम्हारे results analyse कर रहा हूँ...</span>
                     </div>
                   ) : null}
                 </div>
@@ -1719,20 +1718,21 @@ function ResultScreen({
                 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.04 }}
                 className="rounded-xl border p-4"
                 style={{
-                  background: isRight ? `${accent}12` : isSkipped ? "var(--app-surface)" : "rgba(255,80,80,0.06)",
-                  borderColor: isRight ? `${accent}40` : isSkipped ? "var(--app-surface)" : "rgba(255,80,80,0.18)",
+                  background: isRight ? "#ecfdf5" : isSkipped ? "#ffffff" : "#fff1f2",
+                  borderColor: isRight ? "#86efac" : isSkipped ? "#cbd5e1" : "#fda4af",
+                  boxShadow: "0 4px 16px rgba(15,23,42,0.04)",
                 }}
               >
                 <div className="flex items-start gap-2 mb-2">
                   <span className="text-xs font-bold px-2 py-0.5 rounded-full mt-0.5 shrink-0"
                     style={{
-                      background: isRight ? `${accent}30` : isSkipped ? "var(--app-border)" : "rgba(255,80,80,0.2)",
-                      color: isRight ? accent : isSkipped ? "rgba(255,255,255,0.32)" : "#f87171",
+                      background: isRight ? "#bbf7d0" : isSkipped ? "#e2e8f0" : "#fecdd3",
+                      color: isRight ? "#166534" : isSkipped ? "#475569" : "#b91c1c",
                     }}>
                     {isRight ? "✓" : isSkipped ? "–" : "✗"}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white/80 text-sm font-medium leading-snug">
+                    <p className="text-slate-900 text-sm font-semibold leading-snug">
                       {i + 1}. <MathText text={q.english || q.hindi} />
                     </p>
                   </div>
@@ -1741,8 +1741,8 @@ function ResultScreen({
                     whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
                     className="w-7 h-7 flex items-center justify-center rounded-lg shrink-0 ml-1"
                     style={{
-                      background: isBookmarked(bmks, q) ? "rgba(251,191,36,0.18)" : "var(--app-surface)",
-                      border: isBookmarked(bmks, q) ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(255,255,255,0.10)",
+                      background: isBookmarked(bmks, q) ? "#fef3c7" : "#f1f5f9",
+                      border: isBookmarked(bmks, q) ? "1px solid #fbbf24" : "1px solid #cbd5e1",
                     }}
                     title={isBookmarked(bmks, q) ? "Remove bookmark" : "Bookmark"}
                   >
@@ -1753,13 +1753,13 @@ function ResultScreen({
                     >
                       {isBookmarked(bmks, q)
                         ? <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="#fbbf24" />
-                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                        : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="#64748b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                       }
                     </motion.svg>
                   </motion.button>
                 </div>
                 {q.english && q.hindi && (
-                  <p className="text-white/35 text-xs mb-2 pl-1">
+                  <p className="text-slate-600 text-xs mb-2 pl-1">
                     <MathText text={q.hindi} />
                   </p>
                 )}
@@ -1772,8 +1772,9 @@ function ResultScreen({
                     return (
                       <div key={oi} className="flex items-start gap-2 text-xs px-3 py-1.5 rounded-lg"
                         style={{
-                          background: isCorrect ? `${accent}25` : isUser && !isRight ? "rgba(255,80,80,0.12)" : "transparent",
-                          color:      isCorrect ? accent : isUser && !isRight ? "#f87171" : "rgba(255,255,255,0.22)",
+                          background: isCorrect ? "#dcfce7" : isUser && !isRight ? "#fee2e2" : "#f8fafc",
+                          border: `1px solid ${isCorrect ? "#86efac" : isUser && !isRight ? "#fca5a5" : "#e2e8f0"}`,
+                          color:      isCorrect ? "#166534" : isUser && !isRight ? "#b91c1c" : "#334155",
                         }}>
                         <span className="font-bold w-4 shrink-0 mt-0.5">{String.fromCharCode(65 + oi)}.</span>
                         <span className="flex flex-col gap-0.5 flex-1 min-w-0">
@@ -1796,7 +1797,7 @@ function ResultScreen({
                 {/* ── Per-question Explanation ── */}
                 {isPremium ? (
                   <div className="mt-2 rounded-xl border overflow-hidden"
-                    style={{ background: "rgba(99,102,241,0.05)", borderColor: "rgba(99,102,241,0.16)" }}>
+                    style={{ background: "#eef2ff", borderColor: "#c7d2fe" }}>
                     <button
                       onClick={() => {
                         if (!isExOpen) {
@@ -1809,12 +1810,12 @@ function ResultScreen({
                         }
                       }}
                       className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold"
-                      style={{ color: isExLoading ? "#a5b4fc" : "#818cf8" }}
+                      style={{ color: isExLoading ? "#4338ca" : "#3730a3" }}
                     >
                       <span>{isExLoading ? "समझाया जा रहा है…" : isExOpen ? "Explanation छुपाएं ↑" : "🤖 Explain करें ↓"}</span>
                       {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && q.chapter !== "Shiken Generated" && (
                         <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-2 shrink-0"
-                          style={{ background: `${accent}18`, color: `${accent}cc`, border: `1px solid ${accent}30` }}>
+                          style={{ background: "#e0e7ff", color: "#3730a3", border: "1px solid #c7d2fe" }}>
                           {q.chapter}
                         </span>
                       )}
@@ -1829,7 +1830,7 @@ function ResultScreen({
                           transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
                           className="overflow-hidden"
                         >
-                          <div className="px-3 pb-4 pt-0 border-t" style={{ borderColor: "rgba(99,102,241,0.13)" }}>
+                          <div className="px-3 pb-4 pt-0 border-t" style={{ borderColor: "#c7d2fe" }}>
                             {isExLoading && !exText ? (
                               <div className="flex items-center gap-2 py-3">
                                 {[0, 1, 2].map((j) => (
@@ -1837,7 +1838,7 @@ function ResultScreen({
                                     transition={{ repeat: Infinity, duration: 0.6, delay: j * 0.12 }}
                                     className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                                 ))}
-                                <span className="text-xs text-white/30 ml-1">समझाया जा रहा है...</span>
+                                <span className="text-xs text-slate-600 ml-1">समझाया जा रहा है...</span>
                               </div>
                             ) : (
                               <div className="pt-3">
@@ -1852,11 +1853,11 @@ function ResultScreen({
                 ) : (
                   <button onClick={() => fetchExplain(i, q, explainLang)}
                     className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-xs font-semibold mt-2"
-                    style={{ background: "rgba(99,102,241,0.04)", borderColor: "rgba(99,102,241,0.16)", color: "#818cf8" }}>
+                    style={{ background: "#eef2ff", borderColor: "#c7d2fe", color: "#3730a3" }}>
                     <span>🤖 Explain करें — Premium unlock करें</span>
                     {q.chapter && q.chapter !== "General" && q.chapter !== "AI Generated" && q.chapter !== "Shiken Generated" && (
                       <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-2 shrink-0"
-                        style={{ background: `${accent}18`, color: `${accent}cc`, border: `1px solid ${accent}30` }}>
+                        style={{ background: "#e0e7ff", color: "#3730a3", border: "1px solid #c7d2fe" }}>
                         {q.chapter}
                       </span>
                     )}
@@ -3023,64 +3024,13 @@ export default function SubjectPage() {
   const timerGlow    = timerDanger ? "0 0 22px rgba(220,38,38,0.22)" : timerWarning ? "0 0 18px rgba(180,83,9,0.18)" : "0 0 18px rgba(37,99,235,0.15)";
 
   return (
-    <div className="min-h-screen w-full overflow-hidden relative" style={{ background: "#eef2f7" }}>
+    <div className="subject-quiz-shell min-h-screen w-full overflow-x-clip relative" style={{ background: "#eef2f7" }}>
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-15"
           style={{ background: `radial-gradient(circle, ${meta.accent}, transparent)` }} />
         <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full blur-3xl opacity-10"
           style={{ background: `radial-gradient(circle, ${meta.accent}, transparent)` }} />
       </div>
-
-      {/* ── Floating Timer ──────────────────────────────────────────────────────── */}
-      <AnimatePresence>
-        {timerLeft >= 0 && (
-          <motion.div
-            key="timer-widget"
-            initial={{ opacity: 0, y: -16, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.85 }}
-            transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
-            className="fixed top-4 right-4 z-50 flex items-center gap-1.5"
-          >
-            {timerHidden ? (
-              /* Minimised clock pill — click to expand */
-              <motion.button
-                onClick={() => setTimerHidden(false)}
-                whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.93 }}
-                className="flex items-center justify-center w-10 h-10 rounded-full backdrop-blur-md border text-base"
-                style={{ background: timerBg, borderColor: timerBorder, boxShadow: timerGlow, color: timerColor }}
-                title="Show timer"
-              >
-                ⏱
-              </motion.button>
-            ) : (
-              /* Full timer pill */
-              <motion.div
-                className="flex items-center gap-2 px-3.5 py-2 rounded-2xl backdrop-blur-md border"
-                animate={timerDanger ? { scale: [1, 1.03, 1] } : {}}
-                transition={timerDanger ? { repeat: Infinity, duration: 0.75 } : {}}
-                style={{ background: timerBg, borderColor: timerBorder, boxShadow: timerGlow }}
-              >
-                <span className="text-sm" style={{ color: timerColor }}>⏱</span>
-                <span
-                  className="font-mono font-bold text-sm tracking-wide"
-                  style={{ color: timerColor, minWidth: "3.6rem", textAlign: "center" }}
-                >
-                  {timerMM}:{timerSS}
-                </span>
-                <motion.button
-                  onClick={() => setTimerHidden(true)}
-                  whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.9 }}
-                  className="text-slate-500 hover:text-slate-800 transition-colors text-xs leading-none ml-0.5"
-                  title="Hide timer"
-                >
-                  ✕
-                </motion.button>
-              </motion.div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Question Palette Sheet ──────────────────────────────────────────────── */}
       <AnimatePresence>
@@ -3186,7 +3136,101 @@ export default function SubjectPage() {
         )}
       </AnimatePresence>
 
-      <div className="relative z-10 max-w-lg mx-auto px-4 pt-6 pb-28 flex flex-col min-h-screen">
+      <div className="relative z-10 max-w-lg mx-auto px-4 pt-0 pb-8 flex flex-col min-h-screen">
+        <header className="sticky top-0 z-30 -mx-4 mb-4 border-b border-slate-300 bg-[#f8fafc]/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top)+10px)] shadow-sm backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                {meta.label} · {mode === "full" ? "Full Test" : selectedChapter}
+              </p>
+              <h1 className="text-base font-black leading-tight text-slate-900">
+                Question {currentIndex + 1} of {questions.length}
+              </h1>
+            </div>
+            {timerLeft >= 0 && (
+              timerHidden ? (
+                <button
+                  type="button"
+                  onClick={() => setTimerHidden(false)}
+                  aria-label="Show remaining time"
+                  data-testid="button-show-quiz-timer"
+                  className="shrink-0 rounded-xl border px-3 py-2 text-xs font-bold"
+                  style={{ background: timerBg, borderColor: timerBorder, color: timerColor }}
+                >
+                  ⏱ Show
+                </button>
+              ) : (
+                <div
+                  className="flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2"
+                  style={{ background: timerBg, borderColor: timerBorder, boxShadow: timerGlow }}
+                  aria-label={`Time remaining ${timerMM}:${timerSS}`}
+                >
+                  <span className="text-sm" aria-hidden="true">⏱</span>
+                  <span className="min-w-[3.5rem] text-center font-mono text-sm font-black tracking-wide" style={{ color: timerColor }}>
+                    {timerMM}:{timerSS}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTimerHidden(true)}
+                    aria-label="Hide timer"
+                    data-testid="button-hide-quiz-timer"
+                    className="text-xs font-bold text-slate-600 hover:text-slate-900"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPaletteOpen(true)}
+              data-testid="button-open-question-palette"
+              aria-label={`Open question palette, question ${currentIndex + 1} of ${questions.length}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-100 px-3 py-2 text-xs font-bold text-violet-900"
+            >
+              <span aria-hidden="true">▦</span> Questions
+            </button>
+            <button
+              type="button"
+              onClick={() => setBookmarks(toggleBookmark(subject, bookmarks, q))}
+              data-testid="button-save-current-question"
+              aria-label={isBookmarked(bookmarks, q) ? "Remove saved question" : "Save current question"}
+              aria-pressed={isBookmarked(bookmarks, q)}
+              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-bold"
+              style={isBookmarked(bookmarks, q)
+                ? { background: "#fef3c7", borderColor: "#fbbf24", color: "#92400e" }
+                : { background: "#f1f5f9", borderColor: "#cbd5e1", color: "#334155" }}
+            >
+              <span aria-hidden="true">{isBookmarked(bookmarks, q) ? "★" : "☆"}</span>
+              {isBookmarked(bookmarks, q) ? "Saved" : "Save question"}
+            </button>
+            <button
+              type="button"
+              onClick={cycleLang}
+              data-testid="button-toggle-quiz-language"
+              aria-label={`Switch question language from ${langLabel}`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-300 bg-cyan-100 px-3 py-2 text-xs font-bold text-cyan-900"
+            >
+              <span aria-hidden="true">🌐</span> {langLabel}
+            </button>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-600">
+            <span>{Object.keys(answers).length} answered</span>
+            <span>{Math.round(progress)}% complete</span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200">
+            <motion.div
+              className="h-full rounded-full"
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              style={{ background: `linear-gradient(90deg, ${meta.accent}, ${meta.accent}bb)` }}
+            />
+          </div>
+        </header>
 
         {/* Passage toggle — shown when doing comprehension quiz */}
         {selectedChapter === "Comprehension" && passageText && (
@@ -3247,55 +3291,16 @@ export default function SubjectPage() {
                 {/* Question card */}
                 <div className="rounded-2xl p-5 mb-4 border relative"
                style={{ background: "linear-gradient(135deg, #f1f5f9, #e5ebf2)", borderColor: "#cbd5e1", boxShadow: "0 8px 26px rgba(51,65,85,0.10)" }}>
-                  {/* Bookmark button */}
-                  <motion.button
-                    onClick={() => setBookmarks(toggleBookmark(subject, bookmarks, q))}
-                    whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }}
-                    className="absolute top-2.5 right-2.5 w-8 h-8 flex items-center justify-center rounded-xl"
-                    style={{
-                       background: isBookmarked(bookmarks, q) ? "#fef3c7" : "#dbe5ef",
-                       border: isBookmarked(bookmarks, q) ? "1px solid #fbbf24" : "1px solid #b8c6d6",
-                    }}
-                    title={isBookmarked(bookmarks, q) ? "Remove bookmark" : "Bookmark this question"}
-                  >
-                    <motion.svg
-                      width="16" height="16" viewBox="0 0 24 24" fill="none"
-                      animate={{ scale: isBookmarked(bookmarks, q) ? [1, 1.3, 1] : 1 }}
-                      transition={{ duration: 0.25 }}
-                    >
-                      {isBookmarked(bookmarks, q)
-                        ? <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="#fbbf24" />
-                         : <path d="M5 3h14a1 1 0 0 1 1 1v18l-8-4-8 4V4a1 1 0 0 1 1-1z" fill="none" stroke="#64748b" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                      }
-                    </motion.svg>
-                  </motion.button>
                   {(() => {
                     const content = getQuestionContent(q, lang);
                     return (
-                      <div className="mb-1 pr-8">
-                        <p className="text-white font-semibold text-base leading-relaxed">
-                          {currentIndex + 1}. <MathText text={content.question} />
+                      <div className="mb-1">
+                        <p className="text-slate-900 font-semibold text-base leading-relaxed">
+                          <MathText text={content.question} />
                         </p>
                       </div>
                     );
                   })()}
-                </div>
-
-                {/* Language toggle — below question, above options */}
-                <div className="flex items-center justify-between mt-3 mb-1">
-                  <motion.button
-                    onClick={cycleLang}
-                    whileTap={{ scale: 0.93 }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all"
-                    style={{
-                       background: lang === "hi" ? "#cffafe" : "#e0f2fe",
-                       borderColor: lang === "hi" ? "#22d3ee" : "#7dd3fc",
-                       color: "#0e7490",
-                     }}
-                    title="Toggle between the saved English and Hindi question"
-                  >
-                    🌐 {langLabel}
-                  </motion.button>
                 </div>
 
                 {/* Options */}
