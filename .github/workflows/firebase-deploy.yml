@@ -62,12 +62,6 @@ jobs:
           rm -rf lib
           node build.mjs
 
-      - name: Set up Firebase CLI & Service Account
-        run: |
-          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHIKEN_D8789 }}' > /tmp/sa.json
-          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-          pnpm exec firebase use shiken-d8789 --add
-
       - name: Verify Function Build Output Exists
         run: |
           if [ ! -f "functions/lib/index.js" ]; then
