@@ -235,10 +235,40 @@ interface Question {
 
 function getQuestionContent(q: Question, lang: QuestionLanguage): QuestionContent {
   const stored = q[lang];
-  if (stored && (stored.question || stored.options.some((option) => option.trim()) || stored.explanation)) return stored;
-  return lang === "en"
-    ? { question: q.english, options: q.options, explanation: q.explanation }
-    : { question: q.hindi || q.english, options: q.optionsHindi?.some((option) => option.trim()) ? q.optionsHindi : q.options, explanation: q.explanation };
+  const hasText = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
+  const storedOptions = Array.isArray(stored?.options) ? stored.options : [];
+
+  if (lang === "en") {
+    if (stored && (stored.question || storedOptions.some(hasText) || stored.explanation)) {
+      return { ...stored, options: storedOptions };
+    }
+    return { question: q.english, options: Array.isArray(q.options) ? q.options : [], explanation: q.explanation };
+  }
+
+  const legacyHindiOptions = Array.isArray(q.optionsHindi) ? q.optionsHindi : [];
+  const englishOptions = Array.isArray(q.en?.options) ? q.en.options : [];
+  const legacyEnglishOptions = Array.isArray(q.options) ? q.options : [];
+  const optionCount = Math.max(storedOptions.length, legacyHindiOptions.length, englishOptions.length, legacyEnglishOptions.length);
+  const options = Array.from({ length: optionCount }, (_, index) => {
+    const hindiOption = storedOptions[index];
+    if (hasText(hindiOption)) return hindiOption;
+
+    const legacyHindiOption = legacyHindiOptions[index];
+    if (hasText(legacyHindiOption)) return legacyHindiOption;
+
+    const englishOption = englishOptions[index];
+    if (hasText(englishOption)) return englishOption;
+
+    const legacyEnglishOption = legacyEnglishOptions[index];
+    return hasText(legacyEnglishOption) ? legacyEnglishOption : "";
+  });
+  const hindiQuestion = stored?.question;
+
+  return {
+    question: hasText(hindiQuestion) ? hindiQuestion : q.hindi || q.english,
+    options,
+    explanation: stored?.explanation || q.explanation,
+  };
 }
 
 // ─── Progress persistence ──────────────────────────────────────────────────────
@@ -3305,7 +3335,10 @@ export default function SubjectPage() {
 
                 {/* Options */}
                 <div className="flex flex-col gap-3">
-                  {getQuestionContent(q, lang).options.map((opt, oi) => {
+                  {getQuestionContent(q, lang).options
+                    .map((opt, oi) => ({ opt, oi }))
+                    .filter(({ opt }) => typeof opt === "string" && opt.trim().length > 0)
+                    .map(({ opt, oi }) => {
                     const isSelected = selectedOption === oi;
                     return (
                       <motion.button
