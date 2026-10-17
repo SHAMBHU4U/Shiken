@@ -146,3 +146,4 @@ GITHUB_PERSONAL_ACCESS_TOKEN = "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"
 
 [nix]
 channel = "stable-25_05"
+packages = ["firebase-tools"]

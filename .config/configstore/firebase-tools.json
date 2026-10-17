@@ -1,5 +1,4 @@
 {
-	"lastError": 1781308746648,
 	"motd": {
 		"cloudBuildErrorAfter": 1594252800000,
 		"cloudBuildWarnAfter": 1590019200000,
@@ -8,8 +7,16 @@
 		"node8DeploysDisabledAfter": 1613390400000,
 		"node8RuntimeDisabledAfter": 1615809600000,
 		"node8WarnAfter": 1600128000000,
-		"fetched": 1781308660049
+		"fetched": 1792208917990
 	},
 	"gemini": true,
-	"usage": false
+	"loginScopes": [
+		"email",
+		"openid",
+		"https://www.googleapis.com/auth/cloudplatformprojects.readonly",
+		"https://www.googleapis.com/auth/firebase",
+		"https://www.googleapis.com/auth/cloud-platform"
+	],
+	"additionalAccounts": [],
+	"activeAccounts": {}
 }
