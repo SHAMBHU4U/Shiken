@@ -99,40 +99,18 @@ jobs:
 
       - name: Deploy Hosting + Functions (Unified)
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
           RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
           RAZORPAY_KEY_SECRET: ${{ secrets.RAZORPAY_KEY_SECRET }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          if [ -z "$FIREBASE_TOKEN" ]; then
-            echo "::error::GitHub Actions secret FIREBASE_TOKEN is unavailable to this workflow."
-            exit 1
-          fi
-          firebase_token="$(printf '%s' "$FIREBASE_TOKEN" | tr -d '\r\n')"
-          if [ -z "$firebase_token" ]; then
-            echo "::error::GitHub Actions secret FIREBASE_TOKEN is empty after removing line breaks."
-            exit 1
-          fi
-          case "$firebase_token" in
-            \{*)
-              echo "::error::FIREBASE_TOKEN contains JSON; use a Firebase CLI token, not the service-account JSON."
-              exit 1
-              ;;
-          esac
-          if [[ "$firebase_token" =~ [[:space:]] ]]; then
-            echo "::error::FIREBASE_TOKEN contains whitespace; store it as a single-line Firebase CLI token."
-            exit 1
-          fi
-          # Deploy hosting and functions together — DO NOT delete function first
-          pnpm exec firebase deploy --debug --only hosting,functions --project shiken-d8789 --force --non-interactive --token "$firebase_token"
-
-      - name: Verify Cloud Function Deployed
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          # Deploy hosting and functions together using service account credentials automatically picked up from GOOGLE_APPLICATION_CREDENTIALS
+          pnpm exec firebase deploy --debug --only hosting,functions --project shiken-d8789 --force --non-interactive
+          
+      - name: Verify Function Deployed
         run: |
-          firebase_token="$(printf '%s' "$FIREBASE_TOKEN" | tr -d '\r\n')"
           echo "Checking if api function exists..."
-          pnpm exec firebase functions:list --project shiken-d8789 --non-interactive --token "$firebase_token" | grep -q "api" || {
+          pnpm exec firebase functions:list --project shiken-d8789 --non-interactive | grep -q "api" || {
             echo "ERROR: Cloud Function 'api' not found after deploy!"
             exit 1
           }
