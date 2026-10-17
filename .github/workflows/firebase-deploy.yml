@@ -109,7 +109,7 @@ jobs:
             exit 1
           fi
           # Deploy hosting and functions together — DO NOT delete function first
-          pnpm exec firebase deploy --only hosting,functions --project shiken-d8789 --force --non-interactive --token "$FIREBASE_TOKEN"
+          pnpm exec firebase deploy --debug --only hosting,functions --project shiken-d8789 --force --non-interactive --token "$FIREBASE_TOKEN"
 
       - name: Verify Cloud Function Deployed
         env:
