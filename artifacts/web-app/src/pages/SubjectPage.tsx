@@ -232,23 +232,33 @@ interface Question {
   chapter: string;
   explanation?: string;
 }
-
 function getQuestionContent(q: Question, lang: QuestionLanguage): QuestionContent {
   const stored = q[lang];
-  const hasText = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
+  const hasText = (value: unknown): value is string =>
+    typeof value === "string" && value.trim().length > 0;
   const storedOptions = Array.isArray(stored?.options) ? stored.options : [];
 
   if (lang === "en") {
     if (stored && (stored.question || storedOptions.some(hasText) || stored.explanation)) {
       return { ...stored, options: storedOptions };
     }
-    return { question: q.english, options: Array.isArray(q.options) ? q.options : [], explanation: q.explanation };
+    return {
+      question: q.english,
+      options: Array.isArray(q.options) ? q.options : [],
+      explanation: q.explanation,
+    };
   }
 
   const legacyHindiOptions = Array.isArray(q.optionsHindi) ? q.optionsHindi : [];
   const englishOptions = Array.isArray(q.en?.options) ? q.en.options : [];
   const legacyEnglishOptions = Array.isArray(q.options) ? q.options : [];
-  const optionCount = Math.max(storedOptions.length, legacyHindiOptions.length, englishOptions.length, legacyEnglishOptions.length);
+  const optionCount = Math.max(
+    storedOptions.length,
+    legacyHindiOptions.length,
+    englishOptions.length,
+    legacyEnglishOptions.length,
+  );
+
   const options = Array.from({ length: optionCount }, (_, index) => {
     const hindiOption = storedOptions[index];
     if (hasText(hindiOption)) return hindiOption;
@@ -262,6 +272,7 @@ function getQuestionContent(q: Question, lang: QuestionLanguage): QuestionConten
     const legacyEnglishOption = legacyEnglishOptions[index];
     return hasText(legacyEnglishOption) ? legacyEnglishOption : "";
   });
+
   const hindiQuestion = stored?.question;
 
   return {
@@ -3336,33 +3347,36 @@ export default function SubjectPage() {
                 {/* Options */}
                 <div className="flex flex-col gap-3">
                   {getQuestionContent(q, lang).options
-                    .map((opt, oi) => ({ opt, oi }))
-                    .filter(({ opt }) => typeof opt === "string" && opt.trim().length > 0)
-                    .map(({ opt, oi }) => {
-                    const isSelected = selectedOption === oi;
-                    return (
-                      <motion.button
-                        key={oi}
-                        onClick={() => handleSelect(oi)}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: oi * 0.07, duration: 0.35 }}
-                        className={`quiz-option relative w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 overflow-hidden transition-colors duration-150 ${isSelected ? "quiz-option-selected" : ""}`}
-                        style={{
-                          cursor:       selectedOption !== null ? "default" : "pointer",
-                        }}
-                      >
-                        <span className="quiz-option-label w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
-                          {String.fromCharCode(65 + oi)}
-                        </span>
-                        <span className="flex flex-col gap-0.5 min-w-0">
-                          <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-answer-selected" : ""}`}>
-                            <MathText text={opt} />
-                          </span>
-                        </span>
-                      </motion.button>
-                    );
-                  })}
+  .map((opt, oi) => ({ opt, oi }))
+  .filter(({ opt }) => typeof opt === "string" && opt.trim().length > 0)
+  .map(({ opt, oi }) => {
+    const isSelected = selectedOption === oi;
+
+    return (
+      <motion.button
+        key={oi}
+        onClick={() => handleSelect(oi)}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: oi * 0.07, duration: 0.35 }}
+        className={`quiz-option relative w-full text-left rounded-xl border px-4 py-3.5 flex items-center gap-3 overflow-hidden transition-colors duration-150 ${
+          isSelected ? "quiz-option-selected" : ""
+        }`}
+        style={{
+          cursor: selectedOption !== null ? "default" : "pointer",
+        }}
+      >
+        <span className="quiz-option-label w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0">
+          {String.fromCharCode(65 + oi)}
+        </span>
+        <span className="flex flex-col gap-0.5 min-w-0">
+          <span className={`text-sm font-medium leading-snug ${isSelected ? "quiz-option-answer-selected" : ""}`}>
+            <MathText text={opt} />
+          </span>
+        </span>
+      </motion.button>
+    );
+  })}
                 </div>
 
               </motion.div>
