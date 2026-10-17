@@ -14,6 +14,7 @@ import { useSubscription } from "../hooks/useSubscription";
 import UpgradeModal from "../components/UpgradeModal";
 import { normalizeChapter, getCanonicalChapters } from "@/lib/chapterMap";
 import { saveQuestionsToCache, loadQuestionsFromCache } from "@/lib/questionCache";
+import { createPortal } from 'react-dom';
 
 const CHAPTER_ICONS: Record<string, string> = {
   // Language / Generic
