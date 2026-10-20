@@ -1,0 +1,33 @@
+
+Update and fix the BPSC/Competitive Exams Admin Panel (/admin routes) in the Shiken platform (React, Vite, Firebase Realtime Database & Storage). The UI and data management workflows need to be fully fixed for seamless bilingual (Hindi + English) content operations.
+​Key Requirements to Implement:
+UI/UX & Accessibility Fixes (Dark Theme Contrast):
+[1.​Fix](http://1.fix/) background-to-text contrast across all admin forms and input fields. Ensure text is dark black and background less white brightness so can everything should be clearly visible. 
+​Add clear, visible labels above every input box (e.g., Test Title, Description, Duration in Minutes, Category) so admins know exactly what to type.
+[2.Direct](http://2.direct/) PDF Upload for Notes (Notes / PDFs section):
+​Replace or upgrade the current metadata-only inputs with a direct file upload component (input type="file" accept=".pdf").
+​Ensure uploaded PDFs are securely pushed to Firebase Storage, generate a secure download URL, and save the metadata along with the file URL into the Realtime Database under competitiveExams/bpsc-cce/notes.
+3. Dedicated PYQ (Previous Year Questions) Section:
+Create a dedicated "PYQs" tab/section in the admin dashboard.
+​Allow admins to specify the Exam type, Subject category, and Year (e.g., 69th BPSC Prelims 2023, 68th BPSC 2022).
+​Support direct JSON/CSV bulk uploading specifically mapped to year-wise PYQ nodes in Firebase.
+[4.Enhanced](http://4.enhanced/) Bilingual JSON/CSV Bulk Upload Schema (Questions, Mock Tests, & PYQs):
+Update the bulk upload validator and parser to strictly handle comprehensive bilingual JSON data structures containing both Hindi (hi) and English (en) for Questions, Options, Explanations, and Detailed Related Facts.
+[
+  {
+    "id": "bpsc_q_001",
+    "category": "History / इतिहास",
+    "year": "69th BPSC 2023",
+    "question": { "en": "...", "hi": "..." },
+    "options": { "en": ["..."], "hi": ["..."] },
+    "correctAnswer": 0,
+    "explanation": { "en": "...", "hi": "..." },
+    "relatedFacts": { "en": "...", "hi": "..." }
+  }
+]
+[5.Mock](http://5.mock/) Test Creator Overhaul:
+​Remove the broken/confusing manual question ID selection interface.
+​Implement a direct bulk upload option for full mock tests (supporting 150 questions as per BPSC pattern) in bilingual format, or allow importing directly from existing question bank categories with one click, saving test metadata and full question sets cleanly to Firebase.
+
+
+
