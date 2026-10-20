@@ -23,6 +23,7 @@ import {
 
 type Section = "home" | "pyq" | "mock" | "affairs" | "notes" | "quiz" | "result";
 type AnswerKey = "A" | "B" | "C" | "D";
+type YearWiseSet = { year: string; examType: string; questions: BpscQuestion[] };
 
 const OPTION_KEYS: AnswerKey[] = ["A", "B", "C", "D"];
 const LANGUAGE_KEY = "shiken_bpsc_language";
@@ -102,7 +103,7 @@ function LanguageToggle({ value, onChange }: { value: BpscLanguage; onChange: (v
         ["en", "English"],
         ["both", "दोनों"],
       ] as const).map(([id, label]) => (
-        <button key={id} type="button" onClick={() => onChange(id)} className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold ${value === id ? "bg-emerald-600 text-white" : "text-slate-500"}`}>
+        <button key={id} type="button" data-testid={`button-language-${id}`} onClick={() => onChange(id)} className={`flex-1 rounded-lg px-2 py-1.5 text-[11px] font-bold ${value === id ? "bg-emerald-600 text-white" : "text-slate-600"}`}>
           {label}
         </button>
       ))}
@@ -110,10 +111,10 @@ function LanguageToggle({ value, onChange }: { value: BpscLanguage; onChange: (v
   );
 }
 
-function SectionCard({ emoji, title, description, color, onClick }: { emoji: string; title: string; description: string; color: string; onClick: () => void }) {
+function SectionCard({ mark, title, description, color, onClick }: { mark: string; title: string; description: string; color: string; onClick: () => void }) {
   return (
-    <motion.button type="button" whileTap={{ scale: 0.98 }} onClick={onClick} className="rounded-3xl border bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md" style={{ borderColor: `${color}45` }}>
-      <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-2xl" style={{ background: `${color}15` }}>{emoji}</span>
+    <motion.button type="button" data-testid={`button-section-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`} whileTap={{ scale: 0.98 }} onClick={onClick} className="rounded-3xl border bg-white p-5 text-left shadow-sm transition-shadow hover:shadow-md" style={{ borderColor: `${color}45` }}>
+      <span className="flex h-11 w-11 items-center justify-center rounded-2xl font-mono text-sm font-black" style={{ background: `${color}15`, color }}>{mark}</span>
       <h2 className="mt-4 text-base font-black text-slate-900">{title}</h2>
       <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>
       <span className="mt-4 inline-flex rounded-full px-3 py-1 text-[11px] font-bold" style={{ background: `${color}12`, color }}>Open section →</span>
@@ -312,6 +313,8 @@ export default function BPSCPage() {
   });
   const [category, setCategory] = useState<BpscCategory>("history");
   const [questions, setQuestions] = useState<BpscQuestion[]>([]);
+  const [yearWiseSets, setYearWiseSets] = useState<YearWiseSet[]>([]);
+  const [selectedYearSet, setSelectedYearSet] = useState<YearWiseSet | null>(null);
   const [tests, setTests] = useState<BpscMockTest[]>([]);
   const [affairs, setAffairs] = useState<BpscCurrentAffair[]>([]);
   const [notes, setNotes] = useState<BpscNote[]>([]);
@@ -337,10 +340,11 @@ export default function BPSCPage() {
     async function loadHomeData() {
       setLoading(true);
       try {
-        const [testsSnap, affairsSnap, notesSnap] = await Promise.all([
+        const [testsSnap, affairsSnap, notesSnap, pyqsSnap] = await Promise.all([
           get(ref(db, `${BPSC_DB_ROOT}/tests`)),
           get(ref(db, `${BPSC_DB_ROOT}/currentAffairs`)),
           get(ref(db, `${BPSC_DB_ROOT}/notes`)),
+          get(ref(db, `${BPSC_DB_ROOT}/pyqs`)),
         ]);
         if (cancelled) return;
         const testValue = testsSnap.exists() ? testsSnap.val() as Record<string, Record<string, unknown>> : {};
@@ -352,6 +356,7 @@ export default function BPSCPage() {
           marksPerQuestion: Number(raw.marksPerQuestion ?? 1),
           negativeMark: Number(raw.negativeMark ?? 0),
           questionIds: Array.isArray(raw.questionIds) ? raw.questionIds.map(String) : [],
+          questions: Array.isArray(raw.questions) ? raw.questions as Array<Record<string, unknown>> : undefined,
           published: raw.published !== false,
           updatedAt: Number(raw.updatedAt ?? 0),
         })).filter((test) => test.published));
@@ -359,6 +364,17 @@ export default function BPSCPage() {
         setAffairs(Object.entries(affairValue).map(([id, raw]) => ({ id, ...raw } as BpscCurrentAffair)).filter((item) => item.published !== false));
         const noteValue = notesSnap.exists() ? notesSnap.val() as Record<string, Record<string, unknown>> : {};
         setNotes(Object.entries(noteValue).map(([id, raw]) => ({ id, ...raw } as BpscNote)).filter((item) => item.published !== false));
+        const yearValue = pyqsSnap.exists() ? pyqsSnap.val() as Record<string, Record<string, Record<string, Record<string, unknown>>>> : {};
+        const sets: YearWiseSet[] = [];
+        Object.entries(yearValue).forEach(([year, exams]) => Object.entries(exams ?? {}).forEach(([examType, records]) => {
+          const parsed = Object.entries(records ?? {}).filter(([, raw]) => raw.published !== false).map(([id, raw]) => {
+            const category = String(raw.category ?? "history") as BpscCategory;
+            return parseQuestion(id, category, { ...raw, year: String(raw.year ?? year) });
+          }).filter((item) => item.question_hi.trim() || item.question_en.trim());
+          if (parsed.length) sets.push({ year, examType, questions: parsed });
+        }));
+        sets.sort((a, b) => Number(b.year) - Number(a.year) || a.examType.localeCompare(b.examType));
+        setYearWiseSets(sets);
       } catch (error) {
         console.error("[BPSC] failed to load content", error);
       } finally {
@@ -373,6 +389,7 @@ export default function BPSCPage() {
 
   async function openCategory(nextCategory: BpscCategory) {
     setCategory(nextCategory);
+    setSelectedYearSet(null);
     setSection("pyq");
     setLoadingContent(true);
     try { setQuestions(await loadCategoryQuestions(nextCategory)); }
@@ -398,6 +415,17 @@ export default function BPSCPage() {
   async function startTest(test: BpscMockTest) {
     setLoadingContent(true);
     try {
+      const snapshotList = (test as BpscMockTest & { questions?: Array<Record<string, unknown>> }).questions;
+      if (snapshotList?.length) {
+        setQuizQuestions(snapshotList.map((raw) => parseQuestion(String(raw.id ?? raw.sourceId ?? ""), String(raw.category ?? "history") as BpscCategory, raw)));
+        setQuizTitle(test.name);
+        setQuizDuration(test.durationSeconds);
+        setMarksPerQuestion(test.marksPerQuestion);
+        setNegativeMark(test.negativeMark);
+        saveResultRef.current = false;
+        setSection("quiz");
+        return;
+      }
       const loaded = await Promise.all(BPSC_CATEGORIES.map((item) => loadCategoryQuestions(item.id)));
       const byId = new Map(loaded.flat().map((question) => [question.id, question]));
       const selectedQuestions = test.questionIds.map((id) => byId.get(id)).filter((question): question is BpscQuestion => Boolean(question));
@@ -473,10 +501,10 @@ export default function BPSCPage() {
                 </div>
                 {!hasAccess && <p className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">Demo is free. Full-length BPSC tests require the BPSC Premium plan.</p>}
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <SectionCard emoji="📚" title="PYQ Questions" description="Practice by History, Bihar Special, Geography and more." color="#b45309" onClick={() => setSection("pyq")} />
-                  <SectionCard emoji="🏁" title="Mock Tests" description={`${tests.length} published test${tests.length === 1 ? "" : "s"} available.`} color="#059669" onClick={() => setSection("mock")} />
-                  <SectionCard emoji="🗞️" title="Current Affairs" description="National, International and Bihar current affairs." color="#2563eb" onClick={() => setSection("affairs")} />
-                  <SectionCard emoji="📖" title="E-Books / Notes" description="Open admin-published study material online." color="#7c3aed" onClick={() => setSection("notes")} />
+                  <SectionCard mark="PYQ" title="PYQ Questions" description="Practice by year and exam, or use the subject-wise legacy bank." color="#a34e19" onClick={() => setSection("pyq")} />
+                  <SectionCard mark="TEST" title="Mock Tests" description={`${tests.length} published test${tests.length === 1 ? "" : "s"} available.`} color="#14745b" onClick={() => setSection("mock")} />
+                  <SectionCard mark="NEWS" title="Current Affairs" description="National, International and Bihar current affairs." color="#376c82" onClick={() => setSection("affairs")} />
+                  <SectionCard mark="PDF" title="E-Books / Notes" description="Open admin-published study material online." color="#66588c" onClick={() => setSection("notes")} />
                 </div>
               </>
             )}
@@ -484,24 +512,32 @@ export default function BPSCPage() {
             {section === "pyq" && (
               <section>
                 <BpscHeader title="PYQ Questions" onBack={() => setSection("home")} />
-                <div className="grid grid-cols-2 gap-2.5">
-                  {BPSC_CATEGORIES.map((item) => (
-                    <button key={item.id} type="button" onClick={() => void openCategory(item.id)} className={`rounded-2xl border p-4 text-left ${category === item.id ? "ring-2 ring-emerald-400" : ""}`} style={{ background: `${item.color}0d`, borderColor: `${item.color}35` }}>
-                      <span className="text-xl">{item.emoji}</span>
-                      <p className="mt-2 text-xs font-black text-slate-800">{item.label}</p>
-                      <p className="text-[10px] text-slate-500">{item.labelHindi}</p>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                  <LanguageToggle value={language} onChange={updateLanguage} />
-                  {loadingContent ? <p className="mt-4 text-sm text-slate-500">Loading questions…</p> : questions.length ? (
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <p className="text-sm font-bold text-slate-800">{questions.length} questions ready in {BPSC_CATEGORIES.find((item) => item.id === category)?.label}.</p>
-                      <button type="button" onClick={() => { setQuizQuestions(questions); setQuizTitle(`${BPSC_CATEGORIES.find((item) => item.id === category)?.label} PYQ Practice`); setQuizDuration(BPSC_DEFAULT_DURATION_SECONDS); setMarksPerQuestion(1); setNegativeMark(0); saveResultRef.current = false; setSection("quiz"); }} className="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white">Start</button>
+                <LanguageToggle value={language} onChange={updateLanguage} />
+                {yearWiseSets.length > 0 ? (
+                  <div className="mt-4 space-y-3">
+                    <p className="text-xs leading-5 text-slate-600">Choose a published paper. Answers and explanations are provided in the language selected above.</p>
+                    {yearWiseSets.map((set) => <article key={`${set.year}-${set.examType}`} className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-emerald-700">{set.examType}</p><h2 className="mt-1 text-base font-black text-slate-900">{set.year} · {set.questions.length} questions</h2></div>
+                        <button type="button" data-testid={`button-start-pyq-${set.year}-${set.examType}`} onClick={() => { setQuizQuestions(set.questions); setQuizTitle(`${set.year} ${set.examType} PYQ`); setQuizDuration(BPSC_DEFAULT_DURATION_SECONDS); setMarksPerQuestion(1); setNegativeMark(0); saveResultRef.current = false; setSection("quiz"); }} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-black text-white">Practice this paper</button>
+                      </div>
+                    </article>)}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">Year-wise PYQ sets are not available yet. Browse the existing subject-wise question bank below.</div>
+                    <div className="mt-4 grid grid-cols-2 gap-2.5">
+                      {BPSC_CATEGORIES.map((item) => <button key={item.id} type="button" data-testid={`button-pyq-category-${item.id}`} onClick={() => void openCategory(item.id)} className={`rounded-2xl border p-4 text-left ${category === item.id ? "ring-2 ring-emerald-500" : ""}`} style={{ background: `${item.color}0d`, borderColor: `${item.color}35` }}>
+                        <span className="font-mono text-xs font-black" style={{ color: item.color }}>{item.id.slice(0, 3).toUpperCase()}</span><p className="mt-2 text-xs font-black text-slate-800">{item.label}</p><p className="text-[10px] text-slate-600">{item.labelHindi}</p>
+                      </button>)}
                     </div>
-                  ) : <p className="mt-4 text-xs leading-5 text-slate-500">Select a category to load admin-uploaded questions. No AI translation is used.</p>}
-                </div>
+                    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+                      {loadingContent ? <p className="text-sm text-slate-600">Loading questions…</p> : questions.length ? <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm font-bold text-slate-800">{questions.length} questions in {BPSC_CATEGORIES.find((item) => item.id === category)?.label}.</p>
+                        <button type="button" data-testid="button-start-legacy-pyq" onClick={() => { setQuizQuestions(questions); setQuizTitle(`${BPSC_CATEGORIES.find((item) => item.id === category)?.label} PYQ Practice`); setQuizDuration(BPSC_DEFAULT_DURATION_SECONDS); setMarksPerQuestion(1); setNegativeMark(0); saveResultRef.current = false; setSection("quiz"); }} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-black text-white">Start practice</button>
+                      </div> : <p className="text-xs leading-5 text-slate-600">Select a subject to load questions from the existing question bank.</p>}
+                    </div>
+                  </>
+                )}
               </section>
             )}
 
@@ -516,7 +552,7 @@ export default function BPSCPage() {
                         <div><h2 className="text-sm font-black text-slate-900">{test.name}</h2><p className="mt-1 text-xs text-slate-500">{test.description || "BPSC Prelims practice test"}</p></div>
                         <span className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700">{test.questionIds.length} Q</span>
                       </div>
-                      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500"><span>⏱ {Math.round(test.durationSeconds / 60)} min</span><span>+{test.marksPerQuestion} / −{test.negativeMark}</span><button type="button" disabled={loadingContent || !hasAccess} onClick={() => void startTest(test)} className="rounded-xl bg-emerald-600 px-3 py-2 font-black text-white disabled:bg-slate-200 disabled:text-slate-400">{hasAccess ? "Start Test" : "Unlock to Start"}</button></div>
+                      <div className="mt-3 flex items-center justify-between text-[11px] text-slate-600"><span>{Math.round(test.durationSeconds / 60)} min</span><span>+{test.marksPerQuestion} / −{test.negativeMark}</span><button type="button" disabled={loadingContent || !hasAccess} onClick={() => void startTest(test)} className="rounded-xl bg-emerald-700 px-3 py-2 font-black text-white disabled:bg-slate-200 disabled:text-slate-500">{hasAccess ? "Start Test" : "Unlock to Start"}</button></div>
                     </div>
                   ))}
                 </div>
@@ -541,7 +577,7 @@ export default function BPSCPage() {
                 <BpscHeader title="E-Books / Notes" onBack={() => setSection("home")} />
                 <div className="flex flex-col gap-3">
                   {notes.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">No published notes yet.</div>}
-                  {notes.map((note) => <article key={note.id} className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm"><div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-xl">📖</span><div className="min-w-0 flex-1"><h2 className="text-sm font-black text-slate-900">{note.title}</h2><p className="mt-1 text-xs text-slate-500">{note.description || note.category} · {note.language}</p><button type="button" onClick={() => setSelectedNote(note)} className="mt-3 rounded-xl bg-violet-600 px-3 py-2 text-xs font-black text-white">Read online →</button></div></div></article>)}
+                  {notes.map((note) => <article key={note.id} className="rounded-2xl border border-violet-200 bg-white p-4 shadow-sm"><div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-50 font-mono text-xs font-black text-violet-800">PDF</span><div className="min-w-0 flex-1"><h2 className="text-sm font-black text-slate-900">{note.title}</h2><p className="mt-1 text-xs text-slate-600">{note.description || note.category} · {note.language}</p><button type="button" data-testid={`button-read-note-${note.id}`} onClick={() => setSelectedNote(note)} className="mt-3 rounded-xl bg-violet-700 px-3 py-2 text-xs font-black text-white">Read online</button></div></div></article>)}
                 </div>
               </section>
             )}

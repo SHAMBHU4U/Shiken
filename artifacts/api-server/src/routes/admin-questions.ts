@@ -1,12 +1,9 @@
 // @ts-nocheck
 import { Router } from "express";
-import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getDatabase } from "firebase-admin/database";
+import { firebaseServices } from "../lib/firebase-admin-services";
 import { logger } from "../lib/logger";
 
 const router = Router();
-const DATABASE_URL = "https://shiken-d8789-default-rtdb.firebaseio.com";
 
 const SUBJECT_ROOTS = [
   { id: "maths", label: "Maths", path: "maths" },
@@ -53,25 +50,6 @@ type QuestionLocation = {
   raw: RecordValue;
   question: CanonicalQuestion;
 };
-
-function firebaseServices() {
-  let app = getApps().find((candidate) => candidate.name === "[DEFAULT]");
-  if (!app) {
-    const serviceAccountJson = process.env["FIREBASE_SERVICE_ACCOUNT"];
-    if (serviceAccountJson) {
-      app = initializeApp({
-        credential: cert(JSON.parse(serviceAccountJson)),
-        databaseURL: DATABASE_URL,
-      });
-    } else {
-      app = initializeApp({
-        credential: applicationDefault(),
-        databaseURL: DATABASE_URL,
-      });
-    }
-  }
-  return { auth: getAuth(app), db: getDatabase(app) };
-}
 
 function asRecord(value: unknown): RecordValue {
   return value && typeof value === "object" && !Array.isArray(value)
