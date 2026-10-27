@@ -33,22 +33,40 @@ function parseOptions(value: unknown): { A: string; B: string; C: string; D: str
     return { A: String(value[0] ?? ""), B: String(value[1] ?? ""), C: String(value[2] ?? ""), D: String(value[3] ?? "") };
   }
   const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  return { A: String(record.A ?? ""), B: String(record.B ?? ""), C: String(record.C ?? ""), D: String(record.D ?? "") };
+  return {
+    A: String(record.A ?? record.a ?? record[0] ?? ""),
+    B: String(record.B ?? record.b ?? record[1] ?? ""),
+    C: String(record.C ?? record.c ?? record[2] ?? ""),
+    D: String(record.D ?? record.d ?? record[3] ?? ""),
+  };
+}
+
+function correctAnswer(value: unknown): AnswerKey {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value < OPTION_KEYS.length) return OPTION_KEYS[value];
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (/^[0-3]$/.test(normalized)) return OPTION_KEYS[Number(normalized)];
+  return OPTION_KEYS.includes(normalized as AnswerKey) ? normalized as AnswerKey : "A";
 }
 
 function parseQuestion(id: string, category: BpscCategory, raw: Record<string, unknown>): BpscQuestion {
+  const question = raw.question && typeof raw.question === "object" ? raw.question as Record<string, unknown> : {};
+  const options = raw.options && typeof raw.options === "object" ? raw.options as Record<string, unknown> : {};
+  const explanation = raw.explanation && typeof raw.explanation === "object" ? raw.explanation as Record<string, unknown> : {};
+  const relatedFacts = raw.relatedFacts && typeof raw.relatedFacts === "object" ? raw.relatedFacts as Record<string, unknown> : {};
   return {
     id,
     category,
     topic: typeof raw.topic === "string" ? raw.topic : undefined,
     year: typeof raw.year === "string" ? raw.year : undefined,
-    question_hi: String(raw.question_hi ?? raw.question_hindi ?? ""),
-    question_en: String(raw.question_en ?? raw.question_english ?? ""),
-    options_hi: parseOptions(raw.options_hi ?? raw.optionsHindi),
-    options_en: parseOptions(raw.options_en ?? raw.options),
-    correct_answer: String(raw.correct_answer ?? "A").toUpperCase() as AnswerKey,
-    explanation_hi: typeof raw.explanation_hi === "string" ? raw.explanation_hi : undefined,
-    explanation_en: typeof raw.explanation_en === "string" ? raw.explanation_en : (typeof raw.explanation === "string" ? raw.explanation : undefined),
+    question_hi: String(raw.question_hi ?? raw.question_hindi ?? question.hi ?? ""),
+    question_en: String(raw.question_en ?? raw.question_english ?? question.en ?? (typeof raw.question === "string" ? raw.question : "")),
+    options_hi: parseOptions(raw.options_hi ?? raw.optionsHindi ?? options.hi),
+    options_en: parseOptions(raw.options_en ?? options.en ?? raw.options),
+    correct_answer: correctAnswer(raw.correct_answer ?? raw.correctAnswer ?? raw.correctOptionIndex ?? "A"),
+    explanation_hi: typeof raw.explanation_hi === "string" ? raw.explanation_hi : (typeof explanation.hi === "string" ? explanation.hi : undefined),
+    explanation_en: typeof raw.explanation_en === "string" ? raw.explanation_en : (typeof explanation.en === "string" ? explanation.en : (typeof raw.explanation === "string" ? raw.explanation : undefined)),
+    relatedFacts_hi: typeof raw.relatedFacts_hi === "string" ? raw.relatedFacts_hi : (typeof relatedFacts.hi === "string" ? relatedFacts.hi : undefined),
+    relatedFacts_en: typeof raw.relatedFacts_en === "string" ? raw.relatedFacts_en : (typeof relatedFacts.en === "string" ? relatedFacts.en : undefined),
     question_type: typeof raw.question_type === "string" ? raw.question_type : undefined,
   };
 }
@@ -238,6 +256,7 @@ function ResultScreen({
   title,
   marksPerQuestion,
   negativeMark,
+  language,
   rank,
   onRetry,
   onHome,
@@ -247,6 +266,7 @@ function ResultScreen({
   title: string;
   marksPerQuestion: number;
   negativeMark: number;
+  language: BpscLanguage;
   rank: number | null;
   onRetry: () => void;
   onHome: () => void;
@@ -290,8 +310,9 @@ function ResultScreen({
                   <span className={`mr-2 inline-flex h-6 w-6 items-center justify-center rounded-lg text-xs text-white ${isCorrect ? "bg-emerald-500" : "bg-rose-500"}`}>{index + 1}</span>
                   {isCorrect ? "Correct" : userAnswer ? `Wrong · Correct answer ${question.correct_answer}` : `Skipped · Correct answer ${question.correct_answer}`}
                 </summary>
-                <MathText text={question.question_en || question.question_hi} className="mt-3 text-sm font-semibold leading-6 text-slate-800" />
-                <p className="mt-2 whitespace-pre-line text-xs leading-5 text-slate-500">{question.explanation_en || question.explanation_hi || "Explanation will be added by the admin."}</p>
+                <MathText text={displayText(question.question_hi, question.question_en, language)} className="mt-3 text-sm font-semibold leading-6 text-slate-800" />
+                <p className="mt-2 whitespace-pre-line text-xs leading-5 text-slate-600">{displayText(question.explanation_hi, question.explanation_en, language) === "—" ? "Explanation will be added by the admin." : displayText(question.explanation_hi, question.explanation_en, language)}</p>
+                {(question.relatedFacts_hi?.trim() || question.relatedFacts_en?.trim()) && <div className="mt-3 rounded-xl bg-emerald-50 p-3"><p className="text-[10px] font-black uppercase tracking-wide text-emerald-800">Related facts</p><p className="mt-1 whitespace-pre-line text-xs leading-5 text-emerald-950">{displayText(question.relatedFacts_hi, question.relatedFacts_en, language)}</p></div>}
               </details>
             );
           })}
@@ -371,9 +392,16 @@ export default function BPSCPage() {
             const category = String(raw.category ?? "history") as BpscCategory;
             return parseQuestion(id, category, { ...raw, year: String(raw.year ?? year) });
           }).filter((item) => item.question_hi.trim() || item.question_en.trim());
-          if (parsed.length) sets.push({ year, examType, questions: parsed });
+          if (parsed.length) {
+            const firstRecord = Object.values(records ?? {})[0] ?? {};
+            sets.push({
+              year: String(firstRecord.year ?? year),
+              examType: String(firstRecord.examType ?? examType),
+              questions: parsed,
+            });
+          }
         }));
-        sets.sort((a, b) => Number(b.year) - Number(a.year) || a.examType.localeCompare(b.examType));
+        sets.sort((a, b) => Number(b.year.match(/\d{4}/)?.[0] ?? 0) - Number(a.year.match(/\d{4}/)?.[0] ?? 0) || a.examType.localeCompare(b.examType));
         setYearWiseSets(sets);
       } catch (error) {
         console.error("[BPSC] failed to load content", error);
@@ -479,7 +507,7 @@ export default function BPSCPage() {
     return <QuizScreen questions={quizQuestions} title={quizTitle} durationSeconds={quizDuration} marksPerQuestion={marksPerQuestion} negativeMark={negativeMark} language={language} onLanguage={updateLanguage} onFinish={finishQuiz} onExit={() => setSection("home")} />;
   }
   if (section === "result") {
-    return <ResultScreen questions={quizQuestions} answers={quizAnswers} title={quizTitle} marksPerQuestion={marksPerQuestion} negativeMark={negativeMark} rank={rank} onRetry={() => { saveResultRef.current = false; setSection("quiz"); }} onHome={() => setSection("home")} />;
+    return <ResultScreen questions={quizQuestions} answers={quizAnswers} title={quizTitle} marksPerQuestion={marksPerQuestion} negativeMark={negativeMark} language={language} rank={rank} onRetry={() => { saveResultRef.current = false; setSection("quiz"); }} onHome={() => setSection("home")} />;
   }
 
   return (

@@ -60,6 +60,8 @@ export interface BpscQuestion {
   correct_answer: "A" | "B" | "C" | "D";
   explanation_hi?: string;
   explanation_en?: string;
+  relatedFacts_hi?: string;
+  relatedFacts_en?: string;
   question_type?: string;
 }
 

@@ -27,24 +27,55 @@ const newQuestion = (): QuestionForm => ({
   options_en: emptyBpscOptions(), correct_answer: "A", explanation_hi: "", explanation_en: "",
   relatedFacts_hi: "", relatedFacts_en: "", topic: "", year: "", published: true,
 });
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 const optionsOf = (value: unknown): Record<AnswerKey, string> => {
-  const source = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  return Object.fromEntries(ANSWERS.map((key) => [key, String(source[key] ?? "")])) as Record<AnswerKey, string>;
+  if (Array.isArray(value)) {
+    return Object.fromEntries(ANSWERS.map((key, index) => [key, String(value[index] ?? "")])) as Record<AnswerKey, string>;
+  }
+  const source = asRecord(value);
+  return Object.fromEntries(ANSWERS.map((key, index) => [
+    key,
+    String(source[key] ?? source[key.toLowerCase()] ?? source[index] ?? ""),
+  ])) as Record<AnswerKey, string>;
 };
+function categoryOf(value: unknown, fallback: BpscCategory): BpscCategory {
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+  const pieces = raw.split("/").map((part) => part.trim().toLocaleLowerCase());
+  const match = BPSC_CATEGORIES.find((item) =>
+    pieces.includes(item.id.toLocaleLowerCase())
+    || pieces.includes(item.label.toLocaleLowerCase())
+    || pieces.includes(item.labelHindi.toLocaleLowerCase()),
+  );
+  return match?.id ?? raw as BpscCategory;
+}
+function answerOf(value: unknown): AnswerKey | "" {
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value < ANSWERS.length) return ANSWERS[value];
+  const raw = String(value ?? "").trim().toUpperCase();
+  if (/^[0-3]$/.test(raw)) return ANSWERS[Number(raw)];
+  return ANSWERS.includes(raw as AnswerKey) ? raw as AnswerKey : "";
+}
 function normalize(raw: Record<string, unknown>, category: BpscCategory, id = ""): QuestionRecord {
-  const hi = raw.hi && typeof raw.hi === "object" ? raw.hi as Record<string, unknown> : {};
-  const en = raw.en && typeof raw.en === "object" ? raw.en as Record<string, unknown> : {};
-  const pick = (flat: string, lang: Record<string, unknown>, key: string) => raw[flat] ?? lang[key] ?? "";
+  const hi = asRecord(raw.hi);
+  const en = asRecord(raw.en);
+  const question = asRecord(raw.question);
+  const options = asRecord(raw.options);
+  const explanation = asRecord(raw.explanation);
+  const relatedFacts = asRecord(raw.relatedFacts ?? raw.related_facts);
   return {
-    id, category, sourceId: String(raw.sourceId ?? raw.source_id ?? ""),
-    question_hi: String(pick("question_hi", hi, "question")),
-    question_en: String(pick("question_en", en, "question")),
-    options_hi: optionsOf(raw.options_hi ?? hi.options), options_en: optionsOf(raw.options_en ?? en.options),
-    correct_answer: String(raw.correct_answer ?? raw.answer ?? "A").toUpperCase() as AnswerKey,
-    explanation_hi: String(pick("explanation_hi", hi, "explanation")),
-    explanation_en: String(pick("explanation_en", en, "explanation")),
-    relatedFacts_hi: String(pick("relatedFacts_hi", hi, "relatedFacts")),
-    relatedFacts_en: String(pick("relatedFacts_en", en, "relatedFacts")),
+    id,
+    category: categoryOf(raw.category ?? raw.subject, category),
+    sourceId: String(raw.sourceId ?? raw.source_id ?? raw.id ?? ""),
+    question_hi: String(raw.question_hi ?? raw.question_hindi ?? question.hi ?? hi.question ?? ""),
+    question_en: String(raw.question_en ?? raw.question_english ?? question.en ?? en.question ?? (typeof raw.question === "string" ? raw.question : "")),
+    options_hi: optionsOf(raw.options_hi ?? raw.optionsHindi ?? options.hi ?? hi.options),
+    options_en: optionsOf(raw.options_en ?? options.options_en ?? options.en ?? en.options ?? (["A", "B", "C", "D"].some((key) => key in options) ? options : raw.options)),
+    correct_answer: answerOf(raw.correct_answer ?? raw.correctAnswer ?? raw.correctOptionIndex ?? raw.answer) as AnswerKey,
+    explanation_hi: String(raw.explanation_hi ?? explanation.hi ?? hi.explanation ?? ""),
+    explanation_en: String(raw.explanation_en ?? explanation.en ?? en.explanation ?? (typeof raw.explanation === "string" ? raw.explanation : "")),
+    relatedFacts_hi: String(raw.relatedFacts_hi ?? raw.related_facts_hi ?? relatedFacts.hi ?? hi.relatedFacts ?? ""),
+    relatedFacts_en: String(raw.relatedFacts_en ?? raw.related_facts_en ?? relatedFacts.en ?? en.relatedFacts ?? ""),
     topic: String(raw.topic ?? ""), year: String(raw.year ?? raw.session ?? ""),
     published: raw.published !== false,
   };
@@ -61,7 +92,7 @@ function payload(q: QuestionForm) {
     year: q.year?.trim() || "", published: q.published, updatedAt: Date.now(),
   };
 }
-function validate(q: QuestionForm): string[] {
+function validate(q: QuestionForm, requireDetails = false): string[] {
   const errors: string[] = [];
   if (!BPSC_CATEGORIES.some((category) => category.id === q.category)) errors.push("Choose a valid BPSC category");
   if (!q.question_hi.trim()) errors.push("Hindi question is required");
@@ -71,6 +102,12 @@ function validate(q: QuestionForm): string[] {
     if (!q.options_en[key].trim()) errors.push(`English option ${key} is required`);
   });
   if (!ANSWERS.includes(q.correct_answer)) errors.push("Correct answer must be A, B, C or D");
+  if (requireDetails) {
+    if (!q.explanation_hi?.trim()) errors.push("Hindi explanation is required");
+    if (!q.explanation_en?.trim()) errors.push("English explanation is required");
+    if (!q.relatedFacts_hi?.trim()) errors.push("Hindi related facts are required");
+    if (!q.relatedFacts_en?.trim()) errors.push("English related facts are required");
+  }
   return errors;
 }
 function csvCells(line: string): string[] {
@@ -84,28 +121,38 @@ function csvCells(line: string): string[] {
   }
   cells.push(value.trim()); return cells;
 }
-function parseQuestions(text: string, defaultCategory: BpscCategory): QuestionForm[] {
+function parseQuestions(text: string, defaultCategory: BpscCategory, defaultYear = ""): QuestionForm[] {
+  const normalizeRow = (raw: Record<string, unknown>) => {
+    const row = normalize(raw, categoryOf(raw.category ?? raw.subject, defaultCategory));
+    return { ...row, year: row.year?.trim() || defaultYear };
+  };
   const source = text.trim(); if (!source) return [];
   if (source.startsWith("[") || source.startsWith("{")) {
     const parsed = JSON.parse(source) as unknown;
-    const rows = Array.isArray(parsed) ? parsed : Object.values(parsed as Record<string, unknown>);
-    return rows.map((item) => normalize(item as Record<string, unknown>, String((item as Record<string, unknown>).category ?? defaultCategory) as BpscCategory));
+    const rows = Array.isArray(parsed) ? parsed : Object.values(asRecord(parsed));
+    if (!rows.length || rows.some((item) => !item || typeof item !== "object" || Array.isArray(item))) throw new Error("Expected question objects.");
+    return rows.map((item) => normalizeRow(item as Record<string, unknown>));
   }
   const lines = source.split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) throw new Error("CSV needs a header and at least one row.");
   const headers = csvCells(lines[0]).map((header) => header.toLowerCase().trim());
   return lines.slice(1).map((line) => {
     const values = Object.fromEntries(headers.map((h, i) => [h, csvCells(line)[i] ?? ""]));
     const opts = (lang: "hi" | "en") => Object.fromEntries(ANSWERS.map((key) => [key, values[`option_${lang}_${key.toLowerCase()}`] ?? values[`options_${lang}_${key.toLowerCase()}`] ?? ""])) as Record<AnswerKey, string>;
-    return {
-      ...newQuestion(), category: (values.category || defaultCategory) as BpscCategory,
-      sourceId: values.sourceid ?? values.source_id ?? "", question_hi: values.question_hi ?? "",
-      question_en: values.question_en ?? "", options_hi: opts("hi"), options_en: opts("en"),
-      correct_answer: (values.correct_answer || "A").toUpperCase() as AnswerKey,
-      explanation_hi: values.explanation_hi ?? "", explanation_en: values.explanation_en ?? "",
-      relatedFacts_hi: values.relatedfacts_hi ?? "", relatedFacts_en: values.relatedfacts_en ?? "",
-      topic: values.topic ?? "", year: values.year ?? values.session ?? "",
-      published: values.published !== "false",
-    };
+    return normalizeRow({
+      ...values,
+      id: values.id ?? values.sourceid ?? values.source_id,
+      category: values.category ?? values.subject,
+      question_hi: values.question_hi ?? values["question.hi"] ?? values.question_hindi,
+      question_en: values.question_en ?? values["question.en"] ?? values.question_english,
+      options_hi: opts("hi"),
+      options_en: opts("en"),
+      correct_answer: values.correct_answer ?? values.correctanswer ?? values.correct_option_index,
+      explanation_hi: values.explanation_hi ?? values["explanation.hi"],
+      explanation_en: values.explanation_en ?? values["explanation.en"],
+      relatedFacts_hi: values.relatedfacts_hi ?? values["relatedfacts.hi"] ?? values.related_facts_hi,
+      relatedFacts_en: values.relatedfacts_en ?? values["relatedfacts.en"] ?? values.related_facts_en,
+    });
   });
 }
 function downloadTemplate() {
@@ -138,7 +185,7 @@ export default function BPSCAdminPage() {
   const [pyqText, setPyqText] = useState("");
   const [pyqPreview, setPyqPreview] = useState<QuestionForm[]>([]);
   const [pyqErrors, setPyqErrors] = useState<string[]>([]);
-  const [pyqMeta, setPyqMeta] = useState({ examType: "BPSC Prelims", year: new Date().getFullYear().toString(), session: "Prelims" });
+  const [pyqMeta, setPyqMeta] = useState({ examType: "BPSC Prelims", category: "history" as BpscCategory, year: new Date().getFullYear().toString(), session: "Prelims" });
   const [message, setMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -211,16 +258,31 @@ export default function BPSCAdminPage() {
     if (!pyqMeta.year.trim() || !pyqMeta.examType.trim()) return flash("Add the PYQ year and exam type before saving.");
     setSaving(true);
     try {
-      const year = pyqMeta.year.trim().replace(/[.#$/\[\]]/g, "_"); const examType = safeBpscSlug(pyqMeta.examType) || "bpsc-prelims";
-      await Promise.all(pyqPreview.map((row) => set(ref(db, `${BPSC_DB_ROOT}/pyqs/${year}/${examType}/${push(ref(db)).key}`), {
-        ...payload({ ...row, year, published: true }), examType: pyqMeta.examType.trim(), year, session: pyqMeta.session.trim(), published: true,
-      })));
-      const count = pyqPreview.length; setPyqPreview([]); setPyqErrors([]); setPyqText(""); await loadData(); flash(`${count} PYQs saved under ${year}.`);
+      await Promise.all(pyqPreview.map((row) => {
+        const year = row.year?.trim() || pyqMeta.year.trim();
+        const yearKey = safeBpscSlug(year);
+        const examType = pyqMeta.examType.trim();
+        const examTypeKey = safeBpscSlug(examType);
+        return set(ref(db, `${BPSC_DB_ROOT}/pyqs/${yearKey}/${examTypeKey}/${push(ref(db)).key}`), {
+          ...payload({ ...row, year, published: true }),
+          examType,
+          year,
+          session: pyqMeta.session.trim() || year,
+          published: true,
+        });
+      }));
+      const count = pyqPreview.length; setPyqPreview([]); setPyqErrors([]); setPyqText(""); await loadData(); flash(`${count} PYQs saved under ${pyqMeta.year.trim()}.`);
     } catch { flash("PYQs could not be saved. Please retry."); } finally { setSaving(false); }
   }
   async function saveTest() {
     if (!testForm.name.trim()) return flash("Add a name for this mock test.");
     if (!selectedIds.length || selectedIds.length > 150) return flash("Choose between 1 and 150 published questions.");
+    const durationMinutes = Number(testForm.minutes);
+    const marksPerQuestion = Number(testForm.marks);
+    const negativeMark = Number(testForm.negative);
+    if (!Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 360) return flash("Duration must be between 1 and 360 minutes.");
+    if (!Number.isFinite(marksPerQuestion) || marksPerQuestion <= 0 || marksPerQuestion > 100) return flash("Marks per question must be greater than 0 and no more than 100.");
+    if (!Number.isFinite(negativeMark) || negativeMark < 0 || negativeMark > 100) return flash("Negative mark must be between 0 and 100.");
     setSaving(true);
     try {
       const snapshots = selectedIds.map((id) => questions.find((item) => item.id === id)).filter((item): item is QuestionRecord => Boolean(item)).map((item) => ({
@@ -230,8 +292,8 @@ export default function BPSCAdminPage() {
       const id = editingTestId || `${safeBpscSlug(testForm.name)}-${Date.now()}`;
       await set(ref(db, `${BPSC_DB_ROOT}/tests/${id}`), {
         name: testForm.name.trim(), description: testForm.description.trim(),
-        durationSeconds: Math.max(60, Number(testForm.minutes) * 60), marksPerQuestion: Number(testForm.marks) || 1,
-        negativeMark: Number(testForm.negative) || 0, questionIds: selectedIds, questions: snapshots,
+        durationSeconds: durationMinutes * 60, marksPerQuestion,
+        negativeMark, questionIds: selectedIds, questions: snapshots,
         published: true, updatedAt: Date.now(),
       });
       setTestForm({ name: "", description: "", minutes: "120", marks: "1", negative: "0" }); setSelectedIds([]); setEditingTestId("");
@@ -251,6 +313,8 @@ export default function BPSCAdminPage() {
   async function saveNote() {
     if (!noteForm.title.trim()) return flash("Note title is required.");
     if (!noteFile && !editingNoteId) return flash("Choose a PDF file to upload.");
+    if (noteFile && noteFile.size > 25 * 1024 * 1024) return flash("PDF files must be smaller than 25 MB.");
+    if (noteFile && !noteFile.name.toLowerCase().endsWith(".pdf")) return flash("Choose a file with a .pdf extension.");
     setSaving(true);
     try {
       if (noteFile) {
@@ -264,7 +328,6 @@ export default function BPSCAdminPage() {
         if (!response.ok) throw new Error("PDF upload failed");
         const result = await response.json() as { ok: boolean; note: Record<string, unknown> };
         if (!result.ok || !result.note?.id) throw new Error("Upload response was incomplete");
-        await set(ref(db, `${BPSC_DB_ROOT}/notes/${result.note.id}`), { ...noteForm, ...result.note, updatedAt: Date.now() });
       } else {
         await update(ref(db, `${BPSC_DB_ROOT}/notes/${editingNoteId}`), { ...noteForm, updatedAt: Date.now() });
       }
@@ -280,7 +343,7 @@ export default function BPSCAdminPage() {
       const token = await auth.currentUser?.getIdToken(); if (!token) throw new Error("Admin session unavailable");
       const response = await fetch(`/api/admin/bpsc/notes/${encodeURIComponent(item.id)}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
       if (!response.ok) throw new Error("Delete failed");
-      await remove(ref(db, `${BPSC_DB_ROOT}/notes/${item.id}`)); await loadData(); flash("Note deleted.");
+      await loadData(); flash("Note deleted.");
     } catch { flash("Note could not be deleted."); } finally { setSaving(false); }
   }
   async function savePricing() {
@@ -302,8 +365,10 @@ export default function BPSCAdminPage() {
   const previewRows = (kind: "question" | "pyq") => {
     const text = kind === "question" ? bulkText : pyqText;
     try {
-      const rows = parseQuestions(text, question.category);
-      const errors = rows.flatMap((row, i) => validate(row).map((error) => `Row ${i + 1}: ${error}`));
+      const category = kind === "pyq" ? pyqMeta.category : question.category;
+      const year = kind === "pyq" ? pyqMeta.year : "";
+      const rows = parseQuestions(text, category, year);
+      const errors = rows.flatMap((row, i) => validate(row, true).map((error) => `Row ${i + 1}: ${error}`));
       if (kind === "question") { setBulkPreview(rows); setBulkErrors(errors); } else { setPyqPreview(rows); setPyqErrors(errors); }
       flash(`${rows.length} rows parsed. Review the validation report.`);
     } catch { if (kind === "question") { setBulkPreview([]); setBulkErrors(["Unable to parse this CSV or JSON."]); } else { setPyqPreview([]); setPyqErrors(["Unable to parse this CSV or JSON."]); } }
@@ -365,7 +430,7 @@ export default function BPSCAdminPage() {
           <Field label="Select CSV or JSON file"><input data-testid="file-question-import" type="file" accept=".csv,.json,text/csv,application/json" onChange={(e) => void uploadFile(e.target.files?.[0], "question")} className={`${INPUT} file:mr-3 file:rounded-lg file:border-0 file:bg-[#e6eee8] file:px-3 file:py-1.5 file:text-xs file:font-bold`} /></Field>
           <div className="mt-3"><Field label="Or paste bilingual CSV / JSON">{textArea(bulkText, setBulkText, "Paste an array of question objects or the downloadable CSV format.", "textarea-question-import")}</Field></div>
           <div className="mt-3 flex flex-wrap gap-2"><button type="button" data-testid="button-preview-questions" onClick={() => previewRows("question")} className={`${BUTTON} border border-[#cbd8d1] bg-[#f6f8f3] text-[#38574e]`}>Preview and validate</button><button type="button" data-testid="button-upload-questions" disabled={!bulkPreview.length || !!bulkErrors.length || saving} onClick={() => void saveBulk()} className={`${BUTTON} bg-[#1b7059] text-white`}>Upload {bulkPreview.length || ""} rows</button></div>
-          {bulkPreview.length > 0 && <p className="mt-3 text-xs font-semibold text-[#287452]">{bulkPreview.length} questions parsed. Both language prompts and all eight options are validated.</p>}{validation(bulkErrors)}
+          {bulkPreview.length > 0 && <p className="mt-3 text-xs font-semibold text-[#287452]">{bulkPreview.length} questions parsed. Hindi and English questions, options, explanations and related facts are validated.</p>}{validation(bulkErrors)}
           <div className="mt-6 border-t border-[#e4e9e4] pt-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[#688079]">Bilingual library</p><h3 className="mt-1 text-lg font-bold">Question bank <span className="font-mono text-sm text-[#71817d]">{questions.length}</span></h3></div><Field label="Search questions"><input data-testid="input-question-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search topic, category, text" className={INPUT} /></Field></div>
             <div className="mt-3 grid gap-2">{filteredQuestions.slice(0, 100).map((item) => <div key={`${item.category}-${item.id}`} data-testid={`row-question-${item.id}`} className="flex flex-wrap items-center gap-2 rounded-xl border border-[#e2e8e3] bg-[#f8f9f5] p-3"><span className="rounded-md bg-[#e6eee8] px-2 py-1 text-[10px] font-bold text-[#375f52]">{item.category}</span><p className="min-w-[180px] flex-1 text-sm font-medium text-[#293e46]">{item.question_en || item.question_hi}</p><span className={`text-[10px] font-bold ${item.published ? "text-[#23744f]" : "text-[#9a6a28]"}`}>{item.published ? "Published" : "Draft"}</span><button type="button" data-testid={`button-edit-question-${item.id}`} onClick={() => editQuestion(item)} className="text-xs font-bold text-[#216b58]">Edit</button><button type="button" data-testid={`button-toggle-question-${item.id}`} onClick={() => void toggle(`${BPSC_DB_ROOT}/questions/${item.category}/${item.id}`, { id: item.id, published: item.published })} className="text-xs font-bold text-[#826123]">{item.published ? "Unpublish" : "Publish"}</button><button type="button" data-testid={`button-delete-question-${item.id}`} onClick={() => void removeRecord(`${BPSC_DB_ROOT}/questions/${item.category}/${item.id}`)} className="text-xs font-bold text-[#9a493c]">Delete</button></div>)}</div>
             {filteredQuestions.length > 100 && <p className="mt-3 text-xs text-[#677973]">Showing 100 of {filteredQuestions.length}. Refine the search to see more.</p>}
@@ -375,7 +440,7 @@ export default function BPSCAdminPage() {
       </div>}
       {tab === "pyqs" && <div className="grid items-start gap-4 xl:grid-cols-[.9fr_1.1fr]">
         <section className={PANEL}><p className="text-[10px] font-black uppercase tracking-[.14em] text-[#688079]">Year-wise archival</p><h2 className="mt-1 text-xl font-bold">Upload previous-year questions</h2><p className="mt-2 text-sm leading-5 text-[#5f7172]">Each set is written to its year and exam-type node, then appears in the student PYQ section.</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2"><Field label="Exam type"><input data-testid="input-pyq-exam-type" value={pyqMeta.examType} onChange={(e) => setPyqMeta({ ...pyqMeta, examType: e.target.value })} className={INPUT} /></Field><Field label="Year"><input data-testid="input-pyq-year" value={pyqMeta.year} onChange={(e) => setPyqMeta({ ...pyqMeta, year: e.target.value })} inputMode="numeric" className={INPUT} /></Field><Field label="Session / paper"><input data-testid="input-pyq-session" value={pyqMeta.session} onChange={(e) => setPyqMeta({ ...pyqMeta, session: e.target.value })} className={INPUT} /></Field></div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2"><Field label="Exam type"><input data-testid="input-pyq-exam-type" value={pyqMeta.examType} onChange={(e) => setPyqMeta({ ...pyqMeta, examType: e.target.value })} placeholder="e.g. BPSC Prelims" className={INPUT} /></Field><Field label="Subject category"><select data-testid="select-pyq-category" value={pyqMeta.category} onChange={(e) => setPyqMeta({ ...pyqMeta, category: e.target.value as BpscCategory })} className={INPUT}>{BPSC_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label} / {c.labelHindi}</option>)}</select></Field><Field label="Year / exam session"><input data-testid="input-pyq-year" value={pyqMeta.year} onChange={(e) => setPyqMeta({ ...pyqMeta, year: e.target.value })} placeholder="e.g. 69th BPSC Prelims 2023" className={INPUT} /></Field><Field label="Paper name"><input data-testid="input-pyq-session" value={pyqMeta.session} onChange={(e) => setPyqMeta({ ...pyqMeta, session: e.target.value })} placeholder="e.g. Preliminary examination" className={INPUT} /></Field></div>
           <Field label="Choose CSV or JSON file"><input data-testid="file-pyq-import" type="file" accept=".csv,.json,text/csv,application/json" onChange={(e) => void uploadFile(e.target.files?.[0], "pyq")} className={`${INPUT} file:mr-3 file:rounded-lg file:border-0 file:bg-[#e6eee8] file:px-3 file:py-1.5 file:text-xs file:font-bold`} /></Field>
           <div className="mt-3"><Field label="Or paste nested bilingual JSON / CSV">{textArea(pyqText, setPyqText, "JSON supports Hindi and English question, options, explanation and related facts, or flattened bilingual columns.", "textarea-pyq-import")}</Field></div>
           <div className="mt-3 flex flex-wrap gap-2"><button type="button" data-testid="button-preview-pyqs" onClick={() => previewRows("pyq")} className={`${BUTTON} border border-[#cbd8d1] text-[#38574e]`}>Preview and validate</button><button type="button" data-testid="button-save-pyqs" disabled={!pyqPreview.length || !!pyqErrors.length || saving} onClick={() => void savePyqs()} className={`${BUTTON} bg-[#1b7059] text-white`}>Save year-wise set</button></div>
@@ -383,7 +448,7 @@ export default function BPSCAdminPage() {
         </section>
         <section className={PANEL}><div className="flex items-end justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[#688079]">Published archive</p><h2 className="mt-1 text-xl font-bold">PYQ sets by year</h2></div><span className="font-mono text-sm text-[#6c7b77]">{pyqs.length} questions</span></div>
           {!pyqs.length ? <div className="mt-4 rounded-xl border border-dashed border-[#cbd8d1] p-7 text-center text-sm text-[#60716e]">No year-wise PYQ set has been uploaded yet. Older question-bank PYQs remain available to students.</div> :
-            <div className="mt-4 grid gap-2">{[...pyqs].sort((a, b) => Number(b.year) - Number(a.year)).map((q) => <div key={`${q.year}-${q.examType}-${q.id}`} data-testid={`row-pyq-${q.id}`} className="rounded-xl border border-[#e2e8e3] bg-[#f8f9f5] p-3"><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-[#e5eee8] px-2 py-1 text-[10px] font-bold text-[#375f52]">{q.year}</span><span className="text-xs font-bold text-[#51666a]">{q.examType} · {q.category}</span><span className="ml-auto text-[10px] font-bold text-[#287452]">Published</span><button type="button" data-testid={`button-delete-pyq-${q.id}`} onClick={() => void removeRecord(`${BPSC_DB_ROOT}/pyqs/${q.year}/${safeBpscSlug(q.examType)}/${q.id}`)} className="text-xs font-bold text-[#9a493c]">Delete</button></div><p className="mt-2 line-clamp-2 text-sm text-[#293e46]">{q.question_en || q.question_hi}</p></div>)}</div>}
+            <div className="mt-4 grid gap-2">{[...pyqs].sort((a, b) => Number(b.year.match(/\d{4}/)?.[0] ?? 0) - Number(a.year.match(/\d{4}/)?.[0] ?? 0)).map((q) => <div key={`${q.year}-${q.examType}-${q.id}`} data-testid={`row-pyq-${q.id}`} className="rounded-xl border border-[#e2e8e3] bg-[#f8f9f5] p-3"><div className="flex flex-wrap items-center gap-2"><span className="rounded-md bg-[#e5eee8] px-2 py-1 text-[10px] font-bold text-[#375f52]">{q.year}</span><span className="text-xs font-bold text-[#51666a]">{q.examType} · {q.category}</span><span className="ml-auto text-[10px] font-bold text-[#287452]">Published</span><button type="button" data-testid={`button-delete-pyq-${q.id}`} onClick={() => void removeRecord(`${BPSC_DB_ROOT}/pyqs/${safeBpscSlug(q.year ?? "")}/${safeBpscSlug(q.examType)}/${q.id}`)} className="text-xs font-bold text-[#9a493c]">Delete</button></div><p className="mt-2 line-clamp-2 text-sm text-[#293e46]">{q.question_en || q.question_hi}</p></div>)}</div>}
         </section>
       </div>}
       {tab === "tests" && <div className="grid items-start gap-4 xl:grid-cols-[.9fr_1.1fr]">
@@ -396,6 +461,7 @@ export default function BPSCAdminPage() {
             <Field label="Negative mark"><input data-testid="input-test-negative" type="number" step="0.25" value={testForm.negative} onChange={(e) => setTestForm({ ...testForm, negative: e.target.value })} className={INPUT} /></Field>
           </div>
           <div className="mt-5 rounded-xl border border-[#e1e7e2] bg-[#f7f8f4] p-3"><div className="flex flex-wrap items-end justify-between gap-3"><Field label="Question-bank category"><select data-testid="select-test-category" value={testCategory} onChange={(e) => setTestCategory(e.target.value as BpscCategory | "all")} className={INPUT}><option value="all">All categories</option>{BPSC_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}</select></Field><span className="text-xs font-bold text-[#5c716b]">{selectedIds.length} / 150 selected</span></div>
+            <div className="mt-3 flex flex-wrap gap-2"><button type="button" data-testid="button-import-category-questions" disabled={!availableForTest.length} onClick={() => { const imported = availableForTest.slice(0, 150).map((q) => q.id); setSelectedIds(imported); flash(`Selected ${imported.length} questions from ${testCategory === "all" ? "all categories" : BPSC_CATEGORIES.find((c) => c.id === testCategory)?.label}.`); }} className={`${BUTTON} border border-[#cbd8d1] bg-white text-[#38574e]`}>Import selected category questions (up to 150)</button><button type="button" data-testid="button-clear-test-questions" disabled={!selectedIds.length} onClick={() => setSelectedIds([])} className={`${BUTTON} border border-[#d5ded8] text-[#53676b]`}>Clear selection</button></div>
             <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">{availableForTest.map((q) => <label key={`${q.category}-${q.id}`} data-testid={`checkbox-test-question-${q.id}`} className="flex cursor-pointer items-start gap-3 rounded-lg border border-[#e1e7e2] bg-[#fffefa] p-3 hover:border-[#9ebcaf]"><input type="checkbox" checked={selectedIds.includes(q.id)} disabled={!selectedIds.includes(q.id) && selectedIds.length >= 150} onChange={(e) => setSelectedIds((current) => e.target.checked ? [...current, q.id] : current.filter((id) => id !== q.id))} className="mt-1 accent-[#1b7059]" /><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-[#2c474c]">{q.category} · {q.year || "No year"}</span><span className="mt-1 block text-xs leading-5 text-[#5d7072]">{q.question_en || q.question_hi}</span></span></label>)}
               {!availableForTest.length && <p className="rounded-lg border border-dashed border-[#cbd8d1] p-4 text-center text-xs text-[#62736e]">No published questions in this selection. Add and publish questions first.</p>}
             </div>
