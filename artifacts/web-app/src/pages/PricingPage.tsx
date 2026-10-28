@@ -432,6 +432,34 @@ function PaymentSheet({
         name:        "SHIKEN",
         description: `${plan.name}${plan.singleSubject && selectedSubject ? " · " + selectedSubject : ""} — ${plan.period}`,
         order_id:    orderId,
+        
+        // ⚡ Yeh config block add kiya gaya hai taaki UPI QR aur saare options properly show hon ⚡
+        config: {
+          display: {
+            blocks: {
+              banks: {
+                name: "Pay using UPI / QR / Cards",
+                instruments: [
+                  {
+                    method: "upi",
+                    flows: ["qr", "intent", "collect"]
+                  },
+                  {
+                    method: "card"
+                  },
+                  {
+                    method: "netbanking"
+                  }
+                ],
+              },
+            },
+            sequence: ["block.banks"],
+            preferences: {
+              show_default_blocks: true,
+            },
+          },
+        },
+
         prefill: {
           email: auth.currentUser.email       ?? undefined,
           name:  auth.currentUser.displayName ?? undefined,
@@ -442,15 +470,11 @@ function PaymentSheet({
         handler: async (response: RazorpayResponse) => {
           const VERIFY_URL = `/api/razorpay/verify-payment`;
           const verifyBody = {
-            // Razorpay normally returns the order ID, but retain the order
-            // created above if a checkout wrapper omits it.
             razorpay_order_id:   response.razorpay_order_id || orderId,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature:  response.razorpay_signature,
             uid,
             planId: plan.id,
-            // Sent for observability/backward compatibility only. The server
-            // derives the authoritative duration from planId.
             days:   plan.days,
             planSubject: plan.singleSubject ? selectedSubject : undefined,
           };
@@ -501,7 +525,6 @@ function PaymentSheet({
 
             console.log("[SHIKEN] Payment verified successfully. Sending WhatsApp notification...");
 
-            // Fire-and-forget WhatsApp notification
             fetch(`${API_BASE}api/notify-whatsapp`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -517,8 +540,6 @@ function PaymentSheet({
               }),
             }).catch((e) => console.warn("[SHIKEN] WhatsApp notify failed (non-critical):", e));
 
-            // Success — update subscription state immediately; no reload or
-            // re-login is required for premium features to unlock.
             setPaying(false);
             alert("Payment Successful and Account Upgraded!");
             onSuccess(uid, response.razorpay_payment_id);
