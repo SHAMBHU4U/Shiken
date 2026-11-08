@@ -4,16 +4,23 @@ import { get, ref } from 'firebase/database';
 import { db } from '@/firebase';
 
 interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctAnswer: number | string;
+  id?: string;
+  question?: string;
+  english?: string;
+  en?: {
+    question?: string;
+    options?: string[] | Record<string, string>;
+  };
+  options?: string[] | Record<string, string>;
+  correctAnswer?: number | string;
+  correctOptionIndex?: number;
+  answerIndex?: number;
   explanation?: string;
   svg?: string;
 }
 
 interface DuolingoTestScreenProps {
-  testPath: string; // RTDB path (e.g., 'class10/science' or 'c10/maths')
+  testPath: string;
   testTitle?: string;
   onBack: () => void;
   onComplete?: (score: number, total: number) => void;
@@ -25,10 +32,47 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
+  const [sessionCoins, setSessionCoins] = useState(0); // Live coins earned in this test
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(15); // Circular round timer
+  const [timeLeft, setTimeLeft] = useState(15);
 
-  // Fetching questions directly from Firebase RTDB (No AI latency, direct NCERT/SCERT data)
+  // Helper to extract options safely as an Array from any schema format
+  const getOptions = (q: Question): string[] => {
+    if (!q) return [];
+    if (Array.isArray(q.options)) return q.options;
+    if (q.options && typeof q.options === 'object') return Object.values(q.options);
+    if (Array.isArray(q.en?.options)) return q.en.options;
+    if (q.en?.options && typeof q.en?.options === 'object') return Object.values(q.en.options);
+    return [];
+  };
+
+  // Helper to extract question text safely
+  const getQuestionText = (q: Question): string => {
+    return q.question || q.english || q.en?.question || "Question";
+  };
+
+  // Helper to extract correct answer index safely
+  const getCorrectIndex = (q: Question): number => {
+    if (typeof q.correctOptionIndex === 'number') return q.correctOptionIndex;
+    if (typeof q.answerIndex === 'number') return q.answerIndex;
+    if (q.correctAnswer !== undefined) return Number(q.correctAnswer);
+    return 0;
+  };
+
+  // Safe local coin update handler (+4 correct, -2 incorrect)
+  const syncShikenCoins = (delta: number) => {
+    try {
+      const stored = localStorage.getItem("shiken_coins");
+      const current = stored ? parseInt(stored, 10) : 100;
+      const updated = Math.max(0, current + delta);
+      localStorage.setItem("shiken_coins", String(updated));
+      window.dispatchEvent(new Event("storage"));
+    } catch (e) {
+      console.error("Coin sync error:", e);
+    }
+  };
+
+  // Fetch questions safely from RTDB
   useEffect(() => {
     let isMounted = true;
     const fetchQuestions = async () => {
@@ -36,10 +80,13 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         const snapshot = await get(ref(db, testPath));
         if (snapshot.exists() && isMounted) {
           const data = snapshot.val();
-          const loadedQuestions: Question[] = Array.isArray(data)
+          const rawQuestions: any[] = Array.isArray(data)
             ? data.filter(Boolean)
-            : Object.values(data);
-          setQuestions(loadedQuestions);
+            : Object.values(data || {});
+
+          // Randomize questions pool
+          const shuffled = rawQuestions.sort(() => Math.random() - 0.5);
+          setQuestions(shuffled);
         }
       } catch (error) {
         console.error("Error fetching test questions from RTDB:", error);
@@ -52,7 +99,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     return () => { isMounted = false; };
   }, [testPath]);
 
-  // Circular Timer Logic
+  // Timer logic per question
   useEffect(() => {
     if (loading || questions.length === 0) return;
 
@@ -69,18 +116,24 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentIndex, loading]);
+  }, [currentIndex, loading, questions.length]);
 
   const handleOptionClick = (index: number) => {
     if (selectedOption !== null) return;
 
     setSelectedOption(index);
     const currentQ = questions[currentIndex];
-    const correct = index === Number(currentQ.correctAnswer) || index.toString() === currentQ.correctAnswer.toString();
+    const correctIdx = getCorrectIndex(currentQ);
+    const correct = index === correctIdx;
 
     setIsAnswerCorrect(correct);
     if (correct) {
       setScore((prev) => prev + 1);
+      setSessionCoins((prev) => prev + 4);
+      syncShikenCoins(4);
+    } else {
+      setSessionCoins((prev) => Math.max(0, prev - 2));
+      syncShikenCoins(-2);
     }
   };
 
@@ -121,19 +174,25 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   }
 
   const currentQ = questions[currentIndex];
+  const optionsList = getOptions(currentQ);
+  const correctIdx = getCorrectIndex(currentQ);
   const progressPercent = ((currentIndex + 1) / questions.length) * 100;
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-[#0f172a] text-white flex flex-col justify-between p-4 font-sans select-none">
-      {/* Top Header: Close, Progress bar & Circular Timer */}
+      {/* Top Header: Close, Coins, Progress Bar & Timer */}
       <div>
-        <div className="flex items-center justify-between mb-4 pt-2">
+        <div className="flex items-center justify-between mb-3 pt-2">
           <button onClick={onBack} className="text-white/40 hover:text-white text-xl font-bold transition-colors">
             ✕
           </button>
           
+          <div className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
+            🪙 <span>+{sessionCoins}</span>
+          </div>
+
           {/* Progress Bar */}
-          <div className="flex-1 mx-4 h-3 bg-white/10 rounded-full overflow-hidden">
+          <div className="flex-1 mx-3 h-3 bg-white/10 rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-emerald-500 rounded-full"
               initial={{ width: 0 }}
@@ -142,37 +201,36 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
             />
           </div>
 
-          {/* Round Circular Timer */}
-          <div className="relative w-10 h-10 flex items-center justify-center rounded-full border-2 border-emerald-500 bg-emerald-500/10">
+          {/* Circular Timer */}
+          <div className="relative w-9 h-9 flex items-center justify-center rounded-full border-2 border-emerald-500 bg-emerald-500/10 shrink-0">
             <span className="text-xs font-black text-emerald-400">{timeLeft}s</span>
           </div>
         </div>
-        {testTitle && <p className="text-center text-xs text-white/40 font-semibold uppercase tracking-wider">{testTitle}</p>}
+        {testTitle && <p className="text-center text-xs text-white/40 font-semibold uppercase tracking-wider mb-2">{testTitle}</p>}
       </div>
 
       {/* Center Content: Mascot & Question Card */}
-      <div className="flex-1 flex flex-col justify-center py-4">
-        <div className="flex items-start space-x-3 mb-6">
+      <div className="flex-1 flex flex-col justify-center py-2">
+        <div className="flex items-start space-x-3 mb-5">
           <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shrink-0 shadow-inner">
             🦉
           </div>
           <div className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl text-white text-base font-semibold leading-relaxed shadow-sm">
-            {currentQ.question}
+            {getQuestionText(currentQ)}
           </div>
         </div>
 
-        {/* Optional SVG Support */}
+        {/* SVG Diagram Support */}
         {currentQ.svg && (
-          <div className="mb-6 flex justify-center bg-white/5 p-3 rounded-2xl border border-white/10" dangerouslySetInnerHTML={{ __html: currentQ.svg }} />
+          <div className="mb-5 flex justify-center bg-white/5 p-3 rounded-2xl border border-white/10" dangerouslySetInnerHTML={{ __html: currentQ.svg }} />
         )}
 
-        {/* Options Cards */}
+        {/* Safe Options Render */}
         <div className="space-y-3">
-          {currentQ.options?.map((option, idx) => {
+          {optionsList.map((option: string, idx: number) => {
             let optionStyle = "bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:border-white/20";
             if (selectedOption !== null) {
-              const correctIdx = Number(currentQ.correctAnswer);
-              if (idx === correctIdx || idx.toString() === currentQ.correctAnswer.toString()) {
+              if (idx === correctIdx) {
                 optionStyle = "bg-emerald-500/20 border-emerald-500 text-emerald-300";
               } else if (idx === selectedOption) {
                 optionStyle = "bg-rose-500/20 border-rose-500 text-rose-300";
@@ -199,28 +257,28 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         </div>
       </div>
 
-      {/* Bottom Feedback Footer */}
+      {/* Bottom Feedback Footer with Coin Feedback */}
       <AnimatePresence>
         {selectedOption !== null && (
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className={`p-5 rounded-t-3xl -mx-4 -mb-4 mt-4 flex items-center justify-between ${
+            className={`p-4 rounded-2xl mt-4 flex items-center justify-between ${
               isAnswerCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
             }`}
           >
             <div>
-              <p className="font-black text-lg flex items-center gap-2">
-                {isAnswerCorrect ? '🎉 Sahi jawab!' : '❌ Galat jawab'}
+              <p className="font-black text-base flex items-center gap-2">
+                {isAnswerCorrect ? '🎉 Sahi jawab! (+4 Coins)' : '❌ Galat jawab (-2 Coins)'}
               </p>
               {currentQ.explanation && (
-                <p className="text-xs opacity-90 mt-1 max-w-[240px] truncate">{currentQ.explanation}</p>
+                <p className="text-xs opacity-90 mt-0.5 max-w-[220px] truncate">{currentQ.explanation}</p>
               )}
             </div>
             <button
               onClick={handleNext}
-              className="px-6 py-3 bg-white text-slate-900 font-bold rounded-2xl shadow-lg hover:bg-slate-100 transition-colors text-sm"
+              className="px-5 py-2.5 bg-white text-slate-900 font-bold rounded-xl shadow-lg hover:bg-slate-100 transition-colors text-xs"
             >
               Continue →
             </button>
@@ -230,3 +288,4 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     </div>
   );
 };
+export default DuolingoTestScreen;
