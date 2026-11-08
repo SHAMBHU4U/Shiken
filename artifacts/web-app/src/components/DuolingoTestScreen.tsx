@@ -22,70 +22,35 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [splashAnim, setSplashAnim] = useState<{ text: string; type: 'win' | 'loss' } | null>(null);
 
-  // Audio effect helper using Web Audio API (No external sound files required)
-  const playSound = (type: 'win' | 'loss') => {
-    try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-
-      if (type === 'win') {
-        // Success coin chime (Two pleasant ascending notes)
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1); // A5
-        
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
-      } else {
-        // Error alert sound (Low descending buzz)
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        osc.frequency.setValueAtTime(90, ctx.currentTime + 0.15);
-
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start();
-        osc.stop(ctx.currentTime + 0.25);
-      }
-    } catch (e) {
-      console.error("Audio playback error:", e);
-    }
-  };
-
-  // Robust Question Text Extractor
+  // Ultimate Question Text Extractor (Checks all possible text fields + prints to console for inspection)
   const getQuestionText = (q: any): string => {
-    if (!q) return "Question not found";
+    if (!q) return "Question object is empty";
+    
+    // Console log to see exact fields if it ever fails
+    console.log("Current Question Object from Firebase:", q);
+
     if (lang === 'hi') {
-      const hiText = q.hindi || q.hi?.question || q.questionTextHi;
+      const hiText = q.hindi || q.hi?.question || q.questionHindi || q.hiText;
       if (hiText) return hiText;
     }
-    const enText = q.question || q.english || q.en?.question || q.text || q.title || q.que;
-    if (enText) return enText;
-    if (typeof q === 'string') return q;
+
+    // Check all standard and alternative keys
+    const text = q.question || q.english || q.en?.question || q.text || q.title || q.que || q.statement || q.qText;
+    if (text) return text;
+
+    // If q itself has string properties or values, find the first string that looks like a question
+    const values = Object.values(q);
+    const foundString = values.find(val => typeof val === 'string' && val.length > 5 && !Array.isArray(q.options) && val !== q.correctAnswer);
+    if (foundString) return foundString as string;
+
     return "Question text unavailable";
   };
 
-  // Robust Options Extractor
   const getOptions = (q: any): string[] => {
     if (!q) return [];
     let opts = lang === 'hi' 
       ? (q.hindiOptions || q.hi?.options || q.options)
-      : (q.options || q.en?.options || q.choices);
+      : (q.options || q.en?.options || q.choices || q.optionList);
 
     if (Array.isArray(opts)) return opts;
     if (opts && typeof opts === 'object') return Object.values(opts);
@@ -107,6 +72,42 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     return 0;
   };
 
+  const playSound = (type: 'win' | 'loss') => {
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+
+      if (type === 'win') {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } else {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, ctx.currentTime);
+        osc.frequency.setValueAtTime(90, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.25);
+      }
+    } catch (e) {
+      console.error("Audio playback error:", e);
+    }
+  };
+
   const syncShikenCoins = (delta: number) => {
     try {
       const stored = localStorage.getItem("shiken_coins");
@@ -126,14 +127,18 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         const snapshot = await get(ref(db, testPath));
         if (snapshot.exists() && isMounted) {
           const data = snapshot.val();
-          
+          console.log("Fetched raw data from RTDB path:", testPath, data);
+
           let rawQuestions: any[] = [];
           if (Array.isArray(data)) {
             rawQuestions = data.filter(Boolean);
           } else if (data && typeof data === 'object') {
             rawQuestions = Object.values(data).flatMap(item => {
-              if (item && typeof item === 'object' && !Array.isArray(item) && !item.question && !item.options) {
-                return Object.values(item);
+              if (item && typeof item === 'object' && !Array.isArray(item)) {
+                // Check if it's a nested dictionary of questions
+                if (!item.question && !item.text && !item.english && !item.hindi) {
+                  return Object.values(item);
+                }
               }
               return item;
             }).filter(Boolean);
@@ -185,12 +190,12 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
       setSessionCoins((prev) => prev + 4);
       syncShikenCoins(4);
       setSplashAnim({ text: "+4 🪙", type: 'win' });
-      playSound('win'); // Play success chime
+      playSound('win');
     } else {
       setSessionCoins((prev) => Math.max(0, prev - 2));
       syncShikenCoins(-2);
       setSplashAnim({ text: "-2 🪙", type: 'loss' });
-      playSound('loss'); // Play alert error sound
+      playSound('loss');
     }
 
     setTimeout(() => setSplashAnim(null), 1200);
