@@ -22,48 +22,46 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [splashAnim, setSplashAnim] = useState<{ text: string; type: 'win' | 'loss' } | null>(null);
 
-  // Specific & Direct Question Text Extractor
+  // Exact matching with database keys: question_english & question_hindi
   const getQuestionText = (q: any): string => {
     if (!q) return "Question text unavailable";
-    if (lang === 'hi' && (q.hindi || q.hi?.question)) {
-      return q.hindi || q.hi?.question;
+    if (lang === 'hi') {
+      return q.question_hindi || q.hindi || q.question || "प्रश्न उपलब्ध नहीं है";
     }
-    return q.question || q.english || q.en?.question || q.text || q.title || q.que || Object.values(q).find(v => typeof v === 'string' && v.length > 5) || "Question text unavailable";
+    return q.question_english || q.question || q.english || "Question text unavailable";
   };
 
-  // Specific & Direct Options Extractor
+  // Extract options array or object safely from 'options' key
   const getOptions = (q: any): string[] => {
     if (!q) return [];
-    let opts = lang === 'hi' 
-      ? (q.hindiOptions || q.hi?.options || q.options)
-      : (q.options || q.en?.options || q.choices || q.optionList);
-
+    const opts = q.options;
     if (Array.isArray(opts)) return opts.filter(Boolean);
     if (opts && typeof opts === 'object') return Object.values(opts).filter(Boolean);
-    
-    // Fallback: search any array inside the question object
-    const foundArray = Object.values(q).find(val => Array.isArray(val) && val.length >= 2);
-    if (foundArray) return foundArray as string[];
-
-    return ["Option A", "Option B", "Option C", "Option D"];
+    return [];
   };
 
-  // Specific & Direct Correct Answer Index Finder
+  // Convert correct_answer ("A", "B", "C", "D" or index) to number index (0, 1, 2, 3)
   const getCorrectIndex = (q: any): number => {
     if (!q) return 0;
-    if (typeof q.correctOptionIndex === 'number') return q.correctOptionIndex;
-    if (typeof q.answerIndex === 'number') return q.answerIndex;
-    if (typeof q.correctAnswer === 'number') return q.correctAnswer;
-    if (typeof q.correctIndex === 'number') return q.correctIndex;
+    const ans = q.correct_answer ?? q.correctAnswer;
     
-    if (typeof q.correctAnswer === 'string') {
-      const parsed = parseInt(q.correctAnswer, 10);
+    if (typeof ans === 'number') return ans;
+    if (typeof ans === 'string') {
+      const upper = ans.trim().toUpperCase();
+      if (upper === 'A') return 0;
+      if (upper === 'B') return 1;
+      if (upper === 'C') return 2;
+      if (upper === 'D') return 3;
+      
+      const parsed = parseInt(ans, 10);
       if (!isNaN(parsed)) return parsed;
+      
+      // Match with option text if answer is exact string
       const opts = getOptions(q);
-      const matchedIdx = opts.findIndex(o => o.toString().trim().toLowerCase() === q.correctAnswer.toString().trim().toLowerCase());
+      const matchedIdx = opts.findIndex(o => o.toString().trim().toLowerCase() === ans.toString().trim().toLowerCase());
       if (matchedIdx !== -1) return matchedIdx;
     }
-    return 0; // Default to first option if not specified
+    return 0;
   };
 
   const playSound = (type: 'win' | 'loss') => {
@@ -114,7 +112,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     }
   };
 
-  // Direct Fetching without aggressive filtering
+  // Fetch data and filter out items that have question_english
   useEffect(() => {
     let isMounted = true;
     const fetchQuestions = async () => {
@@ -125,25 +123,18 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
           
           let rawList: any[] = [];
           if (Array.isArray(data)) {
-            rawList = data.filter(Boolean);
+            rawList = data;
           } else if (data && typeof data === 'object') {
-            rawList = Object.values(data).flatMap(item => {
-              if (item && typeof item === 'object' && !Array.isArray(item)) {
-                // If container has sub-items, take them
-                if (!item.question && !item.options && !item.choices) {
-                  return Object.values(item);
-                }
-              }
-              return item;
-            }).filter(Boolean);
+            rawList = Object.values(data);
           }
 
-          // Fallback if list is empty, wrap data itself
-          if (rawList.length === 0 && data) {
-            rawList = [data];
-          }
+          // Filter only valid questions having question_english and options
+          const validQuestions = rawList.filter(item => {
+            if (!item || typeof item !== 'object') return false;
+            return (item.question_english || item.question) && item.options;
+          });
 
-          const shuffled = rawList.sort(() => Math.random() - 0.5);
+          const shuffled = validQuestions.sort(() => Math.random() - 0.5);
           setQuestions(shuffled);
         }
       } catch (error) {
@@ -227,7 +218,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   if (questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-800 p-4 text-center">
-        <p className="text-lg font-bold mb-2">No questions available</p>
+        <p className="text-lg font-bold mb-2">No valid questions available</p>
         <button onClick={onBack} className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl shadow-md hover:bg-emerald-600 transition-all">
           Go Back
         </button>
@@ -341,7 +332,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         </div>
       </div>
 
-      {/* Bottom Feedback & Continue Button (No Step-by-Step Explanation) */}
+      {/* Bottom Feedback & Continue Button (No Explanations) */}
       <AnimatePresence>
         {selectedOption !== null && (
           <motion.div
