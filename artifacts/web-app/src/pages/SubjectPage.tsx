@@ -15,6 +15,7 @@ import UpgradeModal from "../components/UpgradeModal";
 import { normalizeChapter, getCanonicalChapters } from "@/lib/chapterMap";
 import { saveQuestionsToCache, loadQuestionsFromCache } from "@/lib/questionCache";
 import { createPortal } from 'react-dom';
+import { DuolingoTestScreen } from '@/components/DuolingoTestScreen';
 
 const CHAPTER_ICONS: Record<string, string> = {
   // Language / Generic
@@ -1949,6 +1950,10 @@ export default function SubjectPage() {
   const [mode, setMode]           = useState<"full" | "chapter" | "ai" | "mini">("full");
   const [selectedChapter, setSelectedChapter] = useState("");
 
+  // ── Duolingo Test State ────────────────────────────────────────────────────
+  const [duolingoTestPath, setDuolingoTestPath] = useState<string | null>(null);
+  const [duolingoTestTitle, setDuolingoTestTitle] = useState<string>("");
+
   // Active quiz state
   const [questions, setQuestions]       = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -2058,7 +2063,23 @@ export default function SubjectPage() {
   }, [subject, classId]);
 
   // ── Fetch questions ──────────────────────────────────────────────────────────
-  useEffect(() => {
+  useEffect(() => { // ── Agar Duolingo Test active hai, toh direct Duolingo screen dikhao ──
+  if (duolingoTestPath) {
+    return (
+      <DuolingoTestScreen
+        testPath={duolingoTestPath}
+        testTitle={duolingoTestTitle}
+        onBack={() => {
+          setDuolingoTestPath(null);
+          setDuolingoTestTitle("");
+        }}
+        onComplete={(score, total) => {
+          console.log(`Duolingo Test completed! Score: ${score}/${total}`);
+          refreshHistory();
+        }}
+      />
+    );
+  }
     if (!meta) {
       const fallback = demoQuestions[subject] ?? demoQuestions.maths;
       setAllQuestions(fallback);
@@ -2330,8 +2351,8 @@ export default function SubjectPage() {
     }
     setScreen("quiz");
   }
-
-  function startMiniTest(chapter = "All Chapters") {
+  
+    function startMiniTest(chapter = "All Chapters") {
     // ── Daily limit: free users get 1 mini test per 24 hours ─────────────────
     if (!isSubjectPrem) {
       const remaining = getDailyMiniTimeRemaining(dailyMiniKey);
@@ -2345,24 +2366,16 @@ export default function SubjectPage() {
     setDailyMiniCooldown(null);
     clearProgress(subject);
     setSavedProgress(null);
-    setMode("mini");
-    setSelectedChapter(chapter);
-    setPassageTitle("");
-    setPassageText("");
-    setShowPassageInQuiz(false);
-    const pool = chapter === "All Chapters" ? allQuestions : allQuestions.filter(q => q.chapter === chapter);
-    const picked = pick(pool.length > 0 ? pool : allQuestions, 10);
-    setQuestions(picked);
-    setCurrentIndex(0);
-    setAnswers({});
-    setSelectedOption(null);
-    setDirection(1);
-    setTimerLeft(10 * 60);
-    setTimerHidden(false);
-    saveProgress(subject, { mode: "mini", chapter, questions: picked, currentIndex: 0, answers: {}, timestamp: Date.now(), timerLeft: 10 * 60 });
-    setScreen("quiz");
-  }
 
+    // ── Duolingo Test Screen Integration ─────────────────────────────────
+    const basePath = meta?.path ?? subject;
+    const chapterSlug = chapter === "All Chapters" ? "" : toChapterSlug(chapter);
+    const targetPath = chapterSlug ? `${basePath}/${chapterSlug}` : basePath;
+
+    setDuolingoTestTitle(`Mini Test · ${chapter}`);
+    setDuolingoTestPath(targetPath);
+  }
+  
   async function startComprehensionTest() {
     clearProgress(subject);
     setSavedProgress(null);
@@ -2578,42 +2591,14 @@ export default function SubjectPage() {
     setSavedProgress(null);
     setMode("ai");
     setSelectedChapter(chapter);
-    setScreen("ai-generating");
 
-    // Preserve the "Generating…" UX feel with a short delay
-    await new Promise<void>((resolve) => setTimeout(resolve, 700));
+    // ── Duolingo Practice Mode Integration ────────────────────────────────
+    const basePath = meta?.path ?? subject;
+    const chapterSlug = chapter === "All Chapters" || chapter === "General" ? "" : toChapterSlug(chapter);
+    const targetPath = chapterSlug ? `${basePath}/${chapterSlug}` : basePath;
 
-    try {
-      // ── Pick 5 random questions from the already-loaded DB pool ──────────────
-      // Filter to the selected chapter; "All Chapters" / "General" uses the full pool.
-      const isAllChapters = !chapter || chapter === "All Chapters" || chapter === "General";
-      const pool = isAllChapters
-        ? allQuestions
-        : allQuestions.filter(
-            (q) =>
-              !q.chapter ||
-              q.chapter.toLowerCase() === chapter.toLowerCase() ||
-              q.chapter === "General"
-          );
-
-      // Shuffle and take up to 5; if fewer exist just use all of them
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
-      const picked   = shuffled.slice(0, 5);
-
-      if (picked.length === 0) throw new Error("No questions available for this chapter");
-
-      const qs: Question[] = picked.map((q) => ({ ...q, chapter }));
-      setQuestions(qs);
-      setCurrentIndex(0);
-      setAnswers({});
-      setSelectedOption(null);
-      setDirection(1);
-      setTimerLeft(-1);
-      setTimerHidden(false);
-      setScreen("quiz");
-    } catch {
-      setScreen("mode-select");
-    }
+    setDuolingoTestTitle(`Shiken Practice · ${chapter}`);
+    setDuolingoTestPath(targetPath);
   }
 
   // ── Quiz handlers ─────────────────────────────────────────────────────────────
