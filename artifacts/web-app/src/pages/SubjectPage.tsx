@@ -2643,6 +2643,22 @@ export default function SubjectPage() {
 
 
   // ── Render guards ─────────────────────────────────────────────────────────────
+  // 🌟 Duolingo check ko sabse upar rakhein
+  if (duolingoTestPath) {
+    return (
+      <DuolingoTestScreen
+        testPath={duolingoTestPath}
+        testTitle={duolingoTestTitle}
+        onBack={() => {
+          setDuolingoTestPath(null);
+          setDuolingoTestTitle("");
+        }}
+        onComplete={(score, total) => {
+          console.log(`Test completed! Score: ${score}/${total}`);
+        }}
+      />
+    );
+  }
   if (!meta) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--app-bg)" }}>
