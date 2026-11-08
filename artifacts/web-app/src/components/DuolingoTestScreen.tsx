@@ -13,21 +13,22 @@ interface Question {
 }
 
 interface DuolingoTestScreenProps {
-  testPath: string; // Jaise 'class10/science' ya 'c10/maths'
+  testPath: string; // RTDB path (e.g., 'class10/science' or 'c10/maths')
+  testTitle?: string;
   onBack: () => void;
   onComplete?: (score: number, total: number) => void;
 }
 
-export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath, onBack, onComplete }) => {
+export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath, testTitle, onBack, onComplete }) => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(15); // Duolingo style circular round timer per question
+  const [timeLeft, setTimeLeft] = useState(15); // Circular round timer
 
-  // 1. Fetching Questions directly from Firebase RTDB (No AI generation lag)
+  // Fetching questions directly from Firebase RTDB (No AI latency, direct NCERT/SCERT data)
   useEffect(() => {
     let isMounted = true;
     const fetchQuestions = async () => {
@@ -41,7 +42,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
           setQuestions(loadedQuestions);
         }
       } catch (error) {
-        console.error("Error fetching test questions:", error);
+        console.error("Error fetching test questions from RTDB:", error);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -51,7 +52,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     return () => { isMounted = false; };
   }, [testPath]);
 
-  // 2. Circular Timer Logic
+  // Circular Timer Logic
   useEffect(() => {
     if (loading || questions.length === 0) return;
 
@@ -60,7 +61,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          handleNext(); // Auto advance when time runs out
+          handleNext();
           return 0;
         }
         return prev - 1;
@@ -71,7 +72,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   }, [currentIndex, loading]);
 
   const handleOptionClick = (index: number) => {
-    if (selectedOption !== null) return; // Prevent changing choice once selected
+    if (selectedOption !== null) return;
 
     setSelectedOption(index);
     const currentQ = questions[currentIndex];
@@ -90,7 +91,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
       setCurrentIndex((prev) => prev + 1);
     } else {
       if (onComplete) onComplete(score, questions.length);
-      onBack(); // Return to previous screen once finished
+      onBack();
     }
   };
 
@@ -102,7 +103,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
           className="w-8 h-8 rounded-full border-2 border-transparent border-t-emerald-500 border-r-emerald-500 mb-3"
         />
-        <p className="text-sm text-white/40 font-medium">Loading questions from database...</p>
+        <p className="text-sm text-white/40 font-medium">Loading questions from Database...</p>
       </div>
     );
   }
@@ -110,8 +111,8 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   if (questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-white p-4 text-center">
-        <p className="text-base font-bold mb-2">No questions found</p>
-        <p className="text-xs text-white/40 mb-5">This practice section doesn't have questions yet.</p>
+        <p className="text-base font-bold mb-2">No questions available</p>
+        <p className="text-xs text-white/40 mb-5">This test section has no questions loaded yet.</p>
         <button onClick={onBack} className="px-5 py-2.5 bg-emerald-600 rounded-xl text-sm font-bold text-white">
           Go Back
         </button>
@@ -146,11 +147,11 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
             <span className="text-xs font-black text-emerald-400">{timeLeft}s</span>
           </div>
         </div>
+        {testTitle && <p className="text-center text-xs text-white/40 font-semibold uppercase tracking-wider">{testTitle}</p>}
       </div>
 
       {/* Center Content: Mascot & Question Card */}
       <div className="flex-1 flex flex-col justify-center py-4">
-        {/* Minimalist Mascot Avatar + Question bubble */}
         <div className="flex items-start space-x-3 mb-6">
           <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shrink-0 shadow-inner">
             🦉
@@ -160,12 +161,12 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
           </div>
         </div>
 
-        {/* Optional SVG Graphic / Diagram Support */}
+        {/* Optional SVG Support */}
         {currentQ.svg && (
           <div className="mb-6 flex justify-center bg-white/5 p-3 rounded-2xl border border-white/10" dangerouslySetInnerHTML={{ __html: currentQ.svg }} />
         )}
 
-        {/* Duolingo Style Options Cards */}
+        {/* Options Cards */}
         <div className="space-y-3">
           {currentQ.options?.map((option, idx) => {
             let optionStyle = "bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:border-white/20";
@@ -198,7 +199,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         </div>
       </div>
 
-      {/* Bottom Feedback Footer (Slides up when answered) */}
+      {/* Bottom Feedback Footer */}
       <AnimatePresence>
         {selectedOption !== null && (
           <motion.div
