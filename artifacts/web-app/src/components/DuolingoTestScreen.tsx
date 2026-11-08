@@ -22,38 +22,27 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [splashAnim, setSplashAnim] = useState<{ text: string; type: 'win' | 'loss' } | null>(null);
 
-  // Ultimate Question Text Extractor (Checks all possible text fields + prints to console for inspection)
+  // Safe Question Text Extractor
   const getQuestionText = (q: any): string => {
-    if (!q) return "Question object is empty";
+    if (!q) return "Question text unavailable";
     
-    // Console log to see exact fields if it ever fails
-    console.log("Current Question Object from Firebase:", q);
-
     if (lang === 'hi') {
       const hiText = q.hindi || q.hi?.question || q.questionHindi || q.hiText;
       if (hiText) return hiText;
     }
 
-    // Check all standard and alternative keys
-    const text = q.question || q.english || q.en?.question || q.text || q.title || q.que || q.statement || q.qText;
-    if (text) return text;
-
-    // If q itself has string properties or values, find the first string that looks like a question
-    const values = Object.values(q);
-    const foundString = values.find(val => typeof val === 'string' && val.length > 5 && !Array.isArray(q.options) && val !== q.correctAnswer);
-    if (foundString) return foundString as string;
-
-    return "Question text unavailable";
+    return q.question || q.english || q.en?.question || q.text || q.title || q.que || q.statement || "Question text unavailable";
   };
 
+  // Safe Options Extractor (Handles Array & Object maps)
   const getOptions = (q: any): string[] => {
     if (!q) return [];
     let opts = lang === 'hi' 
       ? (q.hindiOptions || q.hi?.options || q.options)
       : (q.options || q.en?.options || q.choices || q.optionList);
 
-    if (Array.isArray(opts)) return opts;
-    if (opts && typeof opts === 'object') return Object.values(opts);
+    if (Array.isArray(opts)) return opts.filter(Boolean);
+    if (opts && typeof opts === 'object') return Object.values(opts).filter(Boolean);
     return [];
   };
 
@@ -120,6 +109,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     }
   };
 
+  // Fetch questions and strictly filter out non-question nodes (like chapter headers/strings)
   useEffect(() => {
     let isMounted = true;
     const fetchQuestions = async () => {
@@ -127,16 +117,15 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         const snapshot = await get(ref(db, testPath));
         if (snapshot.exists() && isMounted) {
           const data = snapshot.val();
-          console.log("Fetched raw data from RTDB path:", testPath, data);
-
-          let rawQuestions: any[] = [];
+          
+          let rawList: any[] = [];
           if (Array.isArray(data)) {
-            rawQuestions = data.filter(Boolean);
+            rawList = data.filter(Boolean);
           } else if (data && typeof data === 'object') {
-            rawQuestions = Object.values(data).flatMap(item => {
+            rawList = Object.values(data).flatMap(item => {
               if (item && typeof item === 'object' && !Array.isArray(item)) {
-                // Check if it's a nested dictionary of questions
-                if (!item.question && !item.text && !item.english && !item.hindi) {
+                // If it's a sub-category or container, flatten its values
+                if (!item.question && !item.text && !item.english && !item.options && !item.choices) {
                   return Object.values(item);
                 }
               }
@@ -144,7 +133,15 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
             }).filter(Boolean);
           }
 
-          const shuffled = rawQuestions.sort(() => Math.random() - 0.5);
+          // STRICT FILTER: Keep only items that have valid options/choices array or object
+          const validQuestions = rawList.filter(item => {
+            if (!item || typeof item !== 'object') return false;
+            const hasOpts = item.options || item.choices || item.en?.options || item.hindiOptions;
+            const hasText = item.question || item.english || item.text || item.title || item.que;
+            return hasOpts && hasText;
+          });
+
+          const shuffled = validQuestions.sort(() => Math.random() - 0.5);
           setQuestions(shuffled);
         }
       } catch (error) {
@@ -228,7 +225,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   if (questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-800 p-4 text-center">
-        <p className="text-lg font-bold mb-2">No questions available</p>
+        <p className="text-lg font-bold mb-2">No valid questions available</p>
         <button onClick={onBack} className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl shadow-md hover:bg-emerald-600 transition-all">
           Go Back
         </button>
