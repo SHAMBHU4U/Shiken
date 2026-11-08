@@ -22,19 +22,16 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [splashAnim, setSplashAnim] = useState<{ text: string; type: 'win' | 'loss' } | null>(null);
 
-  // Safe Question Text Extractor
+  // Specific & Direct Question Text Extractor
   const getQuestionText = (q: any): string => {
     if (!q) return "Question text unavailable";
-    
-    if (lang === 'hi') {
-      const hiText = q.hindi || q.hi?.question || q.questionHindi || q.hiText;
-      if (hiText) return hiText;
+    if (lang === 'hi' && (q.hindi || q.hi?.question)) {
+      return q.hindi || q.hi?.question;
     }
-
-    return q.question || q.english || q.en?.question || q.text || q.title || q.que || q.statement || "Question text unavailable";
+    return q.question || q.english || q.en?.question || q.text || q.title || q.que || Object.values(q).find(v => typeof v === 'string' && v.length > 5) || "Question text unavailable";
   };
 
-  // Safe Options Extractor (Handles Array & Object maps)
+  // Specific & Direct Options Extractor
   const getOptions = (q: any): string[] => {
     if (!q) return [];
     let opts = lang === 'hi' 
@@ -43,14 +40,22 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
 
     if (Array.isArray(opts)) return opts.filter(Boolean);
     if (opts && typeof opts === 'object') return Object.values(opts).filter(Boolean);
-    return [];
+    
+    // Fallback: search any array inside the question object
+    const foundArray = Object.values(q).find(val => Array.isArray(val) && val.length >= 2);
+    if (foundArray) return foundArray as string[];
+
+    return ["Option A", "Option B", "Option C", "Option D"];
   };
 
+  // Specific & Direct Correct Answer Index Finder
   const getCorrectIndex = (q: any): number => {
     if (!q) return 0;
     if (typeof q.correctOptionIndex === 'number') return q.correctOptionIndex;
     if (typeof q.answerIndex === 'number') return q.answerIndex;
     if (typeof q.correctAnswer === 'number') return q.correctAnswer;
+    if (typeof q.correctIndex === 'number') return q.correctIndex;
+    
     if (typeof q.correctAnswer === 'string') {
       const parsed = parseInt(q.correctAnswer, 10);
       if (!isNaN(parsed)) return parsed;
@@ -58,7 +63,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
       const matchedIdx = opts.findIndex(o => o.toString().trim().toLowerCase() === q.correctAnswer.toString().trim().toLowerCase());
       if (matchedIdx !== -1) return matchedIdx;
     }
-    return 0;
+    return 0; // Default to first option if not specified
   };
 
   const playSound = (type: 'win' | 'loss') => {
@@ -109,7 +114,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     }
   };
 
-  // Fetch questions and strictly filter out non-question nodes (like chapter headers/strings)
+  // Direct Fetching without aggressive filtering
   useEffect(() => {
     let isMounted = true;
     const fetchQuestions = async () => {
@@ -124,8 +129,8 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
           } else if (data && typeof data === 'object') {
             rawList = Object.values(data).flatMap(item => {
               if (item && typeof item === 'object' && !Array.isArray(item)) {
-                // If it's a sub-category or container, flatten its values
-                if (!item.question && !item.text && !item.english && !item.options && !item.choices) {
+                // If container has sub-items, take them
+                if (!item.question && !item.options && !item.choices) {
                   return Object.values(item);
                 }
               }
@@ -133,15 +138,12 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
             }).filter(Boolean);
           }
 
-          // STRICT FILTER: Keep only items that have valid options/choices array or object
-          const validQuestions = rawList.filter(item => {
-            if (!item || typeof item !== 'object') return false;
-            const hasOpts = item.options || item.choices || item.en?.options || item.hindiOptions;
-            const hasText = item.question || item.english || item.text || item.title || item.que;
-            return hasOpts && hasText;
-          });
+          // Fallback if list is empty, wrap data itself
+          if (rawList.length === 0 && data) {
+            rawList = [data];
+          }
 
-          const shuffled = validQuestions.sort(() => Math.random() - 0.5);
+          const shuffled = rawList.sort(() => Math.random() - 0.5);
           setQuestions(shuffled);
         }
       } catch (error) {
@@ -225,7 +227,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   if (questions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-800 p-4 text-center">
-        <p className="text-lg font-bold mb-2">No valid questions available</p>
+        <p className="text-lg font-bold mb-2">No questions available</p>
         <button onClick={onBack} className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl shadow-md hover:bg-emerald-600 transition-all">
           Go Back
         </button>
@@ -339,7 +341,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         </div>
       </div>
 
-      {/* Bottom Feedback & Continue Button */}
+      {/* Bottom Feedback & Continue Button (No Step-by-Step Explanation) */}
       <AnimatePresence>
         {selectedOption !== null && (
           <motion.div
@@ -354,9 +356,6 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
               <p className="font-black text-lg flex items-center gap-2">
                 {isAnswerCorrect ? '🎉 Sahi jawab! (+4 Coins)' : '❌ Galat jawab (-2 Coins)'}
               </p>
-              {currentQ?.explanation && (
-                <p className="text-xs opacity-90 mt-1 max-w-[200px] truncate">{currentQ.explanation}</p>
-              )}
             </div>
             <button
               onClick={handleNext}
