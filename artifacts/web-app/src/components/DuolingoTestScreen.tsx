@@ -3,22 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { get, ref } from 'firebase/database';
 import { db } from '@/firebase';
 
-interface Question {
-  id?: string;
-  question?: string;
-  english?: string;
-  en?: {
-    question?: string;
-    options?: string[] | Record<string, string>;
-  };
-  options?: string[] | Record<string, string>;
-  correctAnswer?: number | string;
-  correctOptionIndex?: number;
-  answerIndex?: number;
-  explanation?: string;
-  svg?: string;
-}
-
 interface DuolingoTestScreenProps {
   testPath: string;
   testTitle?: string;
@@ -27,39 +11,53 @@ interface DuolingoTestScreenProps {
 }
 
 export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath, testTitle, onBack, onComplete }) => {
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
   const [score, setScore] = useState(0);
-  const [sessionCoins, setSessionCoins] = useState(0); // Live coins earned in this test
+  const [sessionCoins, setSessionCoins] = useState(0);
   const [loading, setLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState(15);
+  const [lang, setLang] = useState<'en' | 'hi'>('en'); // Language Toggle state
+  const [splashAnim, setSplashAnim] = useState<{ text: string; type: 'win' | 'loss' } | null>(null);
 
-  // Helper to extract options safely as an Array from any schema format
-  const getOptions = (q: Question): string[] => {
+  // Helper for Question Text based on language selection
+  const getQuestionText = (q: any): string => {
+    if (!q) return "Question text not found";
+    if (lang === 'hi') {
+      return q.hindi || q.hi?.question || q.question || q.english || "प्रश्न उपलब्ध नहीं है";
+    }
+    return q.question || q.english || q.en?.question || q.text || "Question text not available";
+  };
+
+  // Helper for Options based on language selection
+  const getOptions = (q: any): string[] => {
     if (!q) return [];
-    if (Array.isArray(q.options)) return q.options;
-    if (q.options && typeof q.options === 'object') return Object.values(q.options);
-    if (Array.isArray(q.en?.options)) return q.en.options;
-    if (q.en?.options && typeof q.en?.options === 'object') return Object.values(q.en.options);
+    let opts = lang === 'hi' 
+      ? (q.hindiOptions || q.hi?.options || q.options)
+      : (q.options || q.en?.options || q.choices);
+
+    if (Array.isArray(opts)) return opts;
+    if (opts && typeof opts === 'object') return Object.values(opts);
     return [];
   };
 
-  // Helper to extract question text safely
-  const getQuestionText = (q: Question): string => {
-    return q.question || q.english || q.en?.question || "Question";
-  };
-
-  // Helper to extract correct answer index safely
-  const getCorrectIndex = (q: Question): number => {
+  const getCorrectIndex = (q: any): number => {
+    if (!q) return 0;
     if (typeof q.correctOptionIndex === 'number') return q.correctOptionIndex;
     if (typeof q.answerIndex === 'number') return q.answerIndex;
-    if (q.correctAnswer !== undefined) return Number(q.correctAnswer);
+    if (typeof q.correctAnswer === 'number') return q.correctAnswer;
+    if (typeof q.correctAnswer === 'string') {
+      const parsed = parseInt(q.correctAnswer, 10);
+      if (!isNaN(parsed)) return parsed;
+      const opts = getOptions(q);
+      const matchedIdx = opts.findIndex(o => o.toString().trim().toLowerCase() === q.correctAnswer.toString().trim().toLowerCase());
+      if (matchedIdx !== -1) return matchedIdx;
+    }
     return 0;
   };
 
-  // Safe local coin update handler (+4 correct, -2 incorrect)
   const syncShikenCoins = (delta: number) => {
     try {
       const stored = localStorage.getItem("shiken_coins");
@@ -72,7 +70,6 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     }
   };
 
-  // Fetch questions safely from RTDB
   useEffect(() => {
     let isMounted = true;
     const fetchQuestions = async () => {
@@ -84,12 +81,11 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
             ? data.filter(Boolean)
             : Object.values(data || {});
 
-          // Randomize questions pool
           const shuffled = rawQuestions.sort(() => Math.random() - 0.5);
           setQuestions(shuffled);
         }
       } catch (error) {
-        console.error("Error fetching test questions from RTDB:", error);
+        console.error("Error fetching test questions:", error);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -99,9 +95,8 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     return () => { isMounted = false; };
   }, [testPath]);
 
-  // Timer logic per question
   useEffect(() => {
-    if (loading || questions.length === 0) return;
+    if (loading || questions.length === 0 || selectedOption !== null) return;
 
     setTimeLeft(15);
     const timer = setInterval(() => {
@@ -116,7 +111,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentIndex, loading, questions.length]);
+  }, [currentIndex, loading, questions.length, selectedOption]);
 
   const handleOptionClick = (index: number) => {
     if (selectedOption !== null) return;
@@ -131,10 +126,14 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
       setScore((prev) => prev + 1);
       setSessionCoins((prev) => prev + 4);
       syncShikenCoins(4);
+      setSplashAnim({ text: "+4 🪙", type: 'win' });
     } else {
       setSessionCoins((prev) => Math.max(0, prev - 2));
       syncShikenCoins(-2);
+      setSplashAnim({ text: "-2 🪙", type: 'loss' });
     }
+
+    setTimeout(() => setSplashAnim(null), 1200);
   };
 
   const handleNext = () => {
@@ -150,23 +149,22 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-white">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-800">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 rounded-full border-2 border-transparent border-t-emerald-500 border-r-emerald-500 mb-3"
+          className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-emerald-500 mb-3"
         />
-        <p className="text-sm text-white/40 font-medium">Loading questions from Database...</p>
+        <p className="text-sm text-slate-500 font-semibold">Loading questions...</p>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-white p-4 text-center">
-        <p className="text-base font-bold mb-2">No questions available</p>
-        <p className="text-xs text-white/40 mb-5">This test section has no questions loaded yet.</p>
-        <button onClick={onBack} className="px-5 py-2.5 bg-emerald-600 rounded-xl text-sm font-bold text-white">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-800 p-4 text-center">
+        <p className="text-lg font-bold mb-2">No questions available</p>
+        <button onClick={onBack} className="px-6 py-3 bg-emerald-500 text-white font-bold rounded-2xl shadow-md hover:bg-emerald-600 transition-all">
           Go Back
         </button>
       </div>
@@ -174,25 +172,52 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   }
 
   const currentQ = questions[currentIndex];
+  const questionText = getQuestionText(currentQ);
   const optionsList = getOptions(currentQ);
   const correctIdx = getCorrectIndex(currentQ);
   const progressPercent = ((currentIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-[#0f172a] text-white flex flex-col justify-between p-4 font-sans select-none">
-      {/* Top Header: Close, Coins, Progress Bar & Timer */}
+    <div className="max-w-md mx-auto min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-between p-4 font-sans select-none relative overflow-hidden">
+      
+      {/* Coin Splash Floating Animation */}
+      <AnimatePresence>
+        {splashAnim && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.5, y: 20 }}
+            animate={{ opacity: 1, scale: 1.3, y: -40 }}
+            exit={{ opacity: 0, scale: 0.8, y: -80 }}
+            className={`absolute top-20 right-10 z-50 px-4 py-2 rounded-2xl font-black text-xl shadow-2xl flex items-center gap-1 ${
+              splashAnim.type === 'win' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+            }`}
+          >
+            {splashAnim.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Top Header: Close, Language Toggle, Coins Wallet & Timer */}
       <div>
-        <div className="flex items-center justify-between mb-3 pt-2">
-          <button onClick={onBack} className="text-white/40 hover:text-white text-xl font-bold transition-colors">
+        <div className="flex items-center justify-between mb-3 pt-2 gap-2">
+          <button onClick={onBack} className="text-slate-400 hover:text-slate-700 text-xl font-bold transition-colors">
             ✕
           </button>
           
-          <div className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
-            🪙 <span>+{sessionCoins}</span>
+          {/* Language Toggle Button */}
+          <button 
+            onClick={() => setLang(lang === 'en' ? 'hi' : 'en')}
+            className="px-2.5 py-1 text-xs font-bold rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 transition-colors border border-slate-300"
+          >
+            {lang === 'en' ? '🇮🇳 हिंदी' : '🇬🇧 English'}
+          </button>
+
+          {/* Wallet / Coins Counter */}
+          <div className="text-xs font-black text-amber-600 bg-amber-500/10 px-3 py-1.5 rounded-full border border-amber-500/20 flex items-center gap-1 shadow-sm">
+            🪙 <span>{sessionCoins}</span>
           </div>
 
           {/* Progress Bar */}
-          <div className="flex-1 mx-3 h-3 bg-white/10 rounded-full overflow-hidden">
+          <div className="flex-1 mx-2 h-3.5 bg-slate-200 rounded-full overflow-hidden shadow-inner">
             <motion.div
               className="h-full bg-emerald-500 rounded-full"
               initial={{ width: 0 }}
@@ -201,41 +226,41 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
             />
           </div>
 
-          {/* Circular Timer */}
-          <div className="relative w-9 h-9 flex items-center justify-center rounded-full border-2 border-emerald-500 bg-emerald-500/10 shrink-0">
-            <span className="text-xs font-black text-emerald-400">{timeLeft}s</span>
+          {/* Timer */}
+          <div className="relative w-9 h-9 flex items-center justify-center rounded-full border-2 border-emerald-500 bg-emerald-50 font-black text-xs text-emerald-600 shrink-0 shadow-sm">
+            {timeLeft}s
           </div>
         </div>
-        {testTitle && <p className="text-center text-xs text-white/40 font-semibold uppercase tracking-wider mb-2">{testTitle}</p>}
+        {testTitle && <p className="text-center text-xs text-slate-400 font-bold uppercase tracking-wider mb-2">{testTitle}</p>}
       </div>
 
-      {/* Center Content: Mascot & Question Card */}
-      <div className="flex-1 flex flex-col justify-center py-2">
-        <div className="flex items-start space-x-3 mb-5">
-          <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shrink-0 shadow-inner">
+      {/* Center Content: Large Mascot & Question Card */}
+      <div className="flex-1 flex flex-col justify-center py-3">
+        <div className="flex items-start space-x-3 mb-6">
+          {/* Larger Mascot */}
+          <div className="w-16 h-16 rounded-3xl bg-emerald-100 border-2 border-emerald-300 flex items-center justify-center text-3xl shrink-0 shadow-md">
             🦉
           </div>
-          <div className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl text-white text-base font-semibold leading-relaxed shadow-sm">
-            {getQuestionText(currentQ)}
+          <div className="flex-1 bg-white border-2 border-slate-200 p-5 rounded-3xl text-slate-900 text-base font-bold leading-relaxed shadow-sm">
+            {questionText}
           </div>
         </div>
 
-        {/* SVG Diagram Support */}
         {currentQ.svg && (
-          <div className="mb-5 flex justify-center bg-white/5 p-3 rounded-2xl border border-white/10" dangerouslySetInnerHTML={{ __html: currentQ.svg }} />
+          <div className="mb-5 flex justify-center bg-white p-3 rounded-2xl border border-slate-200 shadow-sm" dangerouslySetInnerHTML={{ __html: currentQ.svg }} />
         )}
 
-        {/* Safe Options Render */}
+        {/* Options Cards (White Background with clean borders) */}
         <div className="space-y-3">
           {optionsList.map((option: string, idx: number) => {
-            let optionStyle = "bg-white/5 border-white/10 text-white/90 hover:bg-white/10 hover:border-white/20";
+            let optionStyle = "bg-white border-2 border-slate-200 text-slate-800 hover:bg-slate-100 hover:border-slate-300 shadow-sm";
             if (selectedOption !== null) {
               if (idx === correctIdx) {
-                optionStyle = "bg-emerald-500/20 border-emerald-500 text-emerald-300";
+                optionStyle = "bg-emerald-100 border-2 border-emerald-500 text-emerald-900 shadow-sm";
               } else if (idx === selectedOption) {
-                optionStyle = "bg-rose-500/20 border-rose-500 text-rose-300";
+                optionStyle = "bg-rose-100 border-2 border-rose-500 text-rose-900 shadow-sm";
               } else {
-                optionStyle = "bg-white/5 border-white/5 opacity-40 text-white/50";
+                optionStyle = "bg-slate-100 border-2 border-slate-200 opacity-40 text-slate-400";
               }
             }
 
@@ -245,9 +270,9 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleOptionClick(idx)}
                 disabled={selectedOption !== null}
-                className={`w-full p-4 rounded-2xl border-2 text-left font-medium transition-all flex items-center gap-3 ${optionStyle}`}
+                className={`w-full p-4 rounded-2xl text-left font-bold transition-all flex items-center gap-3 ${optionStyle}`}
               >
-                <span className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold text-white/60 shrink-0">
+                <span className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center text-xs font-black text-slate-600 shrink-0">
                   {String.fromCharCode(65 + idx)}
                 </span>
                 <span className="flex-1 text-sm">{option}</span>
@@ -257,28 +282,29 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         </div>
       </div>
 
-      {/* Bottom Feedback Footer with Coin Feedback */}
+      {/* Bottom Duolingo Style Feedback & Action Bar */}
       <AnimatePresence>
         {selectedOption !== null && (
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className={`p-4 rounded-2xl mt-4 flex items-center justify-between ${
-              isAnswerCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+            className={`p-5 rounded-3xl mt-4 flex items-center justify-between shadow-xl ${
+              isAnswerCorrect ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
             }`}
           >
             <div>
-              <p className="font-black text-base flex items-center gap-2">
+              <p className="font-black text-lg flex items-center gap-2">
                 {isAnswerCorrect ? '🎉 Sahi jawab! (+4 Coins)' : '❌ Galat jawab (-2 Coins)'}
               </p>
               {currentQ.explanation && (
-                <p className="text-xs opacity-90 mt-0.5 max-w-[220px] truncate">{currentQ.explanation}</p>
+                <p className="text-xs opacity-90 mt-1 max-w-[200px] truncate">{currentQ.explanation}</p>
               )}
             </div>
+            {/* Duolingo Green Continue Button */}
             <button
               onClick={handleNext}
-              className="px-5 py-2.5 bg-white text-slate-900 font-bold rounded-xl shadow-lg hover:bg-slate-100 transition-colors text-xs"
+              className="px-8 py-3 bg-white text-slate-900 font-black rounded-2xl shadow-lg hover:bg-slate-100 transition-all text-sm active:translate-y-0.5"
             >
               Continue →
             </button>
