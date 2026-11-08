@@ -22,25 +22,42 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
   const [lang, setLang] = useState<'en' | 'hi'>('en');
   const [splashAnim, setSplashAnim] = useState<{ text: string; type: 'win' | 'loss' } | null>(null);
 
-  // Exact matching with database keys: question_english & question_hindi
-  const getQuestionText = (q: any): string => {
-    if (!q) return "Question text unavailable";
-    if (lang === 'hi') {
-      return q.question_hindi || q.hindi || q.question || "प्रश्न उपलब्ध नहीं है";
-    }
-    return q.question_english || q.question || q.english || "Question text unavailable";
+  // LaTeX Cleaner to make math symbols readable (e.g., \frac{a}{b} -> a/b, \times -> ×, etc.)
+  const formatMathText = (text: string): string => {
+    if (!text || typeof text !== 'string') return text;
+    return text
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1 / $2')
+      .replace(/\\times/g, '×')
+      .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+      .replace(/\\le/g, '≤')
+      .replace(/\\ge/g, '≥')
+      .replace(/\\neq/g, '≠')
+      .replace(/\$/g, ''); // Remove stray dollar signs
   };
 
-  // Extract options array or object safely from 'options' key
+  const getQuestionText = (q: any): string => {
+    if (!q) return "Question text unavailable";
+    let raw = "";
+    if (lang === 'hi') {
+      raw = q.question_hindi || q.hindi || q.question || "प्रश्न उपलब्ध नहीं है";
+    } else {
+      raw = q.question_english || q.question || q.english || "Question text unavailable";
+    }
+    return formatMathText(raw);
+  };
+
   const getOptions = (q: any): string[] => {
     if (!q) return [];
     const opts = q.options;
-    if (Array.isArray(opts)) return opts.filter(Boolean);
-    if (opts && typeof opts === 'object') return Object.values(opts).filter(Boolean);
-    return [];
+    let list: string[] = [];
+    if (Array.isArray(opts)) {
+      list = opts.filter(Boolean);
+    } else if (opts && typeof opts === 'object') {
+      list = Object.values(opts).filter(Boolean);
+    }
+    return list.map(opt => formatMathText(String(opt)));
   };
 
-  // Convert correct_answer ("A", "B", "C", "D" or index) to number index (0, 1, 2, 3)
   const getCorrectIndex = (q: any): number => {
     if (!q) return 0;
     const ans = q.correct_answer ?? q.correctAnswer;
@@ -56,9 +73,9 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
       const parsed = parseInt(ans, 10);
       if (!isNaN(parsed)) return parsed;
       
-      // Match with option text if answer is exact string
-      const opts = getOptions(q);
-      const matchedIdx = opts.findIndex(o => o.toString().trim().toLowerCase() === ans.toString().trim().toLowerCase());
+      const opts = q.options;
+      const rawOpts = Array.isArray(opts) ? opts : (opts ? Object.values(opts) : []);
+      const matchedIdx = rawOpts.findIndex(o => formatMathText(String(o)).trim().toLowerCase() === formatMathText(ans).trim().toLowerCase());
       if (matchedIdx !== -1) return matchedIdx;
     }
     return 0;
@@ -112,7 +129,6 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
     }
   };
 
-  // Fetch data and filter out items that have question_english
   useEffect(() => {
     let isMounted = true;
     const fetchQuestions = async () => {
@@ -120,7 +136,6 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         const snapshot = await get(ref(db, testPath));
         if (snapshot.exists() && isMounted) {
           const data = snapshot.val();
-          
           let rawList: any[] = [];
           if (Array.isArray(data)) {
             rawList = data;
@@ -128,7 +143,6 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
             rawList = Object.values(data);
           }
 
-          // Filter only valid questions having question_english and options
           const validQuestions = rawList.filter(item => {
             if (!item || typeof item !== 'object') return false;
             return (item.question_english || item.question) && item.options;
@@ -332,7 +346,7 @@ export const DuolingoTestScreen: React.FC<DuolingoTestScreenProps> = ({ testPath
         </div>
       </div>
 
-      {/* Bottom Feedback & Continue Button (No Explanations) */}
+      {/* Bottom Feedback & Continue Button */}
       <AnimatePresence>
         {selectedOption !== null && (
           <motion.div
